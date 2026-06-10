@@ -24,11 +24,16 @@ export function EmptyState({ page }: { page: string }) {
       >
         <circle cx="14" cy="14" r="12.5" stroke="url(#egrad)" strokeWidth="1.2" />
         <path
-          d="M7.5 19 V9.5 L14 15.5 L20.5 9.5 V19"
+          d="M9 19.5 V8.5 M19 19.5 V8.5"
           stroke="url(#egrad)"
-          strokeWidth="1.4"
+          strokeWidth="1.5"
           strokeLinecap="round"
-          strokeLinejoin="round"
+        />
+        <path
+          d="M9 15.2 L19 12.8"
+          stroke="url(#egrad)"
+          strokeWidth="1.5"
+          strokeLinecap="round"
         />
         <defs>
           <linearGradient id="egrad" x1="0" y1="0" x2="28" y2="28">

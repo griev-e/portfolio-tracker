@@ -66,7 +66,9 @@ export function Gauge({
           strokeWidth={7}
           fill="none"
           strokeLinecap="round"
-          style={{ filter: `drop-shadow(0 0 6px ${color}55)` }}
+          style={{
+            filter: `drop-shadow(0 0 6px color-mix(in srgb, ${color} 35%, transparent))`,
+          }}
           initial={{ pathLength: 0 }}
           animate={{ pathLength: frac }}
           transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}

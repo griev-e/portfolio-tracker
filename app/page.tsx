@@ -179,9 +179,10 @@ export default function OverviewPage() {
           <div className="mt-4 grid grid-cols-3 gap-3 border-t border-edge pt-4">
             <Stat
               label="Top holding"
-              value={risk.topWeight}
+              value={Math.max(...portfolio.positions.map((p) => p.weight), 0)}
               format={(v) => fmtPct(v, 1)}
               size="sm"
+              sub="of portfolio"
             />
             <Stat
               label="Effective N"
@@ -232,7 +233,7 @@ export default function OverviewPage() {
                   </th>
                 ))}
                 <th className="px-6 py-3 font-mono text-[10px] uppercase tracking-[0.14em] text-faint text-right">
-                  Shares · Px · Cost
+                  Shares · Basis
                 </th>
               </tr>
             </thead>
@@ -298,7 +299,7 @@ function HoldingRow({ p, i }: { p: Position; i: number }) {
         {fmtUSD(p.totalReturn)}
       </td>
       <td className="px-6 py-3.5 text-right font-mono tnum text-[12px] text-mute">
-        {fmtShares(p.shares)} · {fmtUSD(p.price)} · {fmtUSD(p.averageCost)}
+        {fmtShares(p.shares)} · {fmtUSD(p.costBasis)}
       </td>
     </motion.tr>
   );

@@ -68,6 +68,7 @@ export function Heatmap({
             key={rowSym}
             rowSym={rowSym}
             i={i}
+            n={n}
             matrix={matrix}
             hover={hover}
             setHover={setHover}
@@ -111,6 +112,7 @@ export function Heatmap({
 function Row({
   rowSym,
   i,
+  n,
   matrix,
   hover,
   setHover,
@@ -118,11 +120,15 @@ function Row({
 }: {
   rowSym: string;
   i: number;
+  n: number;
   matrix: number[][];
   hover: { i: number; j: number } | null;
   setHover: (h: { i: number; j: number } | null) => void;
   color: (rho: number, diag: boolean) => string;
 }) {
+  // Numbers stay readable up to ~22 holdings; beyond that, hover carries them.
+  const showNumbers = n <= 22;
+  const fontSize = n <= 12 ? 10 : n <= 16 ? 9 : 8;
   return (
     <>
       <div
@@ -142,7 +148,7 @@ function Row({
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.012 * (i + j), duration: 0.3 }}
             onMouseEnter={() => setHover({ i, j })}
-            className="relative aspect-square rounded-[4px]"
+            className="relative flex aspect-square items-center justify-center rounded-[4px]"
             style={{
               background: color(rho, isDiag),
               outline:
@@ -153,7 +159,20 @@ function Row({
               transition: "filter 150ms ease",
             }}
             title={isDiag ? rowSym : `ρ ${rho.toFixed(2)}`}
-          />
+          >
+            {showNumbers && !isDiag && (
+              <span
+                className="pointer-events-none select-none font-mono tnum"
+                style={{
+                  fontSize,
+                  // bright mint cells need dark text; cool/dim cells need light
+                  color: rho > 0.62 ? "rgba(3,16,12,0.85)" : "rgba(231,236,244,0.72)",
+                }}
+              >
+                {rho.toFixed(2).replace(/^0\./, ".")}
+              </span>
+            )}
+          </motion.div>
         );
       })}
     </>

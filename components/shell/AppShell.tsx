@@ -38,12 +38,18 @@ function Wordmark() {
     <Link href="/" className="flex items-center gap-2.5 px-2 group">
       <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
         <circle cx="14" cy="14" r="12.5" stroke="url(#mgrad)" strokeWidth="1.4" />
+        {/* H mark with a rising crossbar — holdings on the way up */}
         <path
-          d="M7.5 19 V9.5 L14 15.5 L20.5 9.5 V19"
+          d="M9 19.5 V8.5 M19 19.5 V8.5"
           stroke="url(#mgrad)"
-          strokeWidth="1.6"
+          strokeWidth="1.7"
           strokeLinecap="round"
-          strokeLinejoin="round"
+        />
+        <path
+          d="M9 15.2 L19 12.8"
+          stroke="url(#mgrad)"
+          strokeWidth="1.7"
+          strokeLinecap="round"
         />
         <defs>
           <linearGradient id="mgrad" x1="0" y1="0" x2="28" y2="28">
@@ -54,9 +60,11 @@ function Wordmark() {
       </svg>
       <div className="leading-none">
         <div className="font-display text-[15px] font-semibold tracking-[0.14em] text-ink">
-          MERIDIAN
+          HLEE
         </div>
-        <div className="eyebrow mt-1 !text-[0.52rem]">portfolio intelligence</div>
+        <div className="eyebrow mt-1 !text-[0.52rem]">
+          holdings · liquidity · equity
+        </div>
       </div>
     </Link>
   );

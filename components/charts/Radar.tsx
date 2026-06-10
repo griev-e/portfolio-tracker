@@ -92,7 +92,7 @@ export function Radar({
                   cx={p.x}
                   cy={p.y}
                   r={3.4}
-                  fill="#0B0E14"
+                  fill="#060708"
                   stroke={s.color}
                   strokeWidth={2}
                   initial={{ opacity: 0 }}

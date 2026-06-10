@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { parsePortfolioCSV, toCSV, type ParseResult } from "@/lib/csv";
-import { DATA_AS_OF, knownSymbols } from "@/lib/data/fundamentals";
+import { knownSymbols } from "@/lib/data/fundamentals";
 import { fmtUSD } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 
@@ -66,7 +66,7 @@ export default function ImportPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `meridian-portfolio-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `hlee-portfolio-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -236,26 +236,6 @@ export default function ImportPage() {
             </AnimatePresence>
           </Card>
 
-          {/* Format help */}
-          <Card className="px-6 py-5" i={1}>
-            <CardHeader eyebrow="Format" title="What the importer accepts" className="mb-3" />
-            <ul className="space-y-2 text-[12.5px] leading-relaxed text-mute">
-              <li>
-                · Header row required:{" "}
-                <code className="font-mono text-[11.5px] text-mint">{EXPECTED_HEADER}</code>{" "}
-                (any column order)
-              </li>
-              <li>· <code className="font-mono text-mint">totalReturn</code> can be dollars or percent — it&apos;s auto-detected and normalized</li>
-              <li>· $ signs, commas, %, parentheses-negatives, and quoted names are fine</li>
-              <li>· A row with symbol <code className="font-mono text-mint">CASH</code> or <code className="font-mono text-mint">USD</code> sets your cash position (equity column)</li>
-              <li>· Duplicate symbols merge into one position</li>
-              <li>
-                · {known.size} tickers ship with research fundamentals (snapshot{" "}
-                {DATA_AS_OF}); unknown tickers still work for allocation &
-                P&L
-              </li>
-            </ul>
-          </Card>
         </div>
 
         {/* Right rail */}
@@ -364,22 +344,6 @@ export default function ImportPage() {
             </div>
           </Card>
 
-          <Card className="px-6 py-5" i={4}>
-            <CardHeader eyebrow="About the data" title="Honesty box" className="mb-3" />
-            <p className="text-[12px] leading-relaxed text-mute">
-              Position data comes only from your CSV. Fundamentals (growth,
-              valuation, analyst targets, insider activity, betas) are a bundled
-              point-in-time snapshot dated{" "}
-              <span className="font-mono text-mint">{DATA_AS_OF}</span> —
-              approximations for analysis, not live market data. Correlations,
-              volatility, scenarios, and Monte Carlo are model estimates built
-              on that snapshot. Edit{" "}
-              <code className="font-mono text-[11px] text-mint">
-                lib/data/fundamentals.ts
-              </code>{" "}
-              to refresh or extend coverage.
-            </p>
-          </Card>
         </div>
       </div>
     </div>

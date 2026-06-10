@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { Computing } from "@/components/ui/Computing";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
@@ -13,6 +14,7 @@ import {
 import { fmtPct, fmtUSD } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import type { ScenarioShock } from "@/lib/types";
+import { useAsyncCompute } from "@/lib/useAsyncCompute";
 
 type Kind = "stock" | "market" | "rates";
 
@@ -54,7 +56,7 @@ export default function ScenariosPage() {
     return `Rates ${shock.magnitude > 0 ? "+" : ""}${(shock.magnitude * 100).toFixed(0)}bp`;
   }, [presets, activePreset, shock]);
 
-  const result = useMemo(
+  const { value: result, pending } = useAsyncCompute(
     () => (portfolio && shock ? runScenario(portfolio, shock, label) : null),
     [portfolio, shock, label]
   );
@@ -212,7 +214,9 @@ export default function ScenariosPage() {
         </div>
 
         {/* Results */}
-        <div className="min-w-0">
+        <div className="relative min-w-0">
+          <Computing active={pending || !result} label="applying shock…" />
+          {!result && <div className="panel h-[420px]" />}
           <AnimatePresence mode="wait">
             {result && (
               <motion.div

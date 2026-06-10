@@ -8,11 +8,13 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Ring } from "@/components/ui/Ring";
 import { Stat } from "@/components/ui/Stat";
+import { Computing } from "@/components/ui/Computing";
 import { runMonteCarlo } from "@/lib/analytics/montecarlo";
 import { riskReport } from "@/lib/analytics/risk";
 import { SPX } from "@/lib/data/benchmarks";
 import { fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
+import { useAsyncCompute } from "@/lib/useAsyncCompute";
 
 export default function MonteCarloPage() {
   const { ready, portfolio } = usePortfolio();
@@ -29,7 +31,7 @@ export default function MonteCarloPage() {
     ? Math.round((portfolio.totalValue * targetMultiple) / 1000) * 1000
     : 0;
 
-  const result = useMemo(() => {
+  const { value: result, pending } = useAsyncCompute(() => {
     if (!portfolio || !risk) return null;
     return runMonteCarlo({
       initialValue: portfolio.totalValue,
@@ -43,9 +45,9 @@ export default function MonteCarloPage() {
   }, [portfolio, risk, years, contribution, target]);
 
   if (!ready) return null;
-  if (!portfolio || !risk || !result) return <EmptyState page="Monte Carlo simulation" />;
+  if (!portfolio || !risk) return <EmptyState page="Monte Carlo simulation" />;
 
-  const prob = result.probTargetAtHorizon;
+  const prob = result?.probTargetAtHorizon ?? 0;
 
   return (
     <div>
@@ -113,6 +115,34 @@ export default function MonteCarloPage() {
         </div>
       </Card>
 
+      <div className="relative">
+        <Computing
+          active={pending || !result}
+          label="simulating 3,000 paths…"
+        />
+        {!result ? (
+          <div className="panel h-[480px]" />
+        ) : (
+          <ResultsView result={result} target={target} years={years} prob={prob} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ResultsView({
+  result,
+  target,
+  years,
+  prob,
+}: {
+  result: NonNullable<ReturnType<typeof runMonteCarlo>>;
+  target: number;
+  years: number;
+  prob: number;
+}) {
+  return (
+    <div>
       <div className="mb-5 grid gap-5 xl:grid-cols-[1fr_320px]">
         <Card className="px-6 py-5" i={1}>
           <CardHeader

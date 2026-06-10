@@ -15,7 +15,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Meridian — Portfolio Intelligence",
+  title: "HLEE — Holdings, Liquidity & Equity Evaluation",
   description:
     "Institutional-grade personal portfolio analytics: risk, quality, factors, scenarios, and Monte Carlo simulation.",
 };

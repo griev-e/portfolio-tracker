@@ -32,6 +32,14 @@ export default function ResearchPage() {
     );
   }, [portfolio, selected]);
 
+  const portfolioIncome = useMemo(() => {
+    if (!portfolio) return 0;
+    return portfolio.positions.reduce(
+      (s, p) => s + p.equity * (p.fundamentals?.dividendYield ?? 0),
+      0
+    );
+  }, [portfolio]);
+
   if (!ready) return null;
   if (!portfolio || !position) return <EmptyState page="Stock research" />;
 
@@ -86,14 +94,20 @@ export default function ResearchPage() {
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
-          <StockDashboard position={position} />
+          <StockDashboard position={position} portfolioIncome={portfolioIncome} />
         </motion.div>
       </AnimatePresence>
     </div>
   );
 }
 
-function StockDashboard({ position: p }: { position: Position }) {
+function StockDashboard({
+  position: p,
+  portfolioIncome,
+}: {
+  position: Position;
+  portfolioIncome: number;
+}) {
   const f = p.fundamentals;
 
   if (!f) {
@@ -265,8 +279,87 @@ function StockDashboard({ position: p }: { position: Position }) {
         </Card>
       </div>
 
-      {/* Factor profile */}
+      {/* Dividend analysis */}
       <Card className="px-6 py-5" i={5}>
+        <CardHeader
+          eyebrow="Dividend analysis"
+          title={
+            f.dividendYield > 0
+              ? `What ${p.symbol} pays you`
+              : `${p.symbol} doesn't pay a dividend`
+          }
+          className="mb-4"
+        />
+        {f.dividendYield > 0 ? (
+          <>
+            <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
+              <div>
+                <div className="eyebrow">Dividend yield</div>
+                <div className="mt-1 font-mono tnum text-[21px] text-ink">
+                  {fmtPct(f.dividendYield, 2)}
+                </div>
+                <div
+                  className={`font-mono text-[11px] ${
+                    f.dividendYield >= 0.0125 ? "text-pos" : "text-faint"
+                  }`}
+                >
+                  S&P 500 ≈ 1.25%
+                </div>
+              </div>
+              <div>
+                <div className="eyebrow">Est. annual income</div>
+                <div className="mt-1 font-mono tnum text-[21px] text-mint">
+                  {fmtUSD(p.equity * f.dividendYield)}
+                </div>
+                <div className="font-mono text-[11px] text-faint">
+                  ≈ {fmtUSD((p.equity * f.dividendYield) / 12)}/mo from this position
+                </div>
+              </div>
+              <div>
+                <div className="eyebrow">Share of portfolio income</div>
+                <div className="mt-1 font-mono tnum text-[21px] text-ink">
+                  {portfolioIncome > 0
+                    ? fmtPct((p.equity * f.dividendYield) / portfolioIncome, 1)
+                    : "—"}
+                </div>
+                <div className="font-mono text-[11px] text-faint">
+                  of {fmtUSD(portfolioIncome)}/yr total
+                </div>
+              </div>
+              <div>
+                <div className="eyebrow">FCF payout (est.)</div>
+                <div
+                  className={`mt-1 font-mono tnum text-[21px] ${
+                    f.fcfYield > 0 && f.dividendYield / f.fcfYield > 0.8
+                      ? "text-warn"
+                      : "text-ink"
+                  }`}
+                >
+                  {f.fcfYield > 0
+                    ? fmtPct(Math.min(f.dividendYield / f.fcfYield, 2), 0)
+                    : "n/m"}
+                </div>
+                <div className="font-mono text-[11px] text-faint">
+                  dividend as share of free cash flow
+                </div>
+              </div>
+            </div>
+            <p className="mt-4 border-t border-edge pt-3 text-[11.5px] leading-relaxed text-faint">
+              {f.fcfYield > 0 && f.dividendYield / f.fcfYield > 0.8
+                ? "Payout is consuming most of free cash flow — watch sustainability if growth stalls."
+                : "Payout is comfortably covered by free cash flow at the snapshot levels."}
+            </p>
+          </>
+        ) : (
+          <p className="text-[12.5px] leading-relaxed text-mute">
+            All returns here come from price appreciation. Income contribution
+            to the portfolio: $0 of {fmtUSD(portfolioIncome)}/yr.
+          </p>
+        )}
+      </Card>
+
+      {/* Factor profile */}
+      <Card className="px-6 py-5" i={6}>
         <CardHeader
           eyebrow="Style profile"
           title={`How ${p.symbol} loads on the four factors`}
@@ -290,7 +383,7 @@ function StockDashboard({ position: p }: { position: Position }) {
                 <motion.div
                   className="absolute top-0 h-[7px] rounded-full"
                   style={{
-                    background: `linear-gradient(90deg, ${color}44, ${color})`,
+                    background: `linear-gradient(90deg, color-mix(in srgb, ${color} 30%, transparent), ${color})`,
                   }}
                   initial={{ width: 0 }}
                   animate={{ width: `${score}%` }}

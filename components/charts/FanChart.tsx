@@ -223,7 +223,7 @@ export function FanChart({
                 cx={x(hovered.month)}
                 cy={y(v)}
                 r={k === "p50" ? 4 : 2.6}
-                fill={k === "p50" ? "var(--color-mint)" : "#0B0E14"}
+                fill={k === "p50" ? "var(--color-mint)" : "#060708"}
                 stroke="var(--color-mint)"
                 strokeWidth={1.4}
               />

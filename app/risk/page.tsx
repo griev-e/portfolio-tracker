@@ -290,7 +290,60 @@ export default function RiskPage() {
               </div>
             ))}
           </div>
-          <div className="mt-5 border-t border-edge pt-4 text-[12px] text-mute">
+
+          {/* Per-holding revenue mix */}
+          <div className="mt-5 border-t border-edge pt-4">
+            <div className="eyebrow mb-3">Revenue mix by holding</div>
+            <div className="space-y-2">
+              {portfolio.positions.map((p, i) => {
+                const regions = p.fundamentals?.regions ?? { US: 1 };
+                const intl = 1 - (regions.US ?? 0);
+                return (
+                  <motion.div
+                    key={p.symbol}
+                    initial={{ opacity: 0, x: -6 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 + i * 0.03 }}
+                    className="flex items-center gap-3"
+                  >
+                    <span className="w-12 shrink-0 font-mono text-[11px] text-mute">
+                      {p.symbol}
+                    </span>
+                    <div className="flex h-[8px] flex-1 overflow-hidden rounded-full bg-white/[0.04]">
+                      {(
+                        ["US", "Europe", "Asia-Pacific", "Emerging"] as const
+                      ).map((region) => {
+                        const w = regions[region] ?? 0;
+                        if (w <= 0.001) return null;
+                        return (
+                          <div
+                            key={region}
+                            className="h-full"
+                            style={{
+                              width: `${w * 100}%`,
+                              background: `color-mix(in srgb, ${REGION_COLORS[region]} 60%, transparent)`,
+                            }}
+                            title={`${region} ${fmtPct(w, 0)}`}
+                          />
+                        );
+                      })}
+                    </div>
+                    <span className="w-20 shrink-0 text-right font-mono tnum text-[11px] text-faint">
+                      {fmtPct(intl, 0)} intl
+                    </span>
+                    <span className="w-12 shrink-0 text-right font-mono tnum text-[11px] text-mute">
+                      {fmtPct(p.equityWeight, 1)}
+                    </span>
+                  </motion.div>
+                );
+              })}
+            </div>
+            <div className="mt-2 flex justify-end font-mono text-[10px] text-faint">
+              intl revenue share · portfolio weight
+            </div>
+          </div>
+
+          <div className="mt-4 border-t border-edge pt-4 text-[12px] text-mute">
             {risk.regions[0].weight > 0.85
               ? "Heavily US-centric. International diversification is mostly cosmetic here."
               : "Meaningful ex-US revenue exposure — currency and regional cycles will matter."}

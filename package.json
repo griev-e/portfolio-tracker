@@ -1,8 +1,8 @@
 {
-  "name": "meridian",
+  "name": "hlee",
   "version": "1.0.0",
   "private": true,
-  "description": "Meridian — institutional-grade personal portfolio analytics terminal",
+  "description": "HLEE — Holdings, Liquidity & Equity Evaluation",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

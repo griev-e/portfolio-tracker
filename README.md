@@ -1,4 +1,4 @@
-# Meridian — Portfolio Intelligence
+# HLEE — Holdings, Liquidity & Equity Evaluation
 
 A dark, institutional-grade personal portfolio analytics terminal. Import your
 holdings as CSV and get allocation, risk, research, quality, factor, scenario,
@@ -81,5 +81,5 @@ Or from the CLI: `npx vercel`.
 
 ## Disclaimer
 
-Meridian is an analysis tool, not investment advice. Bundled fundamentals are
+HLEE is an analysis tool, not investment advice. Bundled fundamentals are
 approximations; simulations are models with thinner tails than real markets.

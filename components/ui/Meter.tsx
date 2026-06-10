@@ -32,8 +32,9 @@ export function Meter({
       <motion.div
         className="h-full rounded-full"
         style={{
-          background: `linear-gradient(90deg, ${color}55, ${color})`,
-          boxShadow: `0 0 12px -2px ${color}66`,
+          // color-mix keeps the alpha ramp valid for hex *and* var() colors
+          background: `linear-gradient(90deg, color-mix(in srgb, ${color} 35%, transparent), ${color})`,
+          boxShadow: `0 0 12px -2px color-mix(in srgb, ${color} 40%, transparent)`,
         }}
         initial={{ width: 0 }}
         animate={{ width: `${frac * 100}%` }}
