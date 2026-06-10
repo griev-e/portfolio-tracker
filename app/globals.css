@@ -1,0 +1,179 @@
+@import "tailwindcss";
+
+@theme {
+  --color-void: #06080b;
+  --color-panel: #0b0e14;
+  --color-panel2: #111623;
+  --color-edge: rgba(148, 163, 184, 0.09);
+  --color-edge2: rgba(148, 163, 184, 0.18);
+  --color-ink: #e7ecf4;
+  --color-mute: #8b95a7;
+  --color-faint: #5b6474;
+  --color-mint: #5eead4;
+  --color-mintdim: #2dd4bf;
+  --color-pos: #34d399;
+  --color-neg: #fb7185;
+  --color-warn: #fbbf24;
+  --color-vio: #a78bfa;
+  --color-sky: #7dd3fc;
+
+  --font-display: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", monospace;
+}
+
+html {
+  background: var(--color-void);
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-void);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Ambient backdrop: dot lattice + aurora glow, fixed behind everything. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(
+    rgba(148, 163, 184, 0.055) 1px,
+    transparent 1px
+  );
+  background-size: 26px 26px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 30%, transparent 78%);
+}
+.backdrop::before {
+  content: "";
+  position: absolute;
+  inset: -20% -10% auto -10%;
+  height: 65%;
+  background:
+    radial-gradient(ellipse 42% 48% at 22% 8%, rgba(94, 234, 212, 0.07), transparent 60%),
+    radial-gradient(ellipse 38% 42% at 76% 4%, rgba(167, 139, 250, 0.055), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 50% 0%, rgba(125, 211, 252, 0.04), transparent 65%);
+  filter: blur(2px);
+}
+
+::selection {
+  background: rgba(94, 234, 212, 0.25);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.22) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Numerals align in tables and tickers. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Micro-label: uppercase, tracked-out section eyebrows. */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-faint);
+}
+
+/* Glass panel */
+.panel {
+  background: linear-gradient(
+    180deg,
+    rgba(17, 22, 35, 0.72),
+    rgba(11, 14, 20, 0.88)
+  );
+  border: 1px solid var(--color-edge);
+  border-radius: 18px;
+  backdrop-filter: blur(8px);
+}
+.panel-hover {
+  transition:
+    border-color 200ms ease,
+    box-shadow 300ms ease,
+    transform 200ms ease;
+}
+.panel-hover:hover {
+  border-color: var(--color-edge2);
+  box-shadow:
+    0 0 0 1px rgba(94, 234, 212, 0.06),
+    0 12px 40px -18px rgba(94, 234, 212, 0.18);
+}
+
+/* Range inputs (scenario & monte carlo controls) */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    rgba(94, 234, 212, 0.5),
+    rgba(167, 139, 250, 0.5)
+  );
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #e7ecf4;
+  border: 3px solid #0b0e14;
+  box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.6), 0 0 14px rgba(94, 234, 212, 0.35);
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #e7ecf4;
+  border: 3px solid #0b0e14;
+  box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.6);
+  cursor: pointer;
+}
+
+/* Numeric text inputs */
+.field {
+  background: rgba(6, 8, 11, 0.6);
+  border: 1px solid var(--color-edge);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--color-ink);
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  width: 100%;
+}
+.field:focus {
+  border-color: rgba(94, 234, 212, 0.45);
+  box-shadow: 0 0 0 3px rgba(94, 234, 212, 0.08);
+}
