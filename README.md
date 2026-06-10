@@ -35,25 +35,34 @@ position. A sample file lives at `public/sample-portfolio.csv`.
 
 ## Data model — read this once
 
-- **Your positions** come only from the CSV you import. They never leave the
-  browser.
-- **Fundamentals** (growth, valuation, analyst targets, insider activity,
-  betas, volatilities, sector/region mixes) are a **bundled point-in-time
-  snapshot** in `lib/data/fundamentals.ts` (~90 tickers + major ETFs with
-  sector look-through), with the snapshot date shown in the UI. They are
-  deliberately editable approximations — refresh or extend them there.
+- **Your positions**: the CSV is the source of truth for *shares and cost
+  basis*. Holdings persist in localStorage and never leave the browser.
+- **Live quotes** (Yahoo Finance, unofficial, keyless): proxied through
+  `/api/quotes`, CDN-cached 60s, polled every minute while the tab is
+  visible. Price, equity, P&L, and the "Today" stat reprice automatically;
+  if the feed fails, the app silently falls back to imported prices (amber
+  status dot in the sidebar).
+- **Live fundamentals** (Yahoo, same proxy pattern): `/api/fundamentals`
+  overlays growth, margins, forward P/E, analyst targets, insider flows,
+  earnings dates, dividend yield, and ETF sector look-through onto the
+  bundled snapshot, field by field. CDN-cached 12h. Each stock in Research
+  shows a `live` / `snapshot` badge.
+- **Bundled snapshot** (`lib/data/fundamentals.ts`, ~90 tickers + major
+  ETFs) is the fallback layer for anything the provider doesn't return
+  (e.g. ROIC, FCF growth, region revenue mixes, per-name volatility) and
+  for fully offline use.
 - **Derived analytics** (correlations, portfolio volatility, scenarios,
-  Monte Carlo) are model estimates built from that snapshot: a single-market-
-  factor correlation model with sector/industry affinity, CAPM expected
-  returns, and GBM simulation. Methodology notes live next to the math in
-  `lib/analytics/*`.
-- Unknown tickers degrade gracefully: they keep full allocation/P&L math and
-  use conservative defaults (β = 1.0, σ = 32%) in risk calculations, flagged
-  in the UI.
+  Monte Carlo) are model estimates: a single-market-factor correlation model
+  with sector/industry affinity, CAPM expected returns, and GBM simulation.
+  Methodology notes live next to the math in `lib/analytics/*`.
+- Unknown tickers degrade gracefully: with live data they get promoted to
+  full research coverage; without it they keep allocation/P&L math and use
+  conservative defaults (β = 1.0, σ = 32%), flagged in the UI.
 
-Want live data later? Everything reads through `getFundamentals()` — swap in
-a fetch against your provider of choice (FMP, Finnhub, Polygon…) and the rest
-of the app follows.
+Heads-up: Yahoo's API is unofficial. If it ever breaks, the app keeps
+working on imported prices + snapshot until `yahoo-finance2` ships a fix, or
+you can swap the provider behind `lib/server/yahoo.ts` without touching the
+analytics.
 
 ## Stack
 

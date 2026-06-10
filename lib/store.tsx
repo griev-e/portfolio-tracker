@@ -11,6 +11,7 @@ import {
 } from "react";
 import { buildPortfolio } from "./analytics/build";
 import { parsePortfolioCSV } from "./csv";
+import { useLiveData } from "./live/useLiveData";
 import { SAMPLE_CASH, SAMPLE_CSV } from "./sample";
 import type { Portfolio, RawHolding } from "./types";
 
@@ -23,12 +24,23 @@ interface Stored {
   isDemo?: boolean;
 }
 
+export interface LiveStatus {
+  /** ISO time of the last successful quote refresh, null = none yet. */
+  quotesAt: string | null;
+  fundamentalsAt: string | null;
+  /** Last quote fetch failed — running on imported prices / snapshot. */
+  degraded: boolean;
+  /** How many positions are currently repriced live. */
+  livePriceCount: number;
+}
+
 interface PortfolioStore {
   /** null until localStorage has been read (avoids hydration flicker). */
   ready: boolean;
   hasData: boolean;
   isDemo: boolean;
   portfolio: Portfolio | null;
+  live: LiveStatus;
   importHoldings: (holdings: RawHolding[], cash: number | null) => void;
   loadDemo: () => void;
   setCash: (cash: number) => void;
@@ -93,12 +105,32 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
 
   const clear = useCallback(() => persist(null), [persist]);
 
+  const symbols = useMemo(
+    () => stored?.holdings.map((h) => h.symbol) ?? [],
+    [stored]
+  );
+  const liveData = useLiveData(symbols);
+
   const portfolio = useMemo(
     () =>
       stored && stored.holdings.length > 0
-        ? buildPortfolio(stored.holdings, stored.cash, stored.asOf)
+        ? buildPortfolio(stored.holdings, stored.cash, stored.asOf, {
+            quotes: liveData.quotes,
+            patches: liveData.patches,
+          })
         : null,
-    [stored]
+    [stored, liveData.quotes, liveData.patches]
+  );
+
+  const live = useMemo<LiveStatus>(
+    () => ({
+      quotesAt: liveData.quotesAt,
+      fundamentalsAt: liveData.fundamentalsAt,
+      degraded: liveData.degraded,
+      livePriceCount:
+        portfolio?.positions.filter((p) => p.isLivePrice).length ?? 0,
+    }),
+    [liveData.quotesAt, liveData.fundamentalsAt, liveData.degraded, portfolio]
   );
 
   const value = useMemo<PortfolioStore>(
@@ -107,12 +139,13 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       hasData: !!portfolio,
       isDemo: !!stored?.isDemo,
       portfolio,
+      live,
       importHoldings,
       loadDemo,
       setCash,
       clear,
     }),
-    [ready, portfolio, stored?.isDemo, importHoldings, loadDemo, setCash, clear]
+    [ready, portfolio, stored?.isDemo, live, importHoldings, loadDemo, setCash, clear]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

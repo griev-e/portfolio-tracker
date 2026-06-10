@@ -96,7 +96,11 @@ export default function OverviewPage() {
 
       {/* Hero strip */}
       <Card className="mb-5 px-6 py-6 sm:px-8" i={0}>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-6 md:grid-cols-4 lg:grid-cols-6">
+        <div
+          className={`grid grid-cols-2 gap-x-6 gap-y-6 md:grid-cols-4 ${
+            portfolio.dayChange !== null ? "lg:grid-cols-7" : "lg:grid-cols-6"
+          }`}
+        >
           <div className="col-span-2">
             <Stat
               label="Net value"
@@ -118,6 +122,19 @@ export default function OverviewPage() {
               }
             />
           </div>
+          {portfolio.dayChange !== null && (
+            <Stat
+              label="Today"
+              value={portfolio.dayChange}
+              format={(v) => `${v >= 0 ? "+" : ""}${fmtUSD(v)}`}
+              toneClass={portfolio.dayChange >= 0 ? "text-pos" : "text-neg"}
+              sub={
+                portfolio.dayChangePct !== null
+                  ? `${fmtPct(portfolio.dayChangePct, 2, true)} vs prior close`
+                  : undefined
+              }
+            />
+          )}
           <Stat
             label="Invested"
             value={portfolio.equityValue}

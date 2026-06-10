@@ -113,9 +113,24 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
+function LiveDot({ degraded }: { degraded: boolean }) {
+  return (
+    <span className="relative flex h-2 w-2">
+      {!degraded && (
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-mint/60" />
+      )}
+      <span
+        className={`relative inline-flex h-2 w-2 rounded-full ${
+          degraded ? "bg-warn" : "bg-mint"
+        }`}
+      />
+    </span>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { portfolio, isDemo, ready } = usePortfolio();
+  const { portfolio, isDemo, ready, live } = usePortfolio();
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[228px_1fr]">
@@ -130,6 +145,16 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div className="font-mono tnum text-[15px] text-ink mt-0.5">
                 {fmtUSDCompact(portfolio.totalValue)}
               </div>
+              <div className="mt-1.5 flex items-center gap-1.5 font-mono text-[10px]">
+                <LiveDot degraded={live.degraded || !live.quotesAt} />
+                <span className={live.degraded || !live.quotesAt ? "text-warn/90" : "text-mint/90"}>
+                  {live.degraded
+                    ? "offline · imported prices"
+                    : live.quotesAt
+                      ? `live · ${live.livePriceCount}/${portfolio.positions.length} priced`
+                      : "connecting…"}
+                </span>
+              </div>
               {isDemo && (
                 <div className="mt-1 text-[10px] text-warn/90 font-mono">
                   demo portfolio
@@ -138,9 +163,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           )}
           <div className="text-[10px] leading-relaxed text-faint font-mono px-1">
-            fundamentals snapshot
+            {live.fundamentalsAt
+              ? "fundamentals: live (yahoo)"
+              : "fundamentals: snapshot"}
             <br />
-            {DATA_AS_OF} · estimates
+            fallback {DATA_AS_OF}
           </div>
         </div>
       </aside>

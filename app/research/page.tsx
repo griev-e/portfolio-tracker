@@ -146,6 +146,20 @@ function StockDashboard({
               <span className="rounded-md border border-edge bg-void/50 px-2 py-0.5 font-mono text-[11px] text-mute">
                 {f.sector}
               </span>
+              <span
+                className={`rounded-md border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
+                  f.live
+                    ? "border-mint/30 bg-mint/[0.07] text-mint"
+                    : "border-edge bg-void/50 text-faint"
+                }`}
+                title={
+                  f.live
+                    ? "Live fundamentals from Yahoo Finance, refreshed daily"
+                    : "Bundled snapshot data"
+                }
+              >
+                {f.live ? "live" : "snapshot"}
+              </span>
             </div>
             <div className="mt-1 text-[12px] text-faint">
               {f.industry} · {fmtUSDCompact(f.marketCap)} market cap
@@ -157,6 +171,7 @@ function StockDashboard({
         </div>
 
         {/* Analyst bullet: low ─ price ─ mean target ─ high */}
+        {f.analyst.priceTarget > 0 && (
         <div className="mt-6">
           <div className="mb-2 flex items-baseline justify-between">
             <span className="eyebrow">Analyst price target range</span>
@@ -184,6 +199,7 @@ function StockDashboard({
             <span>high {fmtUSD(f.analyst.targetHigh)}</span>
           </div>
         </div>
+        )}
       </Card>
 
       {/* Metric grid */}

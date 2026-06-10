@@ -78,6 +78,8 @@ export interface Fundamentals {
   fund?: {
     sectorWeights: Partial<Record<Sector, number>>;
   };
+  /** True when live provider data has been merged over the snapshot. */
+  live?: boolean;
 }
 
 /** A holding enriched with weights and fundamentals. */
@@ -87,6 +89,11 @@ export interface Position extends RawHolding {
   costBasis: number;
   returnPct: number; // totalReturn / costBasis
   fundamentals: Fundamentals | null;
+  /** Set when a live quote repriced this position. */
+  isLivePrice: boolean;
+  prevClose: number | null;
+  /** Today's P&L in dollars (live quote vs previous close), null without quotes. */
+  dayChange: number | null;
 }
 
 export interface Portfolio {
@@ -99,6 +106,9 @@ export interface Portfolio {
   totalReturnPct: number;
   cashWeight: number;
   asOf: string; // ISO timestamp of import
+  /** Today's total P&L across live-priced positions; null when no quotes. */
+  dayChange: number | null;
+  dayChangePct: number | null;
 }
 
 export interface BenchmarkProfile {
