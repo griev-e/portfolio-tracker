@@ -32,22 +32,11 @@ const NAV = [
 
 const GROUPS = ["Portfolio", "Analysis", "Simulation", "Data"];
 
-/** White cat silhouette icon. */
+/** White sitting-cat silhouette icon. */
 export function Sigil({ size = 26 }: { size?: number; id?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="white">
-      {/* ears */}
-      <polygon points="4,13 4,3 10,9" />
-      <polygon points="28,13 28,3 22,9" />
-      {/* head */}
-      <ellipse cx="16" cy="17" rx="11" ry="10" />
-      {/* body */}
-      <ellipse cx="16" cy="28" rx="8" ry="5" />
-      {/* tail */}
-      <path d="M24,28 Q30,22 28,16 Q27,13 25,15 Q27,20 22,26 Z" />
-      {/* eyes — punched out */}
-      <ellipse cx="12" cy="16" rx="1.6" ry="1.8" fill="#050505" />
-      <ellipse cx="20" cy="16" rx="1.6" ry="1.8" fill="#050505" />
+    <svg width={size} height={size} viewBox="0 0 100 100" fill="white">
+      <path d="M51.5 9 L59 17.5 C62.5 15.8 67.5 15.6 71 17 L75 4.5 L82.5 18 C86.5 24 86.5 31 81 36.5 C85.5 47 85 61 82.5 74 C81.5 82 81 89 78.5 93 C74.5 95.5 69 95.5 66.5 94.5 L52 94.5 C48 95 44 95 41.5 94.5 C32 97 18.5 96.5 14.5 86.5 C12.5 80.5 14 75.5 18 76.5 C19.5 84 26.5 89 36.5 87.5 C29 79.5 26.5 65.5 32.5 52 C36.5 40.5 43 30.5 51 25 C49.5 19.5 50 13 51.5 9 Z" />
     </svg>
   );
 }
