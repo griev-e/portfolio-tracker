@@ -89,7 +89,7 @@ export default function ScenariosPage() {
                   title={p.detail}
                   className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
                     activePreset === p.id
-                      ? "border-mint/40 bg-mint/[0.09] shadow-[0_0_18px_-6px_rgba(94,234,212,0.4)]"
+                      ? "border-mint/40 bg-mint/[0.07]"
                       : "border-edge bg-void/40 hover:border-edge2"
                   }`}
                 >
@@ -118,14 +118,14 @@ export default function ScenariosPage() {
                     setKind(k);
                     setActivePreset(null);
                   }}
-                  className={`relative flex-1 rounded-md py-1.5 font-mono text-[11px] uppercase tracking-wider transition-colors ${
-                    kind === k && !activePreset ? "text-void" : "text-mute hover:text-ink"
+                  className={`relative flex-1 rounded-md py-1.5 text-[12px] font-medium capitalize transition-colors ${
+                    kind === k && !activePreset ? "text-black" : "text-mute hover:text-ink"
                   }`}
                 >
                   {kind === k && !activePreset && (
                     <motion.span
                       layoutId="kind-pill"
-                      className="absolute inset-0 rounded-md bg-mint"
+                      className="absolute inset-0 rounded-md bg-ink"
                       transition={{ type: "spring", stiffness: 500, damping: 40 }}
                     />
                   )}
