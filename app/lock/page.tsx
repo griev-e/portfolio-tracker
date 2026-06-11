@@ -100,11 +100,18 @@ export default function LockPage() {
       </div>
 
       {/* Hidden input drives the boxes; digits render censored. */}
+      {/* type="text" (not "password") so browsers and password managers
+          don't offer to autofill/save — the visible boxes mask the digits. */}
       <input
         ref={inputRef}
-        type="password"
+        type="text"
         inputMode="numeric"
         autoComplete="off"
+        name="sanctum-code"
+        data-1p-ignore="true"
+        data-lpignore="true"
+        data-bwignore="true"
+        data-form-type="other"
         value={pin}
         onChange={(e) =>
           setPin(e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH))

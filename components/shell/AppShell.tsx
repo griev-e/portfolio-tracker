@@ -32,22 +32,22 @@ const NAV = [
 
 const GROUPS = ["Portfolio", "Analysis", "Simulation", "Data"];
 
-/** White cat silhouette icon. */
+/** Big cursive alpha — the thing the whole app is chasing. */
 export function Sigil({ size = 26 }: { size?: number; id?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="white">
-      {/* ears */}
-      <polygon points="4,13 4,3 10,9" />
-      <polygon points="28,13 28,3 22,9" />
-      {/* head */}
-      <ellipse cx="16" cy="17" rx="11" ry="10" />
-      {/* body */}
-      <ellipse cx="16" cy="28" rx="8" ry="5" />
-      {/* tail */}
-      <path d="M24,28 Q30,22 28,16 Q27,13 25,15 Q27,20 22,26 Z" />
-      {/* eyes — punched out */}
-      <ellipse cx="12" cy="16" rx="1.6" ry="1.8" fill="#050505" />
-      <ellipse cx="20" cy="16" rx="1.6" ry="1.8" fill="#050505" />
+    <svg width={size} height={size} viewBox="0 0 32 32">
+      <text
+        x="16"
+        y="16.5"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fill="white"
+        fontFamily="Georgia, 'Times New Roman', serif"
+        fontStyle="italic"
+        fontSize="30"
+      >
+        α
+      </text>
     </svg>
   );
 }
