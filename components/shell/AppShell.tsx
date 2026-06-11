@@ -2,8 +2,8 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { fmtUSDCompact } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import {
@@ -53,65 +53,6 @@ export function Sigil({ size = 26, id = "sgrad" }: { size?: number; id?: string 
   );
 }
 
-function Wordmark() {
-  return (
-    <Link href="/" className="flex items-center gap-2.5 px-2 group">
-      <Sigil />
-      <div className="leading-none">
-        <div className="font-display text-[15px] font-semibold tracking-[0.18em] text-ink">
-          SANCTUM
-        </div>
-        <div className="eyebrow mt-1 !text-[0.52rem]">
-          private portfolio intelligence
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
-  const pathname = usePathname();
-  return (
-    <nav className="flex flex-col gap-5">
-      {GROUPS.map((group) => (
-        <div key={group}>
-          <div className="eyebrow px-3 mb-1.5">{group}</div>
-          <div className="flex flex-col gap-0.5">
-            {NAV.filter((n) => n.group === group).map((item) => {
-              const active = pathname === item.href;
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onNavigate}
-                  className={`relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] transition-colors duration-150 ${
-                    active
-                      ? "text-mint"
-                      : "text-mute hover:text-ink hover:bg-white/[0.03]"
-                  }`}
-                >
-                  {active && (
-                    <motion.span
-                      layoutId="nav-active"
-                      className="absolute inset-0 rounded-lg bg-mint/[0.07] border border-mint/15"
-                      transition={{ type: "spring", stiffness: 480, damping: 38 }}
-                    />
-                  )}
-                  <span className="relative z-10 opacity-90">
-                    <Icon />
-                  </span>
-                  <span className="relative z-10 font-medium">{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </nav>
-  );
-}
-
 function LiveDot({ degraded }: { degraded: boolean }) {
   return (
     <span className="relative flex h-2 w-2">
@@ -127,6 +68,143 @@ function LiveDot({ degraded }: { degraded: boolean }) {
   );
 }
 
+function NavRow({
+  item,
+  active,
+  onNavigate,
+}: {
+  item: (typeof NAV)[number];
+  active: boolean;
+  onNavigate?: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      className={`relative flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] transition-colors duration-100 ${
+        active ? "text-ink" : "text-mute hover:text-ink hover:bg-white/[0.05]"
+      }`}
+    >
+      {active && (
+        <motion.span
+          layoutId="nav-active"
+          className="absolute inset-0 rounded-md bg-white/[0.07]"
+          transition={{ type: "spring", stiffness: 520, damping: 40 }}
+        />
+      )}
+      <span className="relative z-10 opacity-80 [&>svg]:h-4 [&>svg]:w-4">
+        <Icon />
+      </span>
+      <span className="relative z-10">{item.label}</span>
+    </Link>
+  );
+}
+
+/** Sidebar nav with a Vercel-style Find filter ("/" to focus, Enter to go). */
+function SidebarNav() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (
+        e.key === "/" &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement)
+      ) {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return null;
+    return NAV.filter(
+      (n) =>
+        n.label.toLowerCase().includes(q) || n.group.toLowerCase().includes(q)
+    );
+  }, [query]);
+
+  return (
+    <>
+      <div className="px-3 pb-2">
+        <div className="relative">
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-faint"
+          >
+            <circle cx="8.6" cy="8.6" r="5.4" />
+            <path d="M12.6 12.6 L17 17" />
+          </svg>
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && filtered?.[0]) {
+                router.push(filtered[0].href);
+                setQuery("");
+                e.currentTarget.blur();
+              }
+              if (e.key === "Escape") {
+                setQuery("");
+                e.currentTarget.blur();
+              }
+            }}
+            placeholder="Find..."
+            className="h-8 w-full rounded-md border border-edge bg-white/[0.03] pl-8 pr-8 text-[13px] text-ink placeholder:text-faint outline-none transition-colors focus:border-edge2"
+          />
+          <span className="kbd absolute right-2 top-1/2 -translate-y-1/2">/</span>
+        </div>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto px-3 pb-4">
+        {filtered ? (
+          <div className="flex flex-col gap-0.5 pt-1">
+            {filtered.length === 0 && (
+              <div className="px-2.5 py-2 text-[12px] text-faint">No matches</div>
+            )}
+            {filtered.map((item) => (
+              <NavRow
+                key={item.href}
+                item={item}
+                active={pathname === item.href}
+                onNavigate={() => setQuery("")}
+              />
+            ))}
+          </div>
+        ) : (
+          GROUPS.map((group) => (
+            <div key={group}>
+              <div className="px-2.5 pb-1 pt-4 text-[11px] font-medium text-faint">
+                {group}
+              </div>
+              <div className="flex flex-col gap-0.5">
+                {NAV.filter((n) => n.group === group).map((item) => (
+                  <NavRow key={item.href} item={item} active={pathname === item.href} />
+                ))}
+              </div>
+            </div>
+          ))
+        )}
+      </nav>
+    </>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { portfolio, isDemo, ready, live } = usePortfolio();
@@ -136,79 +214,134 @@ export function AppShell({ children }: { children: ReactNode }) {
     return <main className="min-h-screen">{children}</main>;
   }
 
+  const current = NAV.find((n) => n.href === pathname);
+
+  const liveLabel = live.degraded
+    ? live.livePriceCount > 0
+      ? "offline · last good prices"
+      : "offline · imported prices"
+    : live.quotesAt
+      ? "live"
+      : "connecting";
+
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[228px_1fr]">
+    <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex sticky top-0 h-screen flex-col gap-7 border-r border-edge px-3 py-6 bg-panel/40">
-        <Wordmark />
-        <NavLinks />
-        <div className="mt-auto px-3 space-y-2">
-          {ready && portfolio && (
-            <div className="panel px-3 py-2.5">
-              <div className="eyebrow">Net value</div>
-              <div className="font-mono tnum text-[15px] text-ink mt-0.5">
-                {fmtUSDCompact(portfolio.totalValue)}
-              </div>
-              <div className="mt-1.5 flex items-center gap-1.5 font-mono text-[10px]">
-                <LiveDot degraded={live.degraded || !live.quotesAt} />
-                <span className={live.degraded || !live.quotesAt ? "text-warn/90" : "text-mint/90"}>
-                  {live.degraded
-                    ? live.livePriceCount > 0
-                      ? "offline · last good prices"
-                      : "offline · imported prices"
-                    : live.quotesAt
-                      ? `live · ${live.livePriceCount}/${portfolio.positions.length} priced`
-                      : "connecting…"}
-                </span>
-              </div>
-              {isDemo && (
-                <div className="mt-1 text-[10px] text-warn/90 font-mono">
-                  demo portfolio
-                </div>
-              )}
-            </div>
+      <aside className="hidden lg:flex sticky top-0 h-screen flex-col border-r border-edge bg-[#050505]">
+        <div className="flex items-center gap-2.5 px-4 pb-3 pt-4">
+          <Link href="/" className="flex items-center gap-2.5">
+            <Sigil size={24} />
+            <span className="font-display text-[14px] font-semibold tracking-[0.16em] text-ink">
+              SANCTUM
+            </span>
+          </Link>
+          {isDemo && (
+            <span className="ml-auto rounded-full border border-warn/30 bg-warn/10 px-2 py-0.5 text-[10px] font-medium text-warn">
+              Demo
+            </span>
           )}
         </div>
-      </aside>
 
-      {/* Mobile top bar */}
-      <header className="lg:hidden sticky top-0 z-40 border-b border-edge bg-void/85 backdrop-blur-md">
-        <div className="flex items-center justify-between px-4 py-3">
-          <Wordmark />
-        </div>
-        <div className="flex gap-1 overflow-x-auto px-3 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {NAV.map((item) => {
-            const active = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-[12px] transition-colors ${
-                  active
-                    ? "border-mint/30 bg-mint/10 text-mint"
-                    : "border-edge text-mute"
+        <SidebarNav />
+
+        {ready && portfolio && (
+          <div className="border-t border-edge px-4 py-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] text-faint">Net value</span>
+              <span className="font-mono tnum text-[13px] text-ink">
+                {fmtUSDCompact(portfolio.totalValue)}
+              </span>
+            </div>
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <LiveDot degraded={live.degraded || !live.quotesAt} />
+              <span
+                className={`text-[11px] ${
+                  live.degraded || !live.quotesAt ? "text-warn/90" : "text-mute"
                 }`}
               >
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-      </header>
+                {liveLabel}
+                {!live.degraded && live.quotesAt
+                  ? ` · ${live.livePriceCount}/${portfolio.positions.length} priced`
+                  : ""}
+              </span>
+            </div>
+          </div>
+        )}
+      </aside>
 
-      <main className="min-w-0 px-4 py-6 sm:px-8 sm:py-8 max-w-[1380px] w-full mx-auto">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={pathname}
-            initial={{ opacity: 0, y: 10, filter: "blur(3px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: -8, filter: "blur(3px)" }}
-            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
-      </main>
+      <div className="min-w-0">
+        {/* Desktop top bar */}
+        <header className="sticky top-0 z-40 hidden h-12 items-center border-b border-edge bg-black/80 px-6 backdrop-blur-md lg:flex">
+          <span className="text-[13px] text-faint">{current?.group ?? "Sanctum"}</span>
+          <span className="absolute left-1/2 -translate-x-1/2 text-[13px] font-medium text-mute">
+            {current?.label ?? ""}
+          </span>
+          {ready && portfolio && (
+            <div className="ml-auto flex items-center gap-2">
+              <LiveDot degraded={live.degraded || !live.quotesAt} />
+              <span
+                className={`text-[12px] ${
+                  live.degraded || !live.quotesAt ? "text-warn/90" : "text-mute"
+                }`}
+              >
+                {liveLabel}
+              </span>
+            </div>
+          )}
+        </header>
+
+        {/* Mobile top bar */}
+        <header className="lg:hidden sticky top-0 z-40 border-b border-edge bg-black/85 backdrop-blur-md">
+          <div className="flex items-center justify-between px-4 py-3">
+            <Link href="/" className="flex items-center gap-2.5">
+              <Sigil size={22} />
+              <span className="font-display text-[13px] font-semibold tracking-[0.16em] text-ink">
+                SANCTUM
+              </span>
+            </Link>
+            {ready && portfolio && (
+              <div className="flex items-center gap-2">
+                <LiveDot degraded={live.degraded || !live.quotesAt} />
+                <span className="font-mono tnum text-[12px] text-mute">
+                  {fmtUSDCompact(portfolio.totalValue)}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-1 overflow-x-auto px-3 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {NAV.map((item) => {
+              const active = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`whitespace-nowrap rounded-md px-3 py-1.5 text-[12px] transition-colors ${
+                    active
+                      ? "bg-white/[0.08] text-ink"
+                      : "text-mute hover:text-ink"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        </header>
+
+        <main className="mx-auto w-full max-w-[1380px] min-w-0 px-4 py-6 sm:px-8 sm:py-8">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={pathname}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
     </div>
   );
 }

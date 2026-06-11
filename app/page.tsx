@@ -240,7 +240,7 @@ export default function OverviewPage() {
                   <th
                     key={key}
                     onClick={() => setSort(key)}
-                    className={`cursor-pointer select-none px-6 py-3 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors hover:text-ink ${
+                    className={`cursor-pointer select-none px-6 py-3 text-[12px] font-medium transition-colors hover:text-ink ${
                       sortKey === key ? "text-mint" : "text-faint"
                     }`}
                   >
@@ -248,7 +248,7 @@ export default function OverviewPage() {
                     {sortKey === key && (asc ? " ↑" : " ↓")}
                   </th>
                 ))}
-                <th className="px-6 py-3 font-mono text-[10px] uppercase tracking-[0.14em] text-faint text-right">
+                <th className="px-6 py-3 text-[12px] font-medium text-faint text-right">
                   Shares · Basis
                 </th>
               </tr>
