@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { fmtPct, fmtUSDCompact } from "@/lib/format";
+import { useElementWidth } from "@/lib/useElementWidth";
 
 export interface TreemapItem {
   id: string;
@@ -10,7 +11,6 @@ export interface TreemapItem {
   value: number;
   /** Drives cell color, e.g. return % (clamped ±25%). */
   intensity: number;
-  sub?: string;
 }
 
 interface Rect {
@@ -106,28 +106,24 @@ export function Treemap({
   items: TreemapItem[];
   height?: number;
 }) {
-  // viewBox height keeps cell aspect sensible at a 640px reference width.
-  const W = 1000;
-  const viewH = Math.round((height * W) / 640);
+  // Real pixel coordinates: cells and labels never stretch with the viewport.
+  const [wrapRef, W] = useElementWidth<HTMLDivElement>();
   const rects = useMemo(
-    () => squarify(items, 0, 0, W, viewH),
-    [items, viewH]
+    () => (W > 0 ? squarify(items, 0, 0, W, height) : []),
+    [items, W, height]
   );
   const [active, setActive] = useState<string | null>(null);
 
   return (
-    <div style={{ height }} className="w-full">
-      <svg
-        viewBox={`0 0 ${W} ${viewH}`}
-        className="h-full w-full"
-        preserveAspectRatio="none"
-      >
+    <div ref={wrapRef} style={{ height }} className="w-full">
+      {W > 0 && (
+      <svg width={W} height={height}>
         {rects.map((r, i) => {
           const { bg, border } = cellColor(r.item.intensity);
           const isActive = active === r.item.id;
           const pad = 3;
-          const showLabel = r.w > 90 && r.h > 54;
-          const showSub = r.w > 120 && r.h > 84;
+          const showLabel = r.w > 64 && r.h > 40;
+          const showSub = r.w > 86 && r.h > 64;
           return (
             <motion.g
               key={r.item.id}
@@ -144,7 +140,7 @@ export function Treemap({
                 y={r.y + pad}
                 width={Math.max(0, r.w - pad * 2)}
                 height={Math.max(0, r.h - pad * 2)}
-                rx={10}
+                rx={9}
                 fill={bg}
                 stroke={isActive ? "rgba(231,236,244,0.55)" : border}
                 strokeWidth={isActive ? 2 : 1.2}
@@ -152,33 +148,33 @@ export function Treemap({
               {showLabel && (
                 <>
                   <text
-                    x={r.x + 16}
-                    y={r.y + 34}
+                    x={r.x + 12}
+                    y={r.y + 25}
                     fill="var(--color-ink)"
-                    style={{ fontSize: 21, fontWeight: 600 }}
+                    style={{ fontSize: 14.5, fontWeight: 600 }}
                     className="font-display"
                   >
                     {r.item.label}
                   </text>
                   <text
-                    x={r.x + 16}
-                    y={r.y + 58}
+                    x={r.x + 12}
+                    y={r.y + 42}
                     fill="var(--color-mute)"
-                    style={{ fontSize: 15, fontVariantNumeric: "tabular-nums" }}
+                    style={{ fontSize: 11.5, fontVariantNumeric: "tabular-nums" }}
                     className="font-mono"
                   >
                     {fmtUSDCompact(r.item.value)}
                   </text>
                   {showSub && (
                     <text
-                      x={r.x + 16}
-                      y={r.y + 80}
+                      x={r.x + 12}
+                      y={r.y + 59}
                       fill={
                         r.item.intensity >= 0
                           ? "var(--color-pos)"
                           : "var(--color-neg)"
                       }
-                      style={{ fontSize: 14, fontVariantNumeric: "tabular-nums" }}
+                      style={{ fontSize: 11, fontVariantNumeric: "tabular-nums" }}
                       className="font-mono"
                     >
                       {fmtPct(r.item.intensity, 1, true)}
@@ -190,6 +186,7 @@ export function Treemap({
           );
         })}
       </svg>
+      )}
     </div>
   );
 }

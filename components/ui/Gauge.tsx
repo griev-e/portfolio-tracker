@@ -52,7 +52,7 @@ export function Gauge({
 
   return (
     <div className="flex flex-col items-center" style={{ width: size }}>
-      <svg width={size} height={size * 0.78} viewBox={`0 0 ${size} ${size * 0.82}`}>
+      <svg width={size} height={size * 0.82} viewBox={`0 0 ${size} ${size * 0.82}`}>
         <path
           d={arcPath(startAngle, endAngle)}
           stroke="rgba(148,163,184,0.12)"

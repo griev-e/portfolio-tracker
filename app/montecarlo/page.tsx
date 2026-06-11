@@ -27,9 +27,12 @@ export default function MonteCarloPage() {
     [portfolio]
   );
 
-  const target = portfolio
-    ? Math.round((portfolio.totalValue * targetMultiple) / 1000) * 1000
-    : 0;
+  // Round to a clean figure, but never to $0 for small portfolios.
+  const rawTarget = (portfolio?.totalValue ?? 0) * targetMultiple;
+  const target =
+    rawTarget >= 5000
+      ? Math.round(rawTarget / 1000) * 1000
+      : Math.max(100, Math.round(rawTarget / 100) * 100);
 
   const { value: result, pending } = useAsyncCompute(() => {
     if (!portfolio || !risk) return null;

@@ -3,14 +3,12 @@
 @theme {
   --color-void: #000000;
   --color-panel: #060708;
-  --color-panel2: #0a0c10;
   --color-edge: rgba(148, 163, 184, 0.09);
   --color-edge2: rgba(148, 163, 184, 0.18);
   --color-ink: #e7ecf4;
   --color-mute: #8b95a7;
   --color-faint: #5b6474;
   --color-mint: #5eead4;
-  --color-mintdim: #2dd4bf;
   --color-pos: #34d399;
   --color-neg: #fb7185;
   --color-warn: #fbbf24;

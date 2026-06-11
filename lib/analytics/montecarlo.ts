@@ -114,6 +114,7 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
 
   for (let p = 0; p < paths; p++) {
     let v = initialValue;
+    const sample = sampleMap.get(p); // hoisted: avoid a Map lookup per month
     for (let m = 1; m <= months; m++) {
       v = v * Math.exp(drift + diffusion * normal()) + monthlyContribution;
       values[m][p] = v;
@@ -121,38 +122,32 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
         hitFlags[p] = 1;
         everHit++;
       }
-      sampleMap.get(p)?.push(v);
+      sample?.push(v);
     }
   }
 
-  const pct = (arr: Float64Array, q: number): number => {
+  // Sort each month's cross-section once, then read all percentiles off it.
+  const sortedPct = (arr: Float64Array) => {
     const sorted = Float64Array.from(arr).sort();
-    const idx = Math.min(sorted.length - 1, Math.max(0, Math.floor(q * (sorted.length - 1))));
-    return sorted[idx];
+    const at = (q: number) =>
+      sorted[
+        Math.min(sorted.length - 1, Math.max(0, Math.floor(q * (sorted.length - 1))))
+      ];
+    return at;
+  };
+  const bandAt = (m: number): MonteCarloResult["bands"][number] => {
+    const at = sortedPct(values[m]);
+    return { month: m, p5: at(0.05), p25: at(0.25), p50: at(0.5), p75: at(0.75), p95: at(0.95) };
   };
 
   // Sample every month up to 10y horizons, quarterly beyond, to keep the chart light.
   const step = months > 120 ? 3 : 1;
   const bands: MonteCarloResult["bands"] = [];
   for (let m = 0; m <= months; m += step) {
-    bands.push({
-      month: m,
-      p5: pct(values[m], 0.05),
-      p25: pct(values[m], 0.25),
-      p50: pct(values[m], 0.5),
-      p75: pct(values[m], 0.75),
-      p95: pct(values[m], 0.95),
-    });
+    bands.push(bandAt(m));
   }
   if (bands[bands.length - 1].month !== months) {
-    bands.push({
-      month: months,
-      p5: pct(values[months], 0.05),
-      p25: pct(values[months], 0.25),
-      p50: pct(values[months], 0.5),
-      p75: pct(values[months], 0.75),
-      p95: pct(values[months], 0.95),
-    });
+    bands.push(bandAt(months));
   }
 
   const terminal = values[months];
@@ -162,15 +157,16 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
       : 0;
 
   const totalContributed = initialValue + monthlyContribution * months;
-  const median = pct(terminal, 0.5);
+  const terminalAt = sortedPct(terminal);
+  const median = terminalAt(0.5);
   const medianCagr =
     totalContributed > 0 && years > 0
       ? Math.pow(median / totalContributed, 1 / years) - 1
       : 0;
 
   // Terminal distribution histogram (clipped at p99 so the tail doesn't flatten it).
-  const lo = pct(terminal, 0.001);
-  const hi = pct(terminal, 0.99);
+  const lo = terminalAt(0.001);
+  const hi = terminalAt(0.99);
   const BINS = 36;
   const width = (hi - lo) / BINS || 1;
   const histogram = Array.from({ length: BINS }, (_, i) => ({
@@ -188,8 +184,8 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
     probTargetAtHorizon: targetValue > 0 ? hitAtHorizon / paths : 0,
     probTargetEver: targetValue > 0 ? everHit / paths : 0,
     median,
-    p5: pct(terminal, 0.05),
-    p95: pct(terminal, 0.95),
+    p5: terminalAt(0.05),
+    p95: terminalAt(0.95),
     medianCagr,
     histogram,
     totalContributed,

@@ -9,7 +9,7 @@ import { Meter } from "@/components/ui/Meter";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
 import { riskReport } from "@/lib/analytics/risk";
-import { SPX } from "@/lib/data/benchmarks";
+import { CMA, SPX } from "@/lib/data/benchmarks";
 import { fmtNum, fmtPct } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 
@@ -69,7 +69,10 @@ export default function RiskPage() {
             value={risk.sharpe}
             min={0}
             max={1.2}
-            marker={{ value: (SPX.beta * 0.045) / SPX.volatility, label: "S&P 500" }}
+            marker={{
+              value: (SPX.beta * CMA.equityRiskPremium) / SPX.volatility,
+              label: "S&P 500",
+            }}
             label="est. sharpe"
             format={(v) => fmtNum(v, 2)}
             color="var(--color-vio)"

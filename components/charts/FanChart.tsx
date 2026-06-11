@@ -3,11 +3,13 @@
 import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { fmtUSDCompact } from "@/lib/format";
+import { useElementWidth } from "@/lib/useElementWidth";
 import type { MonteCarloResult } from "@/lib/analytics/montecarlo";
 
 /**
  * Monte Carlo fan chart: layered percentile bands (5–95, 25–75), the median
  * path, ghost sample paths, target line, and a hover crosshair readout.
+ * Rendered in real pixel coordinates so text and markers never stretch.
  */
 export function FanChart({
   result,
@@ -18,9 +20,9 @@ export function FanChart({
   target: number;
   height?: number;
 }) {
-  const W = 1000;
-  const H = 480;
-  const PAD = { l: 14, r: 86, t: 18, b: 34 };
+  const [wrapRef, W] = useElementWidth<HTMLDivElement>();
+  const H = height;
+  const PAD = { l: 10, r: 64, t: 14, b: 26 };
   const { bands, samplePaths } = result;
   const months = bands[bands.length - 1].month;
 
@@ -75,14 +77,14 @@ export function FanChart({
   }, [maxY]);
 
   return (
-    <div style={{ height }} className="w-full">
+    <div ref={wrapRef} className="w-full">
+      {W > 0 && (
       <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className="h-full w-full"
-        preserveAspectRatio="none"
+        width={W}
+        height={H}
         onMouseMove={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
-          const px = ((e.clientX - rect.left) / rect.width) * W;
+          const px = e.clientX - rect.left;
           const m = ((px - PAD.l) / (W - PAD.l - PAD.r)) * months;
           setHm(Math.max(0, Math.min(months, m)));
         }}
@@ -102,7 +104,7 @@ export function FanChart({
               y={y(v) + 4}
               fill="var(--color-faint)"
               className="font-mono"
-              style={{ fontSize: 13 }}
+              style={{ fontSize: 11 }}
             >
               {fmtUSDCompact(v)}
             </text>
@@ -116,7 +118,7 @@ export function FanChart({
             textAnchor="middle"
             fill="var(--color-faint)"
             className="font-mono"
-            style={{ fontSize: 13 }}
+            style={{ fontSize: 11 }}
           >
             {yr}y
           </text>
@@ -191,7 +193,7 @@ export function FanChart({
               y={y(target) + 4}
               fill="var(--color-warn)"
               className="font-mono"
-              style={{ fontSize: 13 }}
+              style={{ fontSize: 11 }}
             >
               target
             </text>
@@ -231,6 +233,7 @@ export function FanChart({
           </g>
         )}
       </svg>
+      )}
       <div className="mt-1 flex h-6 items-center justify-between px-1 font-mono text-[11px] text-mute">
         <span>
           {hovered

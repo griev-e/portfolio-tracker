@@ -48,7 +48,7 @@ export default function ResearchPage() {
       <PageHeader
         eyebrow="Portfolio"
         title="Stock Research"
-        description={`Fundamental dashboard for every holding · bundled snapshot ${DATA_AS_OF}`}
+        description={`Fundamental dashboard for every holding · live data where available, snapshot ${DATA_AS_OF} as fallback`}
       />
 
       {/* Selector rail */}

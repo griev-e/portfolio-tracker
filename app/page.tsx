@@ -56,7 +56,6 @@ export default function OverviewPage() {
     label: p.symbol,
     value: p.equity,
     intensity: p.returnPct,
-    sub: p.name,
   }));
 
   const donutSlices = [

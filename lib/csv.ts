@@ -72,7 +72,7 @@ export function parsePortfolioCSV(text: string): ParseResult {
   const warnings: string[] = [];
   const errors: string[] = [];
   const lines = text
-    .replace(/^﻿/, "")
+    .replace(/^\uFEFF/, "")
     .split(/\r\n|\n|\r/)
     .filter((l) => l.trim().length > 0);
 
@@ -150,13 +150,19 @@ export function parsePortfolioCSV(text: string): ParseResult {
       totalReturn = dollarPL;
     } else if (Number.isFinite(averageCost) && averageCost > 0) {
       // Detect % vs $: a raw value like "12.5" could be 12.5% or $12.50.
-      // Prefer whichever interpretation reconciles with equity − cost basis.
+      // Dollars is the default; only reinterpret as percent when the cell is
+      // marked with % or the percent reading reconciles clearly better with
+      // equity − cost basis (not just marginally, to avoid flipping small
+      // dollar amounts that happen to sit near the percent value).
       const rawCell = get("totalreturn");
       const looksPercent = rawCell.includes("%");
       const asPercentDollars = (totalReturn / 100) * costBasis;
       const dollarGap = Math.abs(totalReturn - dollarPL);
       const pctGap = Math.abs(asPercentDollars - dollarPL);
-      if (looksPercent || (pctGap < dollarGap && Math.abs(totalReturn) <= 500)) {
+      if (
+        looksPercent ||
+        (pctGap < dollarGap * 0.5 && Math.abs(totalReturn) <= 200)
+      ) {
         totalReturn = asPercentDollars;
       }
     }

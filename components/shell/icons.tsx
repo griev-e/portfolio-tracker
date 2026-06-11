@@ -83,16 +83,4 @@ export const IconImport = () => (
   </svg>
 );
 
-export const IconCash = () => (
-  <svg {...base}>
-    <rect x="2.6" y="5.6" width="14.8" height="9" rx="1.8" />
-    <circle cx="10" cy="10.1" r="2.2" />
-    <path d="M5.2 8 v.01 M14.8 12.2 v.01" />
-  </svg>
-);
 
-export const IconSpark = () => (
-  <svg {...base}>
-    <path d="M10 2.5 L11.5 8.5 L17.5 10 L11.5 11.5 L10 17.5 L8.5 11.5 L2.5 10 L8.5 8.5 Z" />
-  </svg>
-);

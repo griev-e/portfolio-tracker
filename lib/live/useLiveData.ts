@@ -50,7 +50,14 @@ export function useLiveData(symbols: string[]): LiveData {
         if (!res.ok) throw new Error();
         const data = (await res.json()) as QuotesResponse;
         if (!stopped) {
-          setQuotes(data.quotes);
+          // Skip the state update when prices haven't moved (common after
+          // hours) — avoids rebuilding the portfolio and re-running
+          // animations on every poll.
+          setQuotes((prev) =>
+            JSON.stringify(prev) === JSON.stringify(data.quotes)
+              ? prev
+              : data.quotes
+          );
           setQuotesAt(data.asOf);
           setDegraded(false);
         }

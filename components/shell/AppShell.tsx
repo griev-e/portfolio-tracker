@@ -149,7 +149,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <LiveDot degraded={live.degraded || !live.quotesAt} />
                 <span className={live.degraded || !live.quotesAt ? "text-warn/90" : "text-mint/90"}>
                   {live.degraded
-                    ? "offline · imported prices"
+                    ? live.livePriceCount > 0
+                      ? "offline · last good prices"
+                      : "offline · imported prices"
                     : live.quotesAt
                       ? `live · ${live.livePriceCount}/${portfolio.positions.length} priced`
                       : "connecting…"}

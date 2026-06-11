@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { useElementWidth } from "@/lib/useElementWidth";
 
 export interface ScatterPoint {
   id: string;
@@ -32,19 +33,8 @@ export function Scatter({
   yFormat: (v: number) => string;
   height?: number;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
+  const [containerRef, width] = useElementWidth<HTMLDivElement>();
   const [hover, setHover] = useState<string | null>(null);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const update = () => setWidth(el.clientWidth);
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
 
   const W = width;
   const H = height;
