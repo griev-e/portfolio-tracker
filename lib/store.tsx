@@ -34,6 +34,8 @@ export interface LiveStatus {
   degraded: boolean;
   /** How many positions are currently repriced live. */
   livePriceCount: number;
+  /** True while a manual refresh is in flight. */
+  refreshing: boolean;
 }
 
 interface PortfolioStore {
@@ -47,6 +49,8 @@ interface PortfolioStore {
   loadDemo: () => void;
   setCash: (cash: number) => void;
   clear: () => void;
+  /** Force-refetch live quotes + fundamentals, bypassing caches. */
+  refreshLive: () => Promise<void>;
 }
 
 const Ctx = createContext<PortfolioStore | null>(null);
@@ -141,8 +145,15 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       degraded: liveData.degraded,
       livePriceCount:
         portfolio?.positions.filter((p) => p.isLivePrice).length ?? 0,
+      refreshing: liveData.refreshing,
     }),
-    [liveData.quotesAt, liveData.fundamentalsAt, liveData.degraded, portfolio]
+    [
+      liveData.quotesAt,
+      liveData.fundamentalsAt,
+      liveData.degraded,
+      liveData.refreshing,
+      portfolio,
+    ]
   );
 
   const value = useMemo<PortfolioStore>(
@@ -156,8 +167,19 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       loadDemo,
       setCash,
       clear,
+      refreshLive: liveData.refresh,
     }),
-    [ready, portfolio, stored?.isDemo, live, importHoldings, loadDemo, setCash, clear]
+    [
+      ready,
+      portfolio,
+      stored?.isDemo,
+      live,
+      importHoldings,
+      loadDemo,
+      setCash,
+      clear,
+      liveData.refresh,
+    ]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

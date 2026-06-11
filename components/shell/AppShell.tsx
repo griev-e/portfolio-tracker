@@ -56,6 +56,41 @@ export function Sigil({ size = 26 }: { size?: number; id?: string }) {
   );
 }
 
+/** Manual refresh: punches through every cache layer for fresh quotes. */
+function RefreshButton({
+  refreshing,
+  onRefresh,
+}: {
+  refreshing: boolean;
+  onRefresh: () => void;
+}) {
+  return (
+    <button
+      onClick={onRefresh}
+      disabled={refreshing}
+      title="Refresh live data"
+      aria-label="Refresh live data"
+      className="flex h-7 w-7 items-center justify-center rounded-md text-mute transition-colors hover:bg-white/[0.06] hover:text-ink disabled:pointer-events-none"
+    >
+      <svg
+        width="13"
+        height="13"
+        viewBox="0 0 20 20"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={refreshing ? "animate-spin" : ""}
+        style={refreshing ? { animationDuration: "0.8s" } : undefined}
+      >
+        <path d="M16.9 8.2 A 7.2 7.2 0 1 0 17.2 11.6" />
+        <path d="M17.2 3.4 V8.2 H12.4" />
+      </svg>
+    </button>
+  );
+}
+
 function LiveDot({ degraded }: { degraded: boolean }) {
   return (
     <span className="relative flex h-2 w-2">
@@ -209,7 +244,7 @@ function SidebarNav() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { portfolio, isDemo, ready, live } = usePortfolio();
+  const { portfolio, isDemo, ready, live, refreshLive } = usePortfolio();
 
   // The lock screen renders bare — no sidebar, no nav.
   if (pathname === "/lock") {
@@ -257,6 +292,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
           {ready && portfolio && (
             <div className="ml-auto flex items-center gap-2">
+              <RefreshButton refreshing={live.refreshing} onRefresh={refreshLive} />
               <LiveDot degraded={live.degraded || !live.quotesAt} />
               <span
                 className={`font-mono text-[11px] tracking-[0.08em] ${
@@ -279,7 +315,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               </span>
             </Link>
             {ready && portfolio && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <RefreshButton refreshing={live.refreshing} onRefresh={refreshLive} />
                 <LiveDot degraded={live.degraded || !live.quotesAt} />
                 <span className="font-mono tnum text-[12px] text-mute">
                   {fmtUSDCompact(portfolio.totalValue)}
