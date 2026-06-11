@@ -32,23 +32,22 @@ const NAV = [
 
 const GROUPS = ["Portfolio", "Analysis", "Simulation", "Data"];
 
-/** Vault-rotor sigil: three interlocking arcs around a core. */
-export function Sigil({ size = 26, id = "sgrad" }: { size?: number; id?: string }) {
+/** White cat silhouette icon. */
+export function Sigil({ size = 26 }: { size?: number; id?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 28 28" fill="none">
-      <circle cx="14" cy="14" r="12.5" stroke={`url(#${id})`} strokeWidth="1.3" />
-      <g stroke={`url(#${id})`} strokeWidth="1.6" strokeLinecap="round">
-        <path d="M14 5.6 A 8.4 8.4 0 0 1 21.27 18.2" />
-        <path d="M14 5.6 A 8.4 8.4 0 0 1 21.27 18.2" transform="rotate(120 14 14)" />
-        <path d="M14 5.6 A 8.4 8.4 0 0 1 21.27 18.2" transform="rotate(240 14 14)" />
-      </g>
-      <circle cx="14" cy="14" r="1.7" fill={`url(#${id})`} />
-      <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="28" y2="28">
-          <stop stopColor="#5EEAD4" />
-          <stop offset="1" stopColor="#A78BFA" />
-        </linearGradient>
-      </defs>
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="white">
+      {/* ears */}
+      <polygon points="4,13 4,3 10,9" />
+      <polygon points="28,13 28,3 22,9" />
+      {/* head */}
+      <ellipse cx="16" cy="17" rx="11" ry="10" />
+      {/* body */}
+      <ellipse cx="16" cy="28" rx="8" ry="5" />
+      {/* tail */}
+      <path d="M24,28 Q30,22 28,16 Q27,13 25,15 Q27,20 22,26 Z" />
+      {/* eyes — punched out */}
+      <ellipse cx="12" cy="16" rx="1.6" ry="1.8" fill="#050505" />
+      <ellipse cx="20" cy="16" rx="1.6" ry="1.8" fill="#050505" />
     </svg>
   );
 }
@@ -231,8 +230,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="flex items-center gap-2.5 px-4 pb-3 pt-4">
           <Link href="/" className="flex items-center gap-2.5">
             <Sigil size={24} />
-            <span className="font-display text-[14px] font-semibold tracking-[0.16em] text-ink">
-              SANCTUM
+            <span className="text-[14px] font-medium text-ink">
+              sanctum
             </span>
           </Link>
           {isDemo && (
@@ -295,8 +294,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex items-center justify-between px-4 py-3">
             <Link href="/" className="flex items-center gap-2.5">
               <Sigil size={22} />
-              <span className="font-display text-[13px] font-semibold tracking-[0.16em] text-ink">
-                SANCTUM
+              <span className="text-[13px] font-medium text-ink">
+                sanctum
               </span>
             </Link>
             {ready && portfolio && (
