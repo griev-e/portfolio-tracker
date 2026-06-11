@@ -1,8 +1,8 @@
 {
-  "name": "hlee",
+  "name": "sanctum",
   "version": "1.0.0",
   "private": true,
-  "description": "HLEE — Holdings, Liquidity & Equity Evaluation",
+  "description": "Sanctum — private portfolio intelligence",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

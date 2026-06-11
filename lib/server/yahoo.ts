@@ -48,18 +48,33 @@ export async function fetchQuotes(
     const list = Array.isArray(results) ? results : [results];
     for (const q of list) {
       if (!q?.symbol || typeof q.regularMarketPrice !== "number") continue;
+
+      // Extended-hours aware: outside the regular session, the latest pre- or
+      // post-market trade is the price. Day change stays anchored to the
+      // prior regular close, so it captures the full move since yesterday.
+      const state = q.marketState ?? "REGULAR";
+      let price = q.regularMarketPrice;
+      let time: Date | undefined = q.regularMarketTime;
+      if (state.startsWith("PRE") && typeof q.preMarketPrice === "number") {
+        price = q.preMarketPrice;
+        time = q.preMarketTime ?? time;
+      } else if (
+        state !== "REGULAR" &&
+        typeof q.postMarketPrice === "number"
+      ) {
+        price = q.postMarketPrice;
+        time = q.postMarketTime ?? time;
+      }
+
       const quote: LiveQuote = {
         symbol: q.symbol,
-        price: q.regularMarketPrice,
+        price,
         prevClose:
           typeof q.regularMarketPreviousClose === "number"
             ? q.regularMarketPreviousClose
             : null,
-        marketState: q.marketState ?? "UNKNOWN",
         asOf:
-          q.regularMarketTime instanceof Date
-            ? q.regularMarketTime.toISOString()
-            : new Date().toISOString(),
+          time instanceof Date ? time.toISOString() : new Date().toISOString(),
       };
       out[q.symbol] = quote;
       quoteCache.set(q.symbol, { at: now, data: quote });

@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { Sigil } from "@/components/shell/AppShell";
 import { usePortfolio } from "@/lib/store";
 
 /** Shown on analytics pages before any portfolio exists. */
@@ -15,33 +16,9 @@ export function EmptyState({ page }: { page: string }) {
       transition={{ duration: 0.4 }}
       className="panel mx-auto mt-16 max-w-md px-8 py-10 text-center"
     >
-      <svg
-        width="44"
-        height="44"
-        viewBox="0 0 28 28"
-        fill="none"
-        className="mx-auto mb-4 opacity-90"
-      >
-        <circle cx="14" cy="14" r="12.5" stroke="url(#egrad)" strokeWidth="1.2" />
-        <path
-          d="M9 19.5 V8.5 M19 19.5 V8.5"
-          stroke="url(#egrad)"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-        <path
-          d="M9 15.2 L19 12.8"
-          stroke="url(#egrad)"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-        <defs>
-          <linearGradient id="egrad" x1="0" y1="0" x2="28" y2="28">
-            <stop stopColor="#5EEAD4" />
-            <stop offset="1" stopColor="#A78BFA" />
-          </linearGradient>
-        </defs>
-      </svg>
+      <div className="mb-4 flex justify-center opacity-90">
+        <Sigil size={44} id="egrad" />
+      </div>
       <h2 className="font-display text-lg font-semibold text-ink">
         No portfolio loaded
       </h2>

@@ -7,7 +7,6 @@ import { deltaToneClass } from "@/components/ui/Delta";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { factorScores } from "@/lib/analytics/factors";
-import { DATA_AS_OF } from "@/lib/data/fundamentals";
 import {
   daysUntil,
   fmtDate,
@@ -48,7 +47,7 @@ export default function ResearchPage() {
       <PageHeader
         eyebrow="Portfolio"
         title="Stock Research"
-        description={`Fundamental dashboard for every holding · live data where available, snapshot ${DATA_AS_OF} as fallback`}
+        description="Fundamental dashboard for every holding, refreshed from live market data"
       />
 
       {/* Selector rail */}
@@ -114,13 +113,12 @@ function StockDashboard({
     return (
       <Card className="px-8 py-10 text-center">
         <h2 className="font-display text-xl font-semibold text-ink">
-          {p.symbol} — no bundled fundamentals
+          {p.symbol} — no fundamentals yet
         </h2>
         <p className="mx-auto mt-2 max-w-md text-[13px] text-mute">
-          This ticker isn&apos;t in the bundled snapshot. Position math still
-          works everywhere; add it to{" "}
-          <code className="text-mint">lib/data/fundamentals.ts</code> to unlock
-          research, factors, and quality metrics.
+          No fundamentals are available for this ticker yet. Position math
+          still works everywhere; research, factors, and quality metrics will
+          light up once data is available.
         </p>
         <div className="mt-6 flex justify-center gap-8">
           <PositionContext p={p} />
@@ -155,7 +153,7 @@ function StockDashboard({
                 title={
                   f.live
                     ? "Live fundamentals from Yahoo Finance, refreshed daily"
-                    : "Bundled snapshot data"
+                    : "Baseline reference data"
                 }
               >
                 {f.live ? "live" : "snapshot"}
@@ -363,7 +361,7 @@ function StockDashboard({
             <p className="mt-4 border-t border-edge pt-3 text-[11.5px] leading-relaxed text-faint">
               {f.fcfYield > 0 && f.dividendYield / f.fcfYield > 0.8
                 ? "Payout is consuming most of free cash flow — watch sustainability if growth stalls."
-                : "Payout is comfortably covered by free cash flow at the snapshot levels."}
+                : "Payout is comfortably covered by free cash flow."}
             </p>
           </>
         ) : (

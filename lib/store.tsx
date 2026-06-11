@@ -15,9 +15,9 @@ import { useLiveData } from "./live/useLiveData";
 import { SAMPLE_CASH, SAMPLE_CSV } from "./sample";
 import type { Portfolio, RawHolding } from "./types";
 
-const STORAGE_KEY = "hlee.portfolio.v1";
-/** Pre-rebrand key — migrated on first load, then removed. */
-const LEGACY_STORAGE_KEY = "meridian.portfolio.v1";
+const STORAGE_KEY = "sanctum.portfolio.v1";
+/** Pre-rebrand keys — migrated on first load, then removed. */
+const LEGACY_STORAGE_KEYS = ["hlee.portfolio.v1", "meridian.portfolio.v1"];
 
 interface Stored {
   holdings: RawHolding[];
@@ -59,10 +59,13 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     try {
       let raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) {
-        raw = localStorage.getItem(LEGACY_STORAGE_KEY);
-        if (raw) {
-          localStorage.setItem(STORAGE_KEY, raw);
-          localStorage.removeItem(LEGACY_STORAGE_KEY);
+        for (const legacy of LEGACY_STORAGE_KEYS) {
+          const old = localStorage.getItem(legacy);
+          if (old && !raw) {
+            raw = old;
+            localStorage.setItem(STORAGE_KEY, old);
+          }
+          localStorage.removeItem(legacy);
         }
       }
       if (raw) setStored(JSON.parse(raw) as Stored);

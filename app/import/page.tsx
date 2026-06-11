@@ -66,7 +66,7 @@ export default function ImportPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `hlee-portfolio-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `sanctum-portfolio-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -286,7 +286,7 @@ export default function ImportPage() {
               >
                 <span className="font-medium">Load demo portfolio</span>
                 <span className="mt-0.5 block text-[11px] text-faint">
-                  13 positions seeded from a real Roth IRA snapshot
+                  13 positions seeded from a real Roth IRA
                   {isDemo && " · currently loaded"}
                 </span>
               </button>

@@ -1,11 +1,10 @@
 import type { AnalystRating, InsiderSignal, Sector } from "@/lib/types";
 
-/** A live quote from the /api/quotes proxy. */
+/** A live quote from the /api/quotes proxy (extended-hours aware). */
 export interface LiveQuote {
   symbol: string;
   price: number;
   prevClose: number | null;
-  marketState: string; // PRE | REGULAR | POST | CLOSED | ...
   asOf: string;
 }
 

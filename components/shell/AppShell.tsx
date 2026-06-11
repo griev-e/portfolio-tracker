@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { DATA_AS_OF } from "@/lib/data/fundamentals";
 import { fmtUSDCompact } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import {
@@ -33,37 +32,37 @@ const NAV = [
 
 const GROUPS = ["Portfolio", "Analysis", "Simulation", "Data"];
 
+/** Vault-rotor sigil: three interlocking arcs around a core. */
+export function Sigil({ size = 26, id = "sgrad" }: { size?: number; id?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 28 28" fill="none">
+      <circle cx="14" cy="14" r="12.5" stroke={`url(#${id})`} strokeWidth="1.3" />
+      <g stroke={`url(#${id})`} strokeWidth="1.6" strokeLinecap="round">
+        <path d="M14 5.6 A 8.4 8.4 0 0 1 21.27 18.2" />
+        <path d="M14 5.6 A 8.4 8.4 0 0 1 21.27 18.2" transform="rotate(120 14 14)" />
+        <path d="M14 5.6 A 8.4 8.4 0 0 1 21.27 18.2" transform="rotate(240 14 14)" />
+      </g>
+      <circle cx="14" cy="14" r="1.7" fill={`url(#${id})`} />
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="28" y2="28">
+          <stop stopColor="#5EEAD4" />
+          <stop offset="1" stopColor="#A78BFA" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
 function Wordmark() {
   return (
     <Link href="/" className="flex items-center gap-2.5 px-2 group">
-      <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
-        <circle cx="14" cy="14" r="12.5" stroke="url(#mgrad)" strokeWidth="1.4" />
-        {/* H mark with a rising crossbar — holdings on the way up */}
-        <path
-          d="M9 19.5 V8.5 M19 19.5 V8.5"
-          stroke="url(#mgrad)"
-          strokeWidth="1.7"
-          strokeLinecap="round"
-        />
-        <path
-          d="M9 15.2 L19 12.8"
-          stroke="url(#mgrad)"
-          strokeWidth="1.7"
-          strokeLinecap="round"
-        />
-        <defs>
-          <linearGradient id="mgrad" x1="0" y1="0" x2="28" y2="28">
-            <stop stopColor="#5EEAD4" />
-            <stop offset="1" stopColor="#A78BFA" />
-          </linearGradient>
-        </defs>
-      </svg>
+      <Sigil />
       <div className="leading-none">
-        <div className="font-display text-[15px] font-semibold tracking-[0.14em] text-ink">
-          HLEE
+        <div className="font-display text-[15px] font-semibold tracking-[0.18em] text-ink">
+          SANCTUM
         </div>
         <div className="eyebrow mt-1 !text-[0.52rem]">
-          holdings · liquidity · equity
+          private portfolio intelligence
         </div>
       </div>
     </Link>
@@ -132,6 +131,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { portfolio, isDemo, ready, live } = usePortfolio();
 
+  // The lock screen renders bare — no sidebar, no nav.
+  if (pathname === "/lock") {
+    return <main className="min-h-screen">{children}</main>;
+  }
+
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[228px_1fr]">
       {/* Desktop sidebar */}
@@ -164,13 +168,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
             </div>
           )}
-          <div className="text-[10px] leading-relaxed text-faint font-mono px-1">
-            {live.fundamentalsAt
-              ? "fundamentals: live (yahoo)"
-              : "fundamentals: snapshot"}
-            <br />
-            fallback {DATA_AS_OF}
-          </div>
         </div>
       </aside>
 

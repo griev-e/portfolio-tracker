@@ -1,4 +1,4 @@
-# HLEE — Holdings, Liquidity & Equity Evaluation
+# Sanctum — Private Portfolio Intelligence
 
 A dark, institutional-grade personal portfolio analytics terminal. Import your
 holdings as CSV and get allocation, risk, research, quality, factor, scenario,
@@ -84,11 +84,19 @@ The repo is zero-config for Vercel:
 
 1. Push to GitHub.
 2. [vercel.com/new](https://vercel.com/new) → import the repo → Deploy.
-   Framework preset "Next.js" is auto-detected; no env vars needed.
+   Framework preset "Next.js" is auto-detected.
 
 Or from the CLI: `npx vercel`.
 
+### PIN lock
+
+Set `ACCESS_PIN` (a 4-digit code) in Vercel → Project → Settings →
+Environment Variables to require a PIN before anyone can see the app.
+Entry is masked, the cookie stores only a salted hash, and failed attempts
+are rate-limited by a flat delay. When the variable is unset the gate is
+disabled — so local dev and fresh deploys never lock you out.
+
 ## Disclaimer
 
-HLEE is an analysis tool, not investment advice. Bundled fundamentals are
+Sanctum is an analysis tool, not investment advice. Bundled fundamentals are
 approximations; simulations are models with thinner tails than real markets.
