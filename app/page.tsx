@@ -9,6 +9,7 @@ import { Delta, deltaToneClass } from "@/components/ui/Delta";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
+import { TickerLogo } from "@/components/ui/TickerLogo";
 import { riskReport } from "@/lib/analytics/risk";
 import { SPX } from "@/lib/data/benchmarks";
 import {
@@ -315,29 +316,15 @@ function HoldingRow({
       transition={{ delay: 0.25 + i * 0.035, duration: 0.35 }}
       className="group border-b border-edge/60 transition-colors hover:bg-white/[0.03]"
     >
-      {/* Asset: monogram chip + symbol + name */}
+      {/* Asset: brand logo + symbol + name */}
       <td className="px-6 py-3">
         <div className="flex items-center gap-3">
-          <span
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-mono text-[11px] font-semibold"
-            style={{
-              background: `color-mix(in srgb, ${accent} 14%, transparent)`,
-              color: accent,
-            }}
-          >
-            {p.symbol.slice(0, 2)}
-          </span>
+          <TickerLogo symbol={p.symbol} accent={accent} size={32} />
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="font-mono text-[13px] font-medium text-ink">
                 {p.symbol}
               </span>
-              {p.isLivePrice && (
-                <span
-                  className="h-1 w-1 rounded-full bg-mint/80"
-                  title="Live price"
-                />
-              )}
               {!p.fundamentals && (
                 <span
                   className="rounded border border-warn/30 bg-warn/10 px-1 py-px font-mono text-[8.5px] text-warn"

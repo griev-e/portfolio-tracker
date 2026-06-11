@@ -42,12 +42,17 @@ export function Heatmap({
         }
       : null;
 
+  // Cap cell size so a mid-sized book doesn't blow the matrix up to the full
+  // card width — compact cells with readable numbers beat giant empty tiles.
+  const maxWidth = 52 + n * 51;
+
   return (
     <div>
       <div
-        className="grid gap-[3px]"
+        className="mx-auto grid gap-[3px]"
         style={{
           gridTemplateColumns: `minmax(44px, auto) repeat(${n}, minmax(0, 1fr))`,
+          maxWidth,
         }}
         onMouseLeave={() => setHover(null)}
       >
@@ -56,7 +61,7 @@ export function Heatmap({
         {symbols.map((s, j) => (
           <div
             key={`h-${s}`}
-            className={`pb-1 text-center font-mono text-[9.5px] tracking-wide transition-colors ${
+            className={`pb-1 text-center font-mono text-[10px] tracking-wide transition-colors ${
               hover?.j === j ? "text-mint" : "text-faint"
             }`}
           >
@@ -128,11 +133,11 @@ function Row({
 }) {
   // Numbers stay readable up to ~22 holdings; beyond that, hover carries them.
   const showNumbers = n <= 22;
-  const fontSize = n <= 12 ? 10 : n <= 16 ? 9 : 8;
+  const fontSize = n <= 12 ? 12.5 : n <= 16 ? 11.5 : 10.5;
   return (
     <>
       <div
-        className={`flex items-center justify-end pr-2 font-mono text-[9.5px] tracking-wide transition-colors ${
+        className={`flex items-center justify-end pr-2 font-mono text-[10px] tracking-wide transition-colors ${
           hover?.i === i ? "text-mint" : "text-faint"
         }`}
       >
