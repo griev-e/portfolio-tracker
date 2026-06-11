@@ -16,18 +16,18 @@ export function PageHeader({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className="mb-7 flex flex-wrap items-end justify-between gap-4"
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      className="mb-6 flex flex-wrap items-end justify-between gap-4"
     >
       <div>
-        <div className="eyebrow mb-1.5">{eyebrow}</div>
-        <h1 className="font-display text-[26px] sm:text-[30px] font-semibold tracking-tight text-ink">
+        <div className="eyebrow mb-1 lg:hidden">{eyebrow}</div>
+        <h1 className="font-display text-[22px] font-semibold tracking-tight text-ink">
           {title}
         </h1>
         {description && (
-          <p className="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-mute">
+          <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-mute">
             {description}
           </p>
         )}

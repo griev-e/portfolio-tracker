@@ -146,7 +146,7 @@ export default function ImportPage() {
               {pasted.trim() && (
                 <button
                   onClick={() => handleText(pasted, null)}
-                  className="mt-2 rounded-lg border border-mint/30 bg-mint/10 px-4 py-2 text-[12.5px] font-medium text-mint transition hover:bg-mint/20"
+                  className="btn-secondary mt-2"
                 >
                   Parse pasted text
                 </button>
@@ -212,7 +212,7 @@ export default function ImportPage() {
                         <div className="mt-4 flex items-center gap-3">
                           <button
                             onClick={commit}
-                            className="rounded-lg bg-mint px-5 py-2 text-[13px] font-semibold text-void transition hover:brightness-110"
+                            className="btn-primary"
                           >
                             Import {parsed.holdings.length} holdings
                           </button>
@@ -266,7 +266,7 @@ export default function ImportPage() {
                   }
                 }}
                 disabled={!hasData || cashInput === ""}
-                className="rounded-lg border border-mint/30 bg-mint/10 px-4 py-2 text-[12.5px] font-medium text-mint transition enabled:hover:bg-mint/20 disabled:opacity-40"
+                className="btn-primary"
               >
                 Set
               </button>

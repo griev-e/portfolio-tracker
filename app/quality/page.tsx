@@ -155,7 +155,7 @@ export default function QualityPage() {
                   (h, hi) => (
                     <th
                       key={h}
-                      className={`px-5 py-3 font-mono text-[10px] uppercase tracking-[0.14em] text-faint ${
+                      className={`px-5 py-3 text-[12px] font-medium text-faint ${
                         hi > 0 ? "text-right" : ""
                       }`}
                     >

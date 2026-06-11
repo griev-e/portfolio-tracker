@@ -27,16 +27,10 @@ export function EmptyState({ page }: { page: string }) {
         portfolio to explore.
       </p>
       <div className="mt-6 flex items-center justify-center gap-3">
-        <Link
-          href="/import"
-          className="rounded-lg bg-mint/15 border border-mint/30 px-4 py-2 text-[13px] font-medium text-mint transition hover:bg-mint/25"
-        >
+        <Link href="/import" className="btn-primary">
           Import CSV
         </Link>
-        <button
-          onClick={loadDemo}
-          className="rounded-lg border border-edge px-4 py-2 text-[13px] text-mute transition hover:text-ink hover:border-edge2"
-        >
+        <button onClick={loadDemo} className="btn-secondary">
           Load demo
         </button>
       </div>

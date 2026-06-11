@@ -85,7 +85,7 @@ export default function BenchmarkPage() {
             className="mb-5"
           />
           <div className="space-y-1">
-            <div className="grid grid-cols-[1.4fr_1fr_1fr_1fr] gap-2 border-b border-edge pb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-faint">
+            <div className="grid grid-cols-[1.4fr_1fr_1fr_1fr] gap-2 border-b border-edge pb-2 text-[12px] font-medium text-faint">
               <span>Metric</span>
               <span className="text-right text-mint">You</span>
               <span className="text-right text-vio">S&P 500</span>
