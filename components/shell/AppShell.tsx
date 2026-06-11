@@ -9,6 +9,7 @@ import { usePortfolio } from "@/lib/store";
 import {
   IconBenchmark,
   IconImport,
+  IconMarket,
   IconMatrix,
   IconMonteCarlo,
   IconOverview,
@@ -22,6 +23,7 @@ const NAV = [
   { href: "/", label: "Overview", icon: IconOverview, group: "Portfolio" },
   { href: "/risk", label: "Risk", icon: IconRisk, group: "Portfolio" },
   { href: "/research", label: "Research", icon: IconResearch, group: "Portfolio" },
+  { href: "/market", label: "Market Analysis", icon: IconMarket, group: "Analysis" },
   { href: "/quality", label: "Quality", icon: IconQuality, group: "Analysis" },
   { href: "/benchmark", label: "Benchmark & Factors", icon: IconBenchmark, group: "Analysis" },
   { href: "/correlation", label: "Correlation", icon: IconMatrix, group: "Analysis" },

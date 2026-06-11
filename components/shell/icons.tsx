@@ -75,6 +75,13 @@ export const IconMonteCarlo = () => (
   </svg>
 );
 
+export const IconMarket = () => (
+  <svg {...base}>
+    <circle cx="10" cy="10" r="7.4" opacity="0.5" />
+    <path d="M3.4 10 H6.6 L8.4 6 L11.6 14 L13.4 10 H16.6" />
+  </svg>
+);
+
 export const IconImport = () => (
   <svg {...base}>
     <path d="M10 3.5 V12.2" />

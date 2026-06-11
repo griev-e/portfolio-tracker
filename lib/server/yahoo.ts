@@ -11,6 +11,7 @@ import type { FundamentalsPatch, LiveQuote } from "@/lib/live/types";
  * Only ever imported from route handlers — never ships to the browser.
  */
 const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
+export { yf };
 
 /** Module-scope caches survive between invocations on warm lambdas. */
 const quoteCache = new Map<string, { at: number; data: LiveQuote }>();
