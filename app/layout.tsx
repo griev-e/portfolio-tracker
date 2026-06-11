@@ -4,6 +4,7 @@ import { GeistSans } from "geist/font/sans";
 import { PortfolioProvider } from "@/lib/store";
 import { AppShell } from "@/components/shell/AppShell";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export default function RootLayout({
           <AppShell>{children}</AppShell>
         </PortfolioProvider>
         <SpeedInsights />
+        <Analytics />
       </body>
     </html>
   );
