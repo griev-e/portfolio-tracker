@@ -21,7 +21,7 @@ import {
 import { usePortfolio } from "@/lib/store";
 import type { Position } from "@/lib/types";
 
-type SortKey = "equity" | "returnPct" | "totalReturn" | "weight" | "symbol";
+type SortKey = "equity" | "returnPct" | "weight" | "symbol" | "today";
 
 export default function OverviewPage() {
   const { ready, portfolio } = usePortfolio();
@@ -37,12 +37,15 @@ export default function OverviewPage() {
     if (!portfolio) return [];
     const arr = [...portfolio.positions];
     arr.sort((a, b) => {
-      const va = sortKey === "symbol" ? a.symbol : a[sortKey];
-      const vb = sortKey === "symbol" ? b.symbol : b[sortKey];
-      const cmp =
-        typeof va === "string"
-          ? va.localeCompare(vb as string)
-          : (va as number) - (vb as number);
+      if (sortKey === "symbol") {
+        const cmp = a.symbol.localeCompare(b.symbol);
+        return asc ? cmp : -cmp;
+      }
+      const pick = (p: Position) =>
+        sortKey === "today"
+          ? (p.dayChange ?? Number.NEGATIVE_INFINITY)
+          : p[sortKey];
+      const cmp = pick(a) - pick(b);
       return asc ? cmp : -cmp;
     });
     return arr;
@@ -222,40 +225,55 @@ export default function OverviewPage() {
         <CardHeader
           eyebrow="Holdings"
           title="All positions"
+          right={
+            <span className="font-mono text-[10px] text-faint">
+              {portfolio.positions.length} positions ·{" "}
+              {fmtUSDCompact(portfolio.equityValue)} invested
+            </span>
+          }
           className="px-6 pt-5 mb-1"
         />
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-[13px]">
+          <table className="w-full min-w-[860px] text-[13px]">
             <thead>
               <tr className="border-b border-edge text-left">
                 {(
                   [
-                    ["symbol", "Asset"],
-                    ["equity", "Equity"],
-                    ["weight", "Weight"],
-                    ["returnPct", "Return %"],
-                    ["totalReturn", "P&L"],
-                  ] as [SortKey, string][]
-                ).map(([key, label]) => (
+                    ["symbol", "Asset", false],
+                    ["today", "Price · Today", true],
+                    ["equity", "Equity", true],
+                    ["weight", "Weight", false],
+                    ["returnPct", "Total return", true],
+                  ] as [SortKey, string, boolean][]
+                ).map(([key, label, right]) => (
                   <th
                     key={key}
                     onClick={() => setSort(key)}
                     className={`cursor-pointer select-none px-6 py-3 text-[12px] font-medium transition-colors hover:text-ink ${
                       sortKey === key ? "text-mint" : "text-faint"
-                    }`}
+                    } ${right ? "text-right" : ""}`}
                   >
                     {label}
                     {sortKey === key && (asc ? " ↑" : " ↓")}
                   </th>
                 ))}
-                <th className="px-6 py-3 text-[12px] font-medium text-faint text-right">
-                  Shares · Basis
-                </th>
               </tr>
             </thead>
             <tbody>
               {sorted.map((p, i) => (
-                <HoldingRow key={p.symbol} p={p} i={i} />
+                <HoldingRow
+                  key={p.symbol}
+                  p={p}
+                  i={i}
+                  maxWeight={Math.max(
+                    ...portfolio.positions.map((x) => x.weight),
+                    0.0001
+                  )}
+                  maxAbsReturn={Math.max(
+                    ...portfolio.positions.map((x) => Math.abs(x.returnPct)),
+                    0.0001
+                  )}
+                />
               ))}
             </tbody>
           </table>
@@ -265,40 +283,117 @@ export default function OverviewPage() {
   );
 }
 
-function HoldingRow({ p, i }: { p: Position; i: number }) {
+/** Stable per-symbol accent so colors survive re-sorting. */
+function symbolColor(symbol: string): string {
+  let h = 0;
+  for (let i = 0; i < symbol.length; i++) h = (h * 31 + symbol.charCodeAt(i)) | 0;
+  return PALETTE[Math.abs(h) % PALETTE.length];
+}
+
+function HoldingRow({
+  p,
+  i,
+  maxWeight,
+  maxAbsReturn,
+}: {
+  p: Position;
+  i: number;
+  maxWeight: number;
+  maxAbsReturn: number;
+}) {
+  const accent = symbolColor(p.symbol);
+  const dayPct =
+    p.dayChange !== null && p.equity - p.dayChange > 0
+      ? p.dayChange / (p.equity - p.dayChange)
+      : null;
+  const neg = p.returnPct < 0;
+
   return (
     <motion.tr
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: 0.25 + i * 0.035, duration: 0.35 }}
-      className="border-b border-edge/60 transition-colors hover:bg-white/[0.02]"
+      className="group border-b border-edge/60 transition-colors hover:bg-white/[0.03]"
     >
-      <td className="px-6 py-3.5">
+      {/* Asset: monogram chip + symbol + name */}
+      <td className="px-6 py-3">
         <div className="flex items-center gap-3">
-          <div>
-            <div className="font-mono font-medium text-ink">{p.symbol}</div>
-            <div className="max-w-[200px] truncate text-[11px] text-faint">
+          <span
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-mono text-[11px] font-semibold"
+            style={{
+              background: `color-mix(in srgb, ${accent} 14%, transparent)`,
+              color: accent,
+            }}
+          >
+            {p.symbol.slice(0, 2)}
+          </span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-[13px] font-medium text-ink">
+                {p.symbol}
+              </span>
+              {p.isLivePrice && (
+                <span
+                  className="h-1 w-1 rounded-full bg-mint/80"
+                  title="Live price"
+                />
+              )}
+              {!p.fundamentals && (
+                <span
+                  className="rounded border border-warn/30 bg-warn/10 px-1 py-px font-mono text-[8.5px] text-warn"
+                  title="No fundamentals — uses conservative defaults in risk math"
+                >
+                  no data
+                </span>
+              )}
+            </div>
+            <div className="max-w-[190px] truncate text-[11px] text-faint">
               {p.name}
             </div>
           </div>
-          {!p.fundamentals && (
-            <span
-              className="rounded border border-warn/30 bg-warn/10 px-1.5 py-0.5 font-mono text-[9px] text-warn"
-              title="No bundled fundamentals — uses conservative defaults in risk math"
-            >
-              no data
-            </span>
-          )}
         </div>
       </td>
-      <td className="px-6 py-3.5 font-mono tnum text-ink">{fmtUSD(p.equity)}</td>
-      <td className="px-6 py-3.5">
+
+      {/* Price + today's move — the glance column */}
+      <td className="px-6 py-3 text-right">
+        <div className="font-mono tnum text-[13px] text-ink">
+          {fmtUSD(p.price)}
+        </div>
+        {dayPct !== null && p.dayChange !== null ? (
+          <div
+            className={`font-mono tnum text-[11px] ${
+              p.dayChange >= 0 ? "text-pos" : "text-neg"
+            }`}
+          >
+            {p.dayChange >= 0 ? "▲" : "▼"} {fmtPct(Math.abs(dayPct), 2)} ·{" "}
+            {p.dayChange >= 0 ? "+" : "−"}{fmtUSD(Math.abs(p.dayChange))}
+          </div>
+        ) : (
+          <div className="font-mono text-[11px] text-faint">— today</div>
+        )}
+      </td>
+
+      {/* Equity with shares · basis folded underneath */}
+      <td className="px-6 py-3 text-right">
+        <div className="font-mono tnum text-[13px] text-ink">
+          {fmtUSD(p.equity)}
+        </div>
+        <div className="font-mono tnum text-[11px] text-faint">
+          {fmtShares(p.shares)} sh · {fmtUSD(p.costBasis)}
+        </div>
+      </td>
+
+      {/* Weight scaled against the largest position */}
+      <td className="px-6 py-3">
         <div className="flex items-center gap-2.5">
           <div className="h-[5px] w-20 overflow-hidden rounded-full bg-white/[0.05]">
             <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-mint/40 to-mint"
+              className="h-full rounded-full"
+              style={{
+                background: `linear-gradient(90deg, color-mix(in srgb, ${accent} 45%, transparent), ${accent})`,
+              }}
               initial={{ width: 0 }}
-              animate={{ width: `${Math.min(p.weight * 100 * 2.5, 100)}%` }}
+              animate={{ width: `${(p.weight / maxWeight) * 100}%` }}
               transition={{ delay: 0.4 + i * 0.03, duration: 0.7 }}
             />
           </div>
@@ -307,15 +402,37 @@ function HoldingRow({ p, i }: { p: Position; i: number }) {
           </span>
         </div>
       </td>
-      <td className={`px-6 py-3.5 font-mono tnum ${deltaToneClass(p.returnPct)}`}>
-        {fmtPct(p.returnPct, 2, true)}
-      </td>
-      <td className={`px-6 py-3.5 font-mono tnum ${deltaToneClass(p.totalReturn)}`}>
-        {p.totalReturn >= 0 ? "+" : ""}
-        {fmtUSD(p.totalReturn)}
-      </td>
-      <td className="px-6 py-3.5 text-right font-mono tnum text-[12px] text-mute">
-        {fmtShares(p.shares)} · {fmtUSD(p.costBasis)}
+
+      {/* Total return: mirrored bar + stacked % / $ */}
+      <td className="px-6 py-3">
+        <div className="flex items-center justify-end gap-3">
+          <div className="relative h-[16px] w-24">
+            <div className="absolute inset-y-0 left-1/2 w-px bg-white/10" />
+            <motion.div
+              className="absolute top-1/2 h-[7px] -translate-y-1/2 rounded-full"
+              style={{
+                background: neg
+                  ? "linear-gradient(270deg, color-mix(in srgb, var(--color-neg) 85%, transparent), color-mix(in srgb, var(--color-neg) 15%, transparent))"
+                  : "linear-gradient(90deg, color-mix(in srgb, var(--color-pos) 15%, transparent), color-mix(in srgb, var(--color-pos) 85%, transparent))",
+                ...(neg ? { right: "50%" } : { left: "50%" }),
+              }}
+              initial={{ width: 0 }}
+              animate={{
+                width: `${(Math.abs(p.returnPct) / maxAbsReturn) * 48}%`,
+              }}
+              transition={{ delay: 0.35 + i * 0.03, duration: 0.6 }}
+            />
+          </div>
+          <div className="w-[88px] text-right">
+            <div className={`font-mono tnum text-[13px] ${deltaToneClass(p.returnPct)}`}>
+              {fmtPct(p.returnPct, 2, true)}
+            </div>
+            <div className={`font-mono tnum text-[11px] ${deltaToneClass(p.totalReturn)} opacity-75`}>
+              {p.totalReturn >= 0 ? "+" : "−"}
+              {fmtUSD(Math.abs(p.totalReturn))}
+            </div>
+          </div>
+        </div>
       </td>
     </motion.tr>
   );
