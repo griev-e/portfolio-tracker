@@ -6,7 +6,7 @@ import { AppShell } from "@/components/shell/AppShell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sanctum — Private Portfolio Intelligence",
+  title: "grieve",
   description:
     "Institutional-grade personal portfolio analytics: risk, quality, factors, scenarios, and Monte Carlo simulation.",
 };
