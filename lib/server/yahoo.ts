@@ -34,14 +34,15 @@ export function sanitizeSymbols(raw: string | null, max = 30): string[] {
 }
 
 export async function fetchQuotes(
-  symbols: string[]
+  symbols: string[],
+  force = false
 ): Promise<Record<string, LiveQuote>> {
   const now = Date.now();
   const out: Record<string, LiveQuote> = {};
   const missing: string[] = [];
   for (const s of symbols) {
     const hit = quoteCache.get(s);
-    if (hit && now - hit.at < QUOTE_TTL) out[s] = hit.data;
+    if (!force && hit && now - hit.at < QUOTE_TTL) out[s] = hit.data;
     else missing.push(s);
   }
   if (missing.length > 0) {
