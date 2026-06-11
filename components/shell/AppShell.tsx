@@ -56,12 +56,11 @@ function LiveDot({ degraded }: { degraded: boolean }) {
   return (
     <span className="relative flex h-2 w-2">
       {!degraded && (
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-mint/60" />
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full" style={{ backgroundColor: "#23653360" }} />
       )}
       <span
-        className={`relative inline-flex h-2 w-2 rounded-full ${
-          degraded ? "bg-warn" : "bg-mint"
-        }`}
+        className="relative inline-flex h-2 w-2 rounded-full"
+        style={{ backgroundColor: degraded ? "var(--color-warn)" : "#236533" }}
       />
     </span>
   );
@@ -231,7 +230,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Link href="/" className="flex items-center gap-2.5">
             <Sigil size={24} />
             <span className="text-[14px] font-medium text-ink">
-              sanctum
+              grieve
             </span>
           </Link>
           {isDemo && (
@@ -243,29 +242,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <SidebarNav />
 
-        {ready && portfolio && (
-          <div className="border-t border-edge px-4 py-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[12px] text-faint">Net value</span>
-              <span className="font-mono tnum text-[13px] text-ink">
-                {fmtUSDCompact(portfolio.totalValue)}
-              </span>
-            </div>
-            <div className="mt-1.5 flex items-center gap-1.5">
-              <LiveDot degraded={live.degraded || !live.quotesAt} />
-              <span
-                className={`text-[11px] ${
-                  live.degraded || !live.quotesAt ? "text-warn/90" : "text-mute"
-                }`}
-              >
-                {liveLabel}
-                {!live.degraded && live.quotesAt
-                  ? ` · ${live.livePriceCount}/${portfolio.positions.length} priced`
-                  : ""}
-              </span>
-            </div>
-          </div>
-        )}
       </aside>
 
       <div className="min-w-0">
@@ -279,11 +255,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="ml-auto flex items-center gap-2">
               <LiveDot degraded={live.degraded || !live.quotesAt} />
               <span
-                className={`text-[12px] ${
+                className={`font-mono text-[11px] tracking-[0.08em] ${
                   live.degraded || !live.quotesAt ? "text-warn/90" : "text-mute"
                 }`}
               >
-                {liveLabel}
+                {(live.degraded || !live.quotesAt) ? liveLabel.toUpperCase() : "LIVE"}
               </span>
             </div>
           )}
@@ -295,7 +271,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link href="/" className="flex items-center gap-2.5">
               <Sigil size={22} />
               <span className="text-[13px] font-medium text-ink">
-                sanctum
+                grieve
               </span>
             </Link>
             {ready && portfolio && (
