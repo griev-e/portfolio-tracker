@@ -82,7 +82,7 @@ export const leadershipLayer: LayerSpec = {
           "persistence",
           "Leadership persistence",
           rho,
-          `Sector rankings are ${Math.round(((rho + 1) / 2) * 100)}% rank-correlated with a month ago.`
+          `Sector rankings show ρ ${rho.toFixed(2)} rank correlation with a month ago (1 = identical order, −1 = fully inverted).`
         );
       }
 

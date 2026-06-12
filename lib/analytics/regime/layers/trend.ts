@@ -66,7 +66,7 @@ export const trendLayer: LayerSpec = {
             "Trend slope",
             slopeAvg,
             spySlope !== null && spySlopeP !== null
-              ? `S&P trend annualizes to ${pct(spySlope, 0, true)} — ${ordinal(spySlopeP)} percentile of its trailing year (averaged across indices).`
+              ? `S&P trend annualizes to ${pct(spySlope, 0, true)} — ${ordinal(spySlopeP)} percentile of its trailing year; the score averages ${slopeScores.length} indices.`
               : `Average slope percentile across ${slopeScores.length} indices.`
           )
         : null;

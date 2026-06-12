@@ -93,8 +93,10 @@ export const volatilityLayer: LayerSpec = {
     if (r63 !== null && rvShort !== null && rvLong !== null && rvLong > 0) {
       const priceLeg = clamp(r63 * 12, -1, 1); // ±~8% on the quarter saturates
       const volLeg = clamp((rvLong - rvShort) / rvLong, -1, 1); // + = cooling
-      const product = priceLeg * volLeg;
-      const score = Math.sign(product) * Math.sqrt(Math.abs(product));
+      // Cooling vol is supportive, expanding vol restrictive; the tape's
+      // direction amplifies or mutes it. Quadrant valence: up+cooling strongly
+      // positive, down+expanding strongly negative, the mixed cases mild.
+      const score = clamp((volLeg + priceLeg * Math.abs(volLeg)) / 2, -1, 1);
       confirm = sig(
         "vol-confirm",
         "Volatility confirmation",

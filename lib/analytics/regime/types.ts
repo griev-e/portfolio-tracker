@@ -74,7 +74,7 @@ export interface TrendRow {
   ret63: number | null;
   above50: boolean | null;
   above200: boolean | null;
-  /** Annualized slope of the 50-day trend line (log-price OLS). */
+  /** Annualized 63-session log-price trend slope (OLS). */
   slope: number | null;
   /** Fraction of the last quarter spent above the 50-day average. */
   consistency: number | null;
