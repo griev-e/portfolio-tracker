@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
 import { PortfolioProvider } from "@/lib/store";
+import { AlertsProvider } from "@/lib/alerts/store";
 import { AppShell } from "@/components/shell/AppShell";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
@@ -22,7 +23,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${GeistSans.variable} ${GeistMono.variable}`}>
         <PortfolioProvider>
-          <AppShell>{children}</AppShell>
+          <AlertsProvider>
+            <AppShell>{children}</AppShell>
+          </AlertsProvider>
         </PortfolioProvider>
         <SpeedInsights />
         <Analytics />

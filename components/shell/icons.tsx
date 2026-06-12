@@ -90,6 +90,27 @@ export const IconMarket = () => (
   </svg>
 );
 
+export const IconIntelligence = () => (
+  <svg {...base}>
+    <circle cx="10" cy="10" r="2.2" />
+    <path d="M10 3 V5.6" />
+    <path d="M10 14.4 V17" />
+    <path d="M3 10 H5.6" />
+    <path d="M14.4 10 H17" />
+    <path d="M5.05 5.05 L6.9 6.9" opacity="0.55" />
+    <path d="M13.1 13.1 L14.95 14.95" opacity="0.55" />
+    <path d="M14.95 5.05 L13.1 6.9" opacity="0.55" />
+    <path d="M6.9 13.1 L5.05 14.95" opacity="0.55" />
+  </svg>
+);
+
+export const IconBell = () => (
+  <svg {...base}>
+    <path d="M10 3.2 C7 3.2 5.4 5.6 5.4 8.2 C5.4 11.6 4.4 12.8 3.6 13.8 H16.4 C15.6 12.8 14.6 11.6 14.6 8.2 C14.6 5.6 13 3.2 10 3.2 Z" />
+    <path d="M8.4 16.2 C8.7 17 9.3 17.4 10 17.4 C10.7 17.4 11.3 17 11.6 16.2" />
+  </svg>
+);
+
 export const IconImport = () => (
   <svg {...base}>
     <path d="M10 3.5 V12.2" />

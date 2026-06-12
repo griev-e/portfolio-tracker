@@ -6,10 +6,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { fmtUSDCompact } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
+import { AlertBell } from "./AlertBell";
 import {
   IconBenchmark,
   IconDividend,
   IconImport,
+  IconIntelligence,
   IconMarket,
   IconMatrix,
   IconMonteCarlo,
@@ -22,6 +24,7 @@ import {
 
 const NAV = [
   { href: "/", label: "Overview", icon: IconOverview, group: "Portfolio" },
+  { href: "/intelligence", label: "Intelligence", icon: IconIntelligence, group: "Portfolio" },
   { href: "/risk", label: "Risk", icon: IconRisk, group: "Portfolio" },
   { href: "/research", label: "Research", icon: IconResearch, group: "Portfolio" },
   { href: "/dividends", label: "Dividends", icon: IconDividend, group: "Portfolio" },
@@ -292,6 +295,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
           {ready && portfolio && (
             <div className="ml-auto flex items-center gap-2">
+              <AlertBell />
               <RefreshButton refreshing={live.refreshing} onRefresh={refreshLive} />
               <LiveDot degraded={live.degraded || !live.quotesAt} />
               <span
@@ -316,6 +320,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
             {ready && portfolio && (
               <div className="flex items-center gap-1.5">
+                <AlertBell />
                 <RefreshButton refreshing={live.refreshing} onRefresh={refreshLive} />
                 <LiveDot degraded={live.degraded || !live.quotesAt} />
                 <span className="font-mono tnum text-[12px] text-mute">
