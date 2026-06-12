@@ -17,7 +17,7 @@ export function EmptyState({ page }: { page: string }) {
       className="panel mx-auto mt-16 max-w-md px-8 py-10 text-center"
     >
       <div className="mb-4 flex justify-center opacity-90">
-        <Sigil size={44} id="egrad" />
+        <Sigil size={44} />
       </div>
       <h2 className="font-display text-lg font-semibold text-ink">
         No portfolio loaded

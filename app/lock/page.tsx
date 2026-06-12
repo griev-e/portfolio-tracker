@@ -77,7 +77,7 @@ export default function LockPage() {
         }}
         transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
       >
-        <Sigil size={64} id="lockgrad" />
+        <Sigil size={64} />
       </motion.div>
 
       <div className="text-center">

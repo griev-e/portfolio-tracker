@@ -55,7 +55,6 @@ async function fetchProfile(symbol: string): Promise<DividendProfile | null> {
       fcfPayout = (forwardRate * sharesOut) / fcf;
     }
 
-    const exDiv = detail?.exDividendDate;
     const profile: DividendProfile = {
       symbol,
       asOf: new Date().toISOString(),
@@ -63,9 +62,6 @@ async function fetchProfile(symbol: string): Promise<DividendProfile | null> {
       forwardRate,
       payoutRatio: isFund ? null : payoutRatio,
       fcfPayout,
-      roe: isFund ? null : num(fin?.returnOnEquity),
-      exDividendDate:
-        exDiv instanceof Date ? exDiv.toISOString().slice(0, 10) : null,
       events,
     };
     return profile;

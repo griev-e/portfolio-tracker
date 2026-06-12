@@ -66,8 +66,6 @@ export const NDX: BenchmarkProfile = {
   factorScores: { growth: 68, value: 35, quality: 67, momentum: 58 },
 };
 
-export const BENCHMARKS = [SPX, NDX];
-
 /** Capital-market assumptions used by CAPM expected returns & Monte Carlo. */
 export const CMA = {
   riskFree: 0.04, // 3m T-bill, snapshot
