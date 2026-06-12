@@ -134,18 +134,19 @@ export const structureLayer: LayerSpec = {
     const spyRets = dailyReturns(ctx.s("SPY"), t, 21);
     const r21 = ret(ctx.s("SPY"), t, 21);
     if (spyRets && r21 !== null) {
+      const sectorRets: number[][] = [];
+      for (const s of SECTORS) {
+        if (!ctx.has(s.symbol)) continue;
+        const r = dailyReturns(ctx.s(s.symbol), t, 21);
+        if (r) sectorRets.push(r);
+      }
       const fracs: number[] = [];
       for (let d = 0; d < spyRets.length; d++) {
         let agree = 0;
-        let tot = 0;
-        for (const s of SECTORS) {
-          if (!ctx.has(s.symbol)) continue;
-          const r = dailyReturns(ctx.s(s.symbol), t, 21);
-          if (!r) continue;
-          tot++;
+        for (const r of sectorRets) {
           if (Math.sign(r[d]) === Math.sign(spyRets[d])) agree++;
         }
-        if (tot >= 8) fracs.push(agree / tot);
+        if (sectorRets.length >= 8) fracs.push(agree / sectorRets.length);
       }
       const c = mean(fracs);
       if (c !== null) {

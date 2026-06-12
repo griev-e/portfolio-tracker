@@ -389,7 +389,6 @@ function StockDashboard({
                   animate={{ width: `${score}%` }}
                   transition={{ duration: 0.9, delay: 0.2 + i * 0.08, ease: [0.22, 1, 0.36, 1] }}
                 />
-                <div className="absolute top-[-4px] left-1/2 h-[15px] w-[1.5px] bg-white/15" />
               </div>
               <span className="w-10 text-right font-mono tnum text-[13px] text-ink">
                 {Math.round(score)}
@@ -398,7 +397,7 @@ function StockDashboard({
           ))}
         </div>
         <div className="mt-3 font-mono text-[10px] text-faint">
-          0–100 · 50 ≈ broad-market profile (center tick)
+          0–100 · 50 ≈ broad-market profile
         </div>
       </Card>
     </div>

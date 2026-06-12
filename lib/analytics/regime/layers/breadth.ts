@@ -2,12 +2,12 @@ import { at, logSlope, ret, sma, toScore } from "../mathx";
 import { SECTORS } from "../universe";
 import { band, ordinal, pct, ratioSeries, sig, type LayerSpec } from "./spec";
 
-/** Share of sectors above their n-day average at session t. */
-function pctAbove(
+/** Sectors above their n-day average at session t, with the true counts. */
+function countAbove(
   ctx: Parameters<LayerSpec["compute"]>[0],
   t: number,
   n: number
-): number | null {
+): { above: number; total: number } | null {
   let above = 0;
   let total = 0;
   for (const s of SECTORS) {
@@ -18,7 +18,17 @@ function pctAbove(
     total++;
     if (p > m) above++;
   }
-  return total >= 8 ? above / total : null;
+  return total >= 8 ? { above, total } : null;
+}
+
+/** Share of sectors above their n-day average at session t. */
+function pctAbove(
+  ctx: Parameters<LayerSpec["compute"]>[0],
+  t: number,
+  n: number
+): number | null {
+  const c = countAbove(ctx, t, n);
+  return c === null ? null : c.above / c.total;
 }
 
 /**
@@ -34,25 +44,25 @@ export const breadthLayer: LayerSpec = {
   compute(ctx, t) {
     const sectors = SECTORS.filter((s) => ctx.has(s.symbol));
 
-    const p200 = pctAbove(ctx, t, 200);
+    const c200 = countAbove(ctx, t, 200);
     const above200 =
-      p200 !== null
+      c200 !== null
         ? sig(
             "above-200",
             "Sectors above 200-day",
-            toScore(p200),
-            `${Math.round(p200 * sectors.length)} of ${sectors.length} sectors trade above their 200-day average.`
+            toScore(c200.above / c200.total),
+            `${c200.above} of ${c200.total} sectors trade above their 200-day average.`
           )
         : null;
 
-    const p50 = pctAbove(ctx, t, 50);
+    const c50 = countAbove(ctx, t, 50);
     const above50 =
-      p50 !== null
+      c50 !== null
         ? sig(
             "above-50",
             "Sectors above 50-day",
-            toScore(p50),
-            `${Math.round(p50 * sectors.length)} of ${sectors.length} sectors trade above their 50-day average.`
+            toScore(c50.above / c50.total),
+            `${c50.above} of ${c50.total} sectors trade above their 50-day average.`
           )
         : null;
 
