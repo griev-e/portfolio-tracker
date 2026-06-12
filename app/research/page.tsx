@@ -144,20 +144,6 @@ function StockDashboard({
               <span className="rounded-md border border-edge bg-void/50 px-2 py-0.5 font-mono text-[11px] text-mute">
                 {f.sector}
               </span>
-              <span
-                className={`rounded-md border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
-                  f.live
-                    ? "border-mint/30 bg-mint/[0.07] text-mint"
-                    : "border-edge bg-void/50 text-faint"
-                }`}
-                title={
-                  f.live
-                    ? "Live fundamentals from Yahoo Finance, refreshed daily"
-                    : "Baseline reference data"
-                }
-              >
-                {f.live ? "live" : "snapshot"}
-              </span>
             </div>
             <div className="mt-1 text-[12px] text-faint">
               {f.industry} · {fmtUSDCompact(f.marketCap)} market cap
