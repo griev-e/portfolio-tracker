@@ -72,6 +72,23 @@ export function daysUntil(iso: string | null): number | null {
   return Math.round((d.getTime() - Date.now()) / 86_400_000);
 }
 
+/** Compact age for feeds: "4m ago", "2h ago", "3d ago", then "Jun 10". */
+export function relativeTime(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "—";
+  const mins = Math.max(0, Math.floor((Date.now() - t) / 60_000));
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(t).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
 /** Sign-aware tone for coloring deltas. */
 export function tone(v: number): "pos" | "neg" | "flat" {
   if (v > 0.000001) return "pos";
