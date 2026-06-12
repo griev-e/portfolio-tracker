@@ -33,6 +33,10 @@ export function runScenario(
 ): ScenarioResult {
   const ps = portfolio.positions;
   const inputs = ps.map(corrInputs);
+  const sourceIdx =
+    shock.kind === "stock"
+      ? ps.findIndex((x) => x.symbol === shock.symbol)
+      : -1;
 
   const impacts: ScenarioImpact[] = ps.map((p, i) => {
     const f = p.fundamentals;
@@ -41,7 +45,6 @@ export function runScenario(
     let isDirect = false;
 
     if (shock.kind === "stock") {
-      const sourceIdx = ps.findIndex((x) => x.symbol === shock.symbol);
       if (p.symbol === shock.symbol) {
         shockPct = shock.magnitude;
         isDirect = true;

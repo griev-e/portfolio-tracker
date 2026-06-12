@@ -474,19 +474,22 @@ function TargetBullet({
   mean: number;
   price: number;
 }) {
-  const min = Math.min(low, price) * 0.97;
+  const min = Math.min(low > 0 ? low : price, price) * 0.97;
   const max = Math.max(high, price) * 1.03;
   const pos = (v: number) => `${((v - min) / (max - min)) * 100}%`;
   return (
     <div className="relative h-7">
       <div className="absolute top-1/2 h-[6px] w-full -translate-y-1/2 rounded-full bg-white/[0.05]" />
-      <motion.div
-        className="absolute top-1/2 h-[6px] -translate-y-1/2 rounded-full bg-gradient-to-r from-vio/30 via-vio/50 to-vio/30"
-        style={{ left: pos(low), right: `calc(100% - ${pos(high)})` }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.7, delay: 0.2 }}
-      />
+      {/* live-only tickers can report a mean target without a low/high range */}
+      {low > 0 && high > low && (
+        <motion.div
+          className="absolute top-1/2 h-[6px] -translate-y-1/2 rounded-full bg-gradient-to-r from-vio/30 via-vio/50 to-vio/30"
+          style={{ left: pos(low), right: `calc(100% - ${pos(high)})` }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.7, delay: 0.2 }}
+        />
+      )}
       {/* mean target */}
       <motion.div
         className="absolute top-1/2 h-[18px] w-[2.5px] -translate-y-1/2 rounded-full bg-vio"

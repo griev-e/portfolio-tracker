@@ -55,6 +55,16 @@ export default function OverviewPage() {
   if (!ready) return null;
   if (!portfolio || !risk) return <EmptyState page="The overview" />;
 
+  // Bar scales for the holdings table, computed once instead of per row.
+  const maxWeight = Math.max(
+    ...portfolio.positions.map((x) => x.weight),
+    0.0001
+  );
+  const maxAbsReturn = Math.max(
+    ...portfolio.positions.map((x) => Math.abs(x.returnPct)),
+    0.0001
+  );
+
   const treemapItems = portfolio.positions.map((p) => ({
     id: p.symbol,
     label: p.symbol,
@@ -266,14 +276,8 @@ export default function OverviewPage() {
                   key={p.symbol}
                   p={p}
                   i={i}
-                  maxWeight={Math.max(
-                    ...portfolio.positions.map((x) => x.weight),
-                    0.0001
-                  )}
-                  maxAbsReturn={Math.max(
-                    ...portfolio.positions.map((x) => Math.abs(x.returnPct)),
-                    0.0001
-                  )}
+                  maxWeight={maxWeight}
+                  maxAbsReturn={maxAbsReturn}
                 />
               ))}
             </tbody>

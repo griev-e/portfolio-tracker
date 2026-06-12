@@ -37,7 +37,7 @@ const NAV = [
 const GROUPS = ["Portfolio", "Analysis", "Simulation", "Data"];
 
 /** Big cursive alpha — the thing the whole app is chasing. */
-export function Sigil({ size = 26 }: { size?: number; id?: string }) {
+export function Sigil({ size = 26 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32">
       <text

@@ -10,10 +10,9 @@ import type {
  *
  * These are point-in-time approximations (sector, growth, valuation, analyst
  * and insider posture) used so the app is fully functional offline. Price
- * targets are anchored to market prices as of the snapshot date. Edit this
- * file — or wire a live provider in lib/data/provider.ts — to refresh.
+ * targets are anchored to market prices as of the snapshot date (2026-06-10).
+ * Edit this file — or wire a live provider — to refresh.
  */
-export const DATA_AS_OF = "2026-06-10";
 
 interface Row {
   s: string; // symbol

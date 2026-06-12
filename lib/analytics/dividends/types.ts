@@ -31,9 +31,6 @@ export interface DividendProfile {
   payoutRatio: number | null;
   /** Total dividends paid / free cash flow, fraction (stocks only). */
   fcfPayout: number | null;
-  /** Return on equity, fraction (stocks only). */
-  roe: number | null;
-  exDividendDate: string | null;
   /** Per-share payments, oldest first, trailing ~10.5 years. */
   events: DividendEvent[];
 }
