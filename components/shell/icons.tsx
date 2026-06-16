@@ -98,4 +98,13 @@ export const IconImport = () => (
   </svg>
 );
 
+export const IconRebalance = () => (
+  <svg {...base}>
+    <path d="M3 6.6 H17" />
+    <circle cx="7" cy="6.6" r="1.9" />
+    <path d="M3 13.4 H17" />
+    <circle cx="13" cy="13.4" r="1.9" />
+  </svg>
+);
+
 
