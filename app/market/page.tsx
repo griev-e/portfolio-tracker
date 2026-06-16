@@ -105,7 +105,8 @@ function Spectrum({ score, regime }: { score: number; regime: RegimeLabel }) {
             "linear-gradient(90deg, color-mix(in srgb, var(--color-neg) 55%, transparent), color-mix(in srgb, var(--color-warn) 40%, transparent) 30%, color-mix(in srgb, var(--color-sky) 30%, transparent) 50%, color-mix(in srgb, var(--color-mint) 40%, transparent) 70%, color-mix(in srgb, var(--color-pos) 55%, transparent))",
         }}
       >
-        {[15, 32.5, 50, 67.5, 85].map((x) => (
+        {/* True zone boundaries: composite ±0.45 and ±0.15 mapped to 0–100% */}
+        {[27.5, 42.5, 57.5, 72.5].map((x) => (
           <div
             key={x}
             className="absolute top-0 h-full w-px bg-black/40"
@@ -139,7 +140,7 @@ function LayerCard({ layer, i }: { layer: LayerResult; i: number }) {
         <div className="text-[13px] font-medium text-ink">{layer.name}</div>
         <span
           className="rounded border border-edge bg-white/[0.03] px-1.5 py-0.5 font-mono text-[9.5px] text-faint"
-          title="Share of the composite this layer earned (coverage × coherence × stability)"
+          title="Share of the composite this layer earned: coverage × √(agreement × stability), renormalized across layers daily"
         >
           w {fmtPct(layer.weight, 0)}
         </span>
@@ -410,7 +411,7 @@ export default function MarketPage() {
           />
           <div className="mt-2 flex justify-between font-mono text-[9.5px] text-faint">
             <span>{r.history.dates[0]}</span>
-            <span>50 = index-neutral internals</span>
+            <span>50 = neutral internals</span>
             <span>{r.history.dates[r.history.dates.length - 1]}</span>
           </div>
         </Card>
