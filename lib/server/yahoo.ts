@@ -5,6 +5,7 @@ import type {
   Sector,
 } from "@/lib/types";
 import type { FundamentalsPatch, LiveQuote } from "@/lib/live/types";
+import type { HistoryRange, HistorySeries, SymbolHit } from "@/lib/research/types";
 
 /**
  * Server-side Yahoo Finance client (unofficial API via yahoo-finance2).
@@ -16,8 +17,12 @@ export { yf };
 /** Module-scope caches survive between invocations on warm lambdas. */
 const quoteCache = new Map<string, { at: number; data: LiveQuote }>();
 const fundCache = new Map<string, { at: number; data: FundamentalsPatch | null }>();
+const searchCache = new Map<string, { at: number; data: SymbolHit[] }>();
+const historyCache = new Map<string, { at: number; data: HistorySeries | null }>();
 const QUOTE_TTL = 55_000;
 const FUND_TTL = 12 * 3600_000;
+const SEARCH_TTL = 6 * 3600_000;
+const HISTORY_TTL = 10 * 60_000;
 
 export function sanitizeSymbols(raw: string | null, max = 30): string[] {
   if (!raw) return [];
@@ -248,4 +253,105 @@ export async function fetchFundamentalsPatch(
 
   fundCache.set(symbol, { at: now, data: patch });
   return patch;
+}
+
+const str = (v: unknown): string | undefined =>
+  typeof v === "string" && v.trim().length > 0 ? v : undefined;
+
+/**
+ * Quote types worth surfacing in research — drop options/futures/FX noise.
+ * Indices are excluded: their `^`-prefixed tickers don't survive symbol
+ * sanitization, so they couldn't be re-fetched accurately.
+ */
+const SEARCHABLE_TYPES = new Set(["EQUITY", "ETF", "MUTUALFUND"]);
+
+/**
+ * Ticker / company search via Yahoo's suggest endpoint. Returns only tradable
+ * securities the user would actually research, capped and de-noised.
+ */
+export async function searchSymbols(query: string): Promise<SymbolHit[]> {
+  const term = query.trim();
+  if (term.length === 0) return [];
+  const key = term.toLowerCase();
+  const now = Date.now();
+  const hit = searchCache.get(key);
+  if (hit && now - hit.at < SEARCH_TTL) return hit.data;
+
+  let out: SymbolHit[] = [];
+  try {
+    const res = await yf.search(term, { quotesCount: 10, newsCount: 0 });
+    const rows = (res.quotes ?? []) as Array<Record<string, unknown>>;
+    out = rows
+      .flatMap((r) => {
+        if (r.isYahooFinance !== true) return [];
+        const symbol = str(r.symbol);
+        const type = str(r.quoteType) ?? "";
+        if (!symbol || !SEARCHABLE_TYPES.has(type)) return [];
+        return [
+          {
+            symbol,
+            name: str(r.longname) ?? str(r.shortname) ?? symbol,
+            exchange: str(r.exchDisp) ?? str(r.exchange) ?? "",
+            type: str(r.typeDisp) ?? type,
+          },
+        ];
+      })
+      .slice(0, 8);
+  } catch {
+    out = []; // provider drift — caller shows an empty result set
+  }
+
+  searchCache.set(key, { at: now, data: out });
+  return out;
+}
+
+/** Lookback window + bar interval per range. */
+const RANGE_CFG: Record<HistoryRange, { days: number; interval: "1d" | "1wk" }> = {
+  "1m": { days: 34, interval: "1d" },
+  "6m": { days: 190, interval: "1d" },
+  "1y": { days: 372, interval: "1d" },
+  "5y": { days: Math.round(5 * 365.25) + 7, interval: "1wk" },
+};
+
+/**
+ * Adjusted-close price history for one symbol over a range. Mirrors the
+ * regime engine's bar hygiene: null/holiday rows are dropped. Null when the
+ * provider has no usable series (caller degrades gracefully).
+ */
+export async function fetchHistory(
+  symbol: string,
+  range: HistoryRange
+): Promise<HistorySeries | null> {
+  const cacheKey = `${symbol}:${range}`;
+  const now = Date.now();
+  const hit = historyCache.get(cacheKey);
+  if (hit && now - hit.at < HISTORY_TTL) return hit.data;
+
+  let series: HistorySeries | null = null;
+  try {
+    const cfg = RANGE_CFG[range];
+    const result = await yf.chart(symbol, {
+      period1: new Date(now - cfg.days * 86_400_000),
+      interval: cfg.interval,
+    });
+    const points = [];
+    for (const q of result.quotes) {
+      const close = num(q.adjclose) ?? num(q.close);
+      if (close === undefined || close <= 0) continue;
+      points.push({ t: q.date.toISOString(), c: close });
+    }
+    if (points.length >= 2) {
+      series = {
+        symbol,
+        range,
+        currency: str(result.meta?.currency) ?? "USD",
+        points,
+      };
+    }
+  } catch {
+    series = null;
+  }
+
+  historyCache.set(cacheKey, { at: now, data: series });
+  return series;
 }
