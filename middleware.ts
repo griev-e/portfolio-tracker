@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
  * when unset the app is open — so local dev and first deploys never lock you
  * out. The auth cookie stores a SHA-256 of the salted PIN, never the PIN.
  */
-const COOKIE = "sanctum_auth";
+const COOKIE = "grieve_auth";
 
 async function sha256Hex(input: string): Promise<string> {
   const digest = await crypto.subtle.digest(
@@ -24,7 +24,7 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (pathname.startsWith("/api/auth")) return NextResponse.next();
 
-  const expected = await sha256Hex(`sanctum:${pin}`);
+  const expected = await sha256Hex(`grieve:${pin}`);
   const authed = req.cookies.get(COOKIE)?.value === expected;
 
   if (pathname === "/lock") {

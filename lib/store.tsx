@@ -15,9 +15,13 @@ import { useLiveData } from "./live/useLiveData";
 import { SAMPLE_CASH, SAMPLE_CSV } from "./sample";
 import type { Portfolio, RawHolding } from "./types";
 
-const STORAGE_KEY = "sanctum.portfolio.v1";
+const STORAGE_KEY = "grieve.portfolio.v1";
 /** Pre-rebrand keys — migrated on first load, then removed. */
-const LEGACY_STORAGE_KEYS = ["hlee.portfolio.v1", "meridian.portfolio.v1"];
+const LEGACY_STORAGE_KEYS = [
+  "sanctum.portfolio.v1",
+  "hlee.portfolio.v1",
+  "meridian.portfolio.v1",
+];
 
 interface Stored {
   holdings: RawHolding[];

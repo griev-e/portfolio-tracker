@@ -14,7 +14,9 @@ import { usePortfolio } from "@/lib/store";
 import { evaluate } from "./engine";
 import type { AlertEvent, AlertRule, AlertsStored } from "./types";
 
-const STORAGE_KEY = "sanctum.alerts.v1";
+const STORAGE_KEY = "grieve.alerts.v1";
+/** Pre-rebrand key — migrated on first load, then removed. */
+const LEGACY_STORAGE_KEY = "sanctum.alerts.v1";
 const MAX_EVENTS = 100;
 
 interface AlertsStore {
@@ -46,7 +48,15 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      let raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+        if (legacy) {
+          raw = legacy;
+          localStorage.setItem(STORAGE_KEY, legacy);
+        }
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+      }
       if (raw) {
         const parsed = JSON.parse(raw) as AlertsStored;
         if (parsed.version === 1) setStored(parsed);

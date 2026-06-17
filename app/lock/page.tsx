@@ -69,11 +69,10 @@ export default function LockPage() {
       onClick={() => inputRef.current?.focus()}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.7, rotate: -90 }}
+        initial={{ opacity: 0, scale: 0.7 }}
         animate={{
           opacity: 1,
           scale: unlocked ? 1.15 : 1,
-          rotate: unlocked ? 120 : 0,
         }}
         transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
       >
@@ -87,7 +86,7 @@ export default function LockPage() {
           transition={{ delay: 0.2 }}
           className="font-display text-[22px] font-semibold tracking-[0.22em] text-ink"
         >
-          SANCTUM
+          GRIEVE
         </motion.h1>
         <motion.div
           initial={{ opacity: 0 }}
@@ -107,7 +106,7 @@ export default function LockPage() {
         type="text"
         inputMode="numeric"
         autoComplete="off"
-        name="sanctum-code"
+        name="grieve-code"
         data-1p-ignore="true"
         data-lpignore="true"
         data-bwignore="true"

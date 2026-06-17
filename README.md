@@ -1,4 +1,4 @@
-# Sanctum — Private Portfolio Intelligence
+# grieve — Private Portfolio Intelligence
 
 A dark, institutional-grade personal portfolio analytics terminal. Import your
 holdings as CSV and get allocation, risk, research, quality, factor, scenario,
@@ -98,5 +98,5 @@ disabled — so local dev and fresh deploys never lock you out.
 
 ## Disclaimer
 
-Sanctum is an analysis tool, not investment advice. Bundled fundamentals are
+grieve is an analysis tool, not investment advice. Bundled fundamentals are
 approximations; simulations are models with thinner tails than real markets.

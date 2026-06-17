@@ -1,8 +1,8 @@
 {
-  "name": "sanctum",
+  "name": "grieve",
   "version": "1.0.0",
   "private": true,
-  "description": "Sanctum — private portfolio intelligence",
+  "description": "grieve — private portfolio intelligence",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

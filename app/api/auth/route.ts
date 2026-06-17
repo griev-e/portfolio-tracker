@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const COOKIE = "sanctum_auth";
+const COOKIE = "grieve_auth";
 const THIRTY_DAYS = 60 * 60 * 24 * 30;
 
 /** POST /api/auth { pin } — validates against ACCESS_PIN and sets the cookie. */
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
-  const token = createHash("sha256").update(`sanctum:${pin}`).digest("hex");
+  const token = createHash("sha256").update(`grieve:${pin}`).digest("hex");
   const res = NextResponse.json({ ok: true });
   res.cookies.set(COOKIE, token, {
     httpOnly: true,
