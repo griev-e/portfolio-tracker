@@ -122,8 +122,8 @@ export function Treemap({
           const { bg, border } = cellColor(r.item.intensity);
           const isActive = active === r.item.id;
           const pad = 3;
-          const showLabel = r.w > 64 && r.h > 40;
-          const showSub = r.w > 86 && r.h > 64;
+          const showLabel = r.w > 68 && r.h > 46;
+          const showSub = r.w > 92 && r.h > 74;
           return (
             <motion.g
               key={r.item.id}
@@ -149,18 +149,18 @@ export function Treemap({
                 <>
                   <text
                     x={r.x + 12}
-                    y={r.y + 25}
+                    y={r.y + 28}
                     fill="var(--color-ink)"
-                    style={{ fontSize: 14.5, fontWeight: 600 }}
+                    style={{ fontSize: 18, fontWeight: 600 }}
                     className="font-display"
                   >
                     {r.item.label}
                   </text>
                   <text
                     x={r.x + 12}
-                    y={r.y + 42}
+                    y={r.y + 49}
                     fill="var(--color-mute)"
-                    style={{ fontSize: 11.5, fontVariantNumeric: "tabular-nums" }}
+                    style={{ fontSize: 14, fontVariantNumeric: "tabular-nums" }}
                     className="font-mono"
                   >
                     {fmtUSDCompact(r.item.value)}
@@ -168,13 +168,13 @@ export function Treemap({
                   {showSub && (
                     <text
                       x={r.x + 12}
-                      y={r.y + 59}
+                      y={r.y + 68}
                       fill={
                         r.item.intensity >= 0
                           ? "var(--color-pos)"
                           : "var(--color-neg)"
                       }
-                      style={{ fontSize: 11, fontVariantNumeric: "tabular-nums" }}
+                      style={{ fontSize: 13, fontVariantNumeric: "tabular-nums" }}
                       className="font-mono"
                     >
                       {fmtPct(r.item.intensity, 1, true)}

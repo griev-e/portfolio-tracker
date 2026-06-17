@@ -66,7 +66,7 @@ export default function RebalancePage() {
 
   const [basis, setBasis] = useState<TargetBasis>("holding");
   const [mode, setMode] = useState<RebalanceMode>("deploy");
-  const [contribution, setContribution] = useState(5000);
+  const [contribution, setContribution] = useState(0);
   const [alsoDeployCash, setAlsoDeployCash] = useState(false);
   const [wholeShares, setWholeShares] = useState(false);
   const [targets, setTargets] = useState<Record<string, number>>({});
