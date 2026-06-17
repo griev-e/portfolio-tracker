@@ -26,6 +26,9 @@ export default function ScenariosPage() {
   const [symbol, setSymbol] = useState<string | null>(null);
   const [magnitude, setMagnitude] = useState(-20); // % for stock/market, bp/100 for rates
   const [rateMove, setRateMove] = useState(1.0);
+  // No scenario is run until the user picks a preset or touches a custom
+  // control — the results panel starts empty rather than auto-shocking.
+  const [customActive, setCustomActive] = useState(false);
 
   const presets = useMemo(
     () => (portfolio ? scenarioPresets(portfolio) : []),
@@ -36,6 +39,7 @@ export default function ScenariosPage() {
     if (!portfolio) return null;
     const preset = presets.find((p) => p.id === activePreset);
     if (preset) return preset.shock;
+    if (!customActive) return null; // nothing chosen yet
     if (kind === "stock") {
       const sym = symbol ?? portfolio.positions[0]?.symbol;
       if (!sym) return null;
@@ -43,7 +47,7 @@ export default function ScenariosPage() {
     }
     if (kind === "market") return { kind, magnitude: magnitude / 100 };
     return { kind, magnitude: rateMove };
-  }, [portfolio, presets, activePreset, kind, symbol, magnitude, rateMove]);
+  }, [portfolio, presets, activePreset, customActive, kind, symbol, magnitude, rateMove]);
 
   const label = useMemo(() => {
     const preset = presets.find((p) => p.id === activePreset);
@@ -117,6 +121,7 @@ export default function ScenariosPage() {
                   onClick={() => {
                     setKind(k);
                     setActivePreset(null);
+                    setCustomActive(true);
                   }}
                   className={`relative flex-1 rounded-md py-1.5 text-[12px] font-medium capitalize transition-colors ${
                     kind === k && !activePreset ? "text-black" : "text-mute hover:text-ink"
@@ -146,6 +151,7 @@ export default function ScenariosPage() {
                         onClick={() => {
                           setSymbol(p.symbol);
                           setActivePreset(null);
+                          setCustomActive(true);
                         }}
                         className={`rounded-md border px-2 py-1 font-mono text-[11px] transition-colors ${
                           sel && !activePreset
@@ -181,6 +187,7 @@ export default function ScenariosPage() {
                   onChange={(e) => {
                     setMagnitude(Number(e.target.value));
                     setActivePreset(null);
+                    setCustomActive(true);
                   }}
                   className="w-full"
                 />
@@ -205,6 +212,7 @@ export default function ScenariosPage() {
                   onChange={(e) => {
                     setRateMove(Number(e.target.value));
                     setActivePreset(null);
+                    setCustomActive(true);
                   }}
                   className="w-full"
                 />
@@ -215,10 +223,22 @@ export default function ScenariosPage() {
 
         {/* Results */}
         <div className="relative min-w-0">
-          <Computing active={pending || !result} label="applying shock…" />
-          {!result && <div className="panel h-[420px]" />}
-          <AnimatePresence mode="wait">
-            {result && (
+          {!shock ? (
+            <div className="panel flex h-[420px] flex-col items-center justify-center gap-3 px-8 text-center">
+              <div className="text-[14px] font-medium text-mute">
+                No scenario selected
+              </div>
+              <p className="max-w-sm text-[12.5px] leading-relaxed text-faint">
+                Pick a preset stress test or build a custom shock on the left,
+                and the impact on your book will appear here.
+              </p>
+            </div>
+          ) : (
+            <>
+              <Computing active={pending || !result} label="applying shock…" />
+              {!result && <div className="panel h-[420px]" />}
+              <AnimatePresence mode="wait">
+                {result && (
               <motion.div
                 key={result.label + result.dollarImpact.toFixed(0)}
                 initial={{ opacity: 0, y: 10 }}
@@ -329,7 +349,9 @@ export default function ScenariosPage() {
                 </Card>
               </motion.div>
             )}
-          </AnimatePresence>
+              </AnimatePresence>
+            </>
+          )}
         </div>
       </div>
     </div>

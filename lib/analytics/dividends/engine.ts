@@ -151,10 +151,15 @@ function evaluateHolding(
     else break;
   }
   let cuts10y = 0;
+  let lastCutAgo: number | null = null;
+  const latestYear = rates.length > 0 ? rates[rates.length - 1].year : null;
   const yoyPositives: number[] = [];
   for (let i = Math.max(1, rates.length - 10); i < rates.length; i++) {
     const chg = rates[i].rate / rates[i - 1].rate - 1;
-    if (chg < -0.02) cuts10y++;
+    if (chg < -0.02) {
+      cuts10y++;
+      if (latestYear !== null) lastCutAgo = latestYear - rates[i].year;
+    }
     yoyPositives.push(chg >= 0 ? 1 : 0);
   }
   const consistency = mean(yoyPositives);
@@ -208,26 +213,64 @@ function evaluateHolding(
     }
     const fcfPayout = profile?.fcfPayout ?? null;
     if (fcfPayout !== null) {
-      if (fcfPayout > 0 && fcfPayout < 0.6) bump(10, `free cash flow covers the dividend ${(1 / fcfPayout).toFixed(1)}×`);
-      else if (fcfPayout >= 1 || fcfPayout < 0) {
+      // Graduated coverage: the gap between "covered twice over" and "barely
+      // covered" is the difference between a safe and a stretched payout.
+      if (fcfPayout <= 0 || fcfPayout >= 1) {
         bump(isReit ? -6 : -15, isReit ? "distributions outrun stated free cash flow (common for REITs, still worth watching)" : "free cash flow does not cover the dividend");
         if (!isReit) flags.push("Dividend is not covered by free cash flow");
-      }
+      } else if (fcfPayout < 0.5) bump(12, `free cash flow covers the dividend ${(1 / fcfPayout).toFixed(1)}× over`);
+      else if (fcfPayout < 0.7) bump(7, `free cash flow comfortably covers the dividend (${pct(fcfPayout)} of FCF)`);
+      else if (fcfPayout < 0.9) bump(0, `${pct(fcfPayout)} of free cash flow funds the dividend — limited cushion`);
+      else bump(isReit ? -3 : -8, `${pct(fcfPayout)} of free cash flow funds the dividend — thin cushion`);
     }
     if ((p.fundamentals?.fcfGrowth ?? 0) < -0.05) {
       bump(-8, "free cash flow is shrinking");
       flags.push("Declining free cash flow behind the payout");
     }
-    if ((p.fundamentals?.epsGrowth ?? 0) < -0.05) bump(-5, "earnings are declining");
+    // Earnings trajectory interacts with how much of those earnings is already
+    // committed: a falling line matters more when the payout already eats most
+    // of it, and a low payout with rising earnings buys room to keep raising.
+    const eps = p.fundamentals?.epsGrowth ?? null;
+    const heavyPayout = payout !== null && payout > 0.6;
+    if (eps !== null && eps < -0.05) {
+      bump(
+        heavyPayout ? -10 : -5,
+        heavyPayout
+          ? "earnings are declining while the payout is already high"
+          : "earnings are declining"
+      );
+      if (heavyPayout) flags.push("Payout is high and earnings are declining");
+    } else if (eps !== null && eps > 0.05 && payout !== null && payout > 0 && payout < 0.5) {
+      bump(4, "low payout with growing earnings — ample room to keep raising");
+    }
   } else {
     bump(8, "fund distribution — pass-through of underlying holdings");
   }
 
-  if (streak >= 20) bump(15, `${streak} consecutive years of increases`);
+  if (streak >= 25) bump(18, `${streak} consecutive years of increases — an exceptional record`);
+  else if (streak >= 20) bump(15, `${streak} consecutive years of increases`);
   else if (streak >= 10) bump(10, `${streak} consecutive years of increases`);
   else if (streak >= 5) bump(5, `${streak}-year increase streak`);
   if (cuts10y > 0) {
-    bump(-12 * Math.min(cuts10y, 2), `${cuts10y} cut${cuts10y > 1 ? "s" : ""} in the last decade`);
+    // A cut bites harder the more recent it is and compounds with repetition;
+    // a single reduction a decade ago is far less damning than one last year.
+    const recencyMult =
+      lastCutAgo !== null && lastCutAgo <= 2
+        ? 1.5
+        : lastCutAgo !== null && lastCutAgo <= 5
+          ? 1.1
+          : 0.7;
+    const penalty = Math.min(
+      Math.round(12 * Math.min(cuts10y, 3) * recencyMult),
+      38
+    );
+    const when =
+      lastCutAgo === null
+        ? ""
+        : lastCutAgo <= 0
+          ? ", most recent this year"
+          : `, most recent ${lastCutAgo}y ago`;
+    bump(-penalty, `${cuts10y} cut${cuts10y > 1 ? "s" : ""} in the last decade${when}`);
     flags.push(`Cut its dividend ${cuts10y > 1 ? `${cuts10y} times` : "once"} in the last decade`);
   }
   if (currentYield !== null) {
@@ -411,10 +454,21 @@ export function dividendReport(
   const growthBasis = portfolioCagr3 ?? portfolioGrowth1 ?? null;
   let growthScore = 50;
   if (growthBasis !== null) {
-    // 0%→40, 6%→65, 12%→90; negative growth falls fast.
-    growthScore = clamp(40 + growthBasis * 420, 5, 95);
-    if (accelerating === true) growthScore = clamp(growthScore + 5, 5, 95);
-    if (accelerating === false) growthScore = clamp(growthScore - 3, 5, 95);
+    // Blend the 3y trend with the 5y where available so a one-year pop doesn't
+    // carry the score — durable growth is what's being rewarded. The scale is
+    // anchored so matching the S&P's ~6%/yr long-run growth lands near 65.
+    const durable =
+      portfolioCagr5 !== null
+        ? growthBasis * 0.6 + portfolioCagr5 * 0.4
+        : growthBasis;
+    growthScore = 40 + durable * 420;
+    // Beating the benchmark is a real edge; lagging it is a real drag.
+    growthScore += clamp((growthBasis - SPX_DIV_GROWTH) * 80, -8, 8);
+    if (accelerating === true) growthScore += 5;
+    if (accelerating === false) growthScore -= 3;
+    // A recent stall caps enthusiasm even when the multi-year trend is up.
+    if (portfolioGrowth1 !== null && portfolioGrowth1 < 0) growthScore -= 6;
+    growthScore = clamp(growthScore, 5, 95);
   }
   growthScore = Math.round(growthScore);
 
@@ -544,8 +598,8 @@ export function dividendReport(
     methodology: [
       "Forward income = shares × the declared forward rate, falling back to the trailing-12-month payment sum; positions with neither are estimated from the snapshot yield and marked.",
       "Growth, streaks, and cut detection use completed calendar years only, on each year's median payment × normalized payment count — so a half-finished year, a payment slipping across a year boundary, or a one-off special dividend never reads as a cut or a growth spike.",
-      "Safety starts neutral at 50 and earns or loses points on payout ratio, free-cash-flow coverage, increase streaks, past cuts, and yield sanity — each adjustment is recorded on the holding.",
-      `The composite weighs safety 35%, growth 25%, stability 20%, and diversification 20% — sustainability over headline yield, growth over static income. Portfolio aggregates are income-weighted, and growth is compared against the S&P's long-run ~${Math.round(SPX_DIV_GROWTH * 100)}%/yr dividend growth.`,
+      "Safety starts neutral at 50 and earns or loses points on earnings payout, graduated free-cash-flow coverage (covered twice over vs. barely covered scores differently), increase streaks — with a premium for 25-year records — past cuts weighted by how recent they are, the payout-versus-earnings-trajectory interaction, and yield sanity. Every adjustment is recorded on the holding.",
+      `The composite weighs safety 35%, growth 25%, stability 20%, and diversification 20% — sustainability over headline yield, growth over static income. Portfolio aggregates are income-weighted; the growth score blends the 3- and 5-year trends and is anchored to the S&P's long-run ~${Math.round(SPX_DIV_GROWTH * 100)}%/yr dividend growth, so matching the index reads as average and beating it scores up.`,
       "Calendar projection assigns each holding's forward income to the months it actually paid in over the last year.",
       "Reinvestment scenarios compound income at growth × (1 + current equity yield) — a standing DRIP at today's prices.",
       "ETF distributions are evaluated on payment history (consistency, streaks, cuts); payout ratios don't apply to funds. Sector income looks through fund holdings where the mix is known.",
