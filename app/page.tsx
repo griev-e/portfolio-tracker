@@ -28,6 +28,7 @@ export default function OverviewPage() {
   const { ready, portfolio } = usePortfolio();
   const [sortKey, setSortKey] = useState<SortKey>("equity");
   const [asc, setAsc] = useState(false);
+  const [mixView, setMixView] = useState<"holding" | "sector">("holding");
 
   const risk = useMemo(
     () => (portfolio ? riskReport(portfolio, SPX.sectorWeights) : null),
@@ -90,6 +91,45 @@ export default function OverviewPage() {
         ]
       : []),
   ];
+
+  // Sector mix with ETF look-through (a fund spreads across its underlying
+  // sector weights), mirroring the exposure math in lib/analytics/risk.ts.
+  const sectorMap = new Map<string, number>();
+  for (const p of portfolio.positions) {
+    const f = p.fundamentals;
+    if (f?.fund) {
+      const entries = Object.entries(f.fund.sectorWeights);
+      const sum = entries.reduce((s, [, w]) => s + (w ?? 0), 0) || 1;
+      for (const [sec, w] of entries) {
+        sectorMap.set(sec, (sectorMap.get(sec) ?? 0) + (p.equity * (w ?? 0)) / sum);
+      }
+    } else {
+      const sec = f?.sector ?? "Unknown";
+      sectorMap.set(sec, (sectorMap.get(sec) ?? 0) + p.equity);
+    }
+  }
+  const sectorSlices = [
+    ...[...sectorMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([sector, value], i) => ({
+        id: sector,
+        label: sector,
+        value,
+        color: PALETTE[i % PALETTE.length],
+      })),
+    ...(portfolio.cash > 0
+      ? [
+          {
+            id: "cash",
+            label: "Cash",
+            value: portfolio.cash,
+            color: "rgba(148,163,184,0.55)",
+          },
+        ]
+      : []),
+  ];
+
+  const mixSlices = mixView === "sector" ? sectorSlices : donutSlices;
 
   const setSort = (k: SortKey) => {
     if (k === sortKey) setAsc(!asc);
@@ -181,12 +221,12 @@ export default function OverviewPage() {
             eyebrow="Allocation map"
             title="Position sizing × performance"
             right={
-              <div className="flex items-center gap-3 font-mono text-[10px] text-faint">
-                <span className="flex items-center gap-1">
-                  <span className="h-2 w-2 rounded-sm bg-neg/60" /> loss
+              <div className="flex items-center gap-3 font-mono text-[12px] text-faint">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-sm bg-neg/60" /> loss
                 </span>
-                <span className="flex items-center gap-1">
-                  <span className="h-2 w-2 rounded-sm bg-pos/60" /> gain
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-sm bg-pos/60" /> gain
                 </span>
               </div>
             }
@@ -198,11 +238,28 @@ export default function OverviewPage() {
         <Card className="px-5 py-5" i={2}>
           <CardHeader
             eyebrow="Allocation"
-            title="Portfolio mix"
+            title="Portfolio Mix"
+            right={
+              <div className="flex gap-0.5 rounded-md border border-edge p-0.5">
+                {(["holding", "sector"] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setMixView(v)}
+                    className={`rounded px-2 py-0.5 font-mono text-[10.5px] transition-colors ${
+                      mixView === v
+                        ? "bg-white/[0.08] text-ink"
+                        : "text-faint hover:text-ink"
+                    }`}
+                  >
+                    {v === "holding" ? "Holdings" : "Sector"}
+                  </button>
+                ))}
+              </div>
+            }
             className="mb-4"
           />
           <Donut
-            slices={donutSlices}
+            slices={mixSlices}
             centerLabel="Total"
             centerValue={fmtUSDCompact(portfolio.totalValue)}
           />

@@ -49,11 +49,15 @@ export interface BriefRequest {
 export interface Brief {
   /** One-line take on the day. */
   headline: string;
-  /** 2–3 sentence portfolio state. */
+  /** 3–4 sentence portfolio state. */
   summary: string;
-  /** Notable movers, at most 4. */
+  /** A paragraph on how the book is positioned — tilts, concentration, cash. */
+  positioning: string;
+  /** Notable movers, at most 5. */
   movers: { symbol: string; comment: string }[];
-  /** Forward-looking items (earnings, news themes), at most 4. */
+  /** Cross-holding threads tying names together, at most 3. */
+  themes: { title: string; detail: string }[];
+  /** Forward-looking items (earnings, news themes), at most 5. */
   watchItems: string[];
   /** One concentration/risk observation. */
   risk: string;

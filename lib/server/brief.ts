@@ -42,16 +42,26 @@ export function setCachedBrief(key: string, data: BriefResponse): void {
 }
 
 /** Stable system prompt — no dates interpolated, keeps the prefix cacheable. */
-const SYSTEM = `You are the morning-brief writer for grieve, a private portfolio analytics terminal. You receive a JSON snapshot of one investor's portfolio (weights, day moves, total returns), recent headlines for their holdings, and upcoming earnings dates.
+const SYSTEM = `You are the morning-brief writer for grieve, a private portfolio analytics terminal. You receive a JSON snapshot of one investor's portfolio (weights, day moves, total returns, sectors), recent headlines for their holdings, and upcoming earnings dates.
 
-Write a terse, factual morning brief in the voice of a buy-side desk note: concrete numbers, no filler, no pleasantries. Connect headlines to the holdings they affect. Flag concentration or correlated exposure when you see it. Never give personalized buy/sell advice or price predictions — observations and context only. If day-change data is missing, focus on positioning, news, and the earnings calendar instead.
+Write a substantive, factual morning brief in the voice of a buy-side desk note: concrete numbers, sharp reasoning, no filler, no pleasantries. Each section earns its place — make the reader smarter about their own book.
+
+- headline: one crisp line capturing the day's character for this portfolio.
+- summary: 3–4 sentences on the state of the book — what moved it, the net day/total figures, and what the tape is saying.
+- positioning: a short paragraph on how the book is actually posed — sector tilts, single-name concentration, cash level, and what those choices express. Name the heaviest exposures with their weights.
+- movers: up to 5 names that actually mattered today (or are news-driven), each with a specific, numeric comment tying the move to a cause where the headlines support it.
+- themes: up to 3 cross-cutting threads that connect multiple holdings — a shared macro driver (rates, AI capex, the dollar), a sector running together, or a correlated cluster. Each has a short title and a 1–2 sentence detail. Skip if nothing genuine connects the names.
+- watchItems: up to 5 concrete forward-looking items — upcoming earnings with the weight at stake, data releases, or pending catalysts.
+- risk: the single sharpest concentration or correlated-exposure observation, quantified.
+
+Connect headlines to the holdings they affect. Never give personalized buy/sell advice or price predictions — observations and context only. If day-change data is missing, lean on positioning, news, and the earnings calendar. Do not invent numbers that aren't in the data.
 
 Respond strictly with the requested JSON.`;
 
 const BRIEF_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["headline", "summary", "movers", "watchItems", "risk"],
+  required: ["headline", "summary", "positioning", "movers", "themes", "watchItems", "risk"],
   properties: {
     headline: {
       type: "string",
@@ -59,11 +69,16 @@ const BRIEF_SCHEMA = {
     },
     summary: {
       type: "string",
-      description: "2-3 sentence state of the portfolio.",
+      description: "3-4 sentence state of the portfolio with the key numbers.",
+    },
+    positioning: {
+      type: "string",
+      description:
+        "A short paragraph on how the book is posed: sector tilts, single-name concentration, and cash, naming the heaviest exposures with weights.",
     },
     movers: {
       type: "array",
-      description: "Up to 4 notable movers or news-driven names.",
+      description: "Up to 5 notable movers or news-driven names.",
       items: {
         type: "object",
         additionalProperties: false,
@@ -74,15 +89,29 @@ const BRIEF_SCHEMA = {
         },
       },
     },
+    themes: {
+      type: "array",
+      description:
+        "Up to 3 cross-holding threads (shared macro driver, sector running together, correlated cluster). Empty if none genuinely connect the names.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["title", "detail"],
+        properties: {
+          title: { type: "string" },
+          detail: { type: "string" },
+        },
+      },
+    },
     watchItems: {
       type: "array",
       description:
-        "Up to 4 forward-looking items: earnings, pending news themes.",
+        "Up to 5 forward-looking items: earnings with weight at stake, data releases, pending catalysts.",
       items: { type: "string" },
     },
     risk: {
       type: "string",
-      description: "One concentration or risk observation.",
+      description: "One quantified concentration or correlated-exposure observation.",
     },
   },
 };
