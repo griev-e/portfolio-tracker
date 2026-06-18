@@ -94,6 +94,7 @@ Maps as a warm-lambda cache. Provider code (`yahoo-finance2`, Anthropic SDK) is
 | `/api/news` | `lib/server/news.ts` | Headlines for the Intelligence page. |
 | `/api/dividends` | `lib/server/dividends.ts` | Dividend history/projection. |
 | `/api/brief` | `lib/server/brief.ts` | AI daily brief (Anthropic). POSTs the in-browser portfolio snapshot since holdings never persist server-side. Caches one brief per day per portfolio shape. |
+| `/api/allocate` | `lib/server/allocator.ts` | AI dry-powder allocator for the Rebalance page (Anthropic). POSTs a fundamentals-enriched snapshot; returns a structured cash-deployment plan. Caches one plan per day per portfolio shape. |
 | `/api/auth` | — | Validates the PIN, sets the auth cookie. |
 
 `middleware.ts` enforces the PIN gate: pages redirect to `/lock`, APIs return
@@ -150,8 +151,11 @@ confidence, and UI all adapt automatically.
 - **No chart libraries** — extend the SVG components in `components/charts/`.
 - The AI brief uses Claude Haiku 4.5 (`claude-haiku-4-5`, `lib/server/brief.ts`)
   — the JSON schema does the heavy lifting, so the fastest/cheapest current model
-  fits, with thinking disabled for cost control. Use the latest Claude models when
-  adding AI features; pick the tier the task needs.
+  fits, with thinking disabled for cost control. The dry-powder allocator
+  (`lib/server/allocator.ts`) instead uses Opus 4.8 (`claude-opus-4-8`) with
+  adaptive thinking: allocation is a genuine reasoning task (concentration,
+  valuation, quality, diversification), so it earns the most capable model. Use
+  the latest Claude models when adding AI features; pick the tier the task needs.
 - Analytics are **models, not advice** — keep methodology copy honest and
   surfaced (the regime engine, scenarios, and Monte Carlo all expose their
   assumptions in the UI).
