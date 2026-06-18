@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { PALETTE } from "@/components/charts/Donut";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -9,6 +9,12 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
 import { TickerLogo } from "@/components/ui/TickerLogo";
+import type {
+  AllocationPlan,
+  AllocationResponse,
+  AllocatorRequest,
+  Conviction,
+} from "@/lib/allocator/types";
 import {
   buildGroups,
   currentTargets,
@@ -18,8 +24,9 @@ import {
   type RebalancePlan,
   type TargetBasis,
 } from "@/lib/analytics/rebalance";
-import { fmtNum, fmtPct, fmtShares, fmtUSD } from "@/lib/format";
+import { fmtNum, fmtPct, fmtShares, fmtUSD, relativeTime } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
+import type { Portfolio } from "@/lib/types";
 import { useAsyncCompute } from "@/lib/useAsyncCompute";
 
 const BASES: { id: TargetBasis; label: string }[] = [
@@ -77,11 +84,21 @@ export default function RebalancePage() {
     [portfolio, basis]
   );
 
+  // Targets the AI allocator wants applied once we've switched to the holding
+  // basis. The reset effect below consumes this instead of clobbering it.
+  const pendingTargetsRef = useRef<Record<string, number> | null>(null);
+
   // Reset targets to the current mix whenever the bucket set changes
-  // (switching basis, loading a portfolio).
+  // (switching basis, loading a portfolio) — unless an AI plan is pending.
   const groupSig = groups.map((g) => g.id).join("|");
   useEffect(() => {
-    if (groups.length) setTargets(currentTargets(groups));
+    if (!groups.length) return;
+    if (pendingTargetsRef.current) {
+      setTargets(pendingTargetsRef.current);
+      pendingTargetsRef.current = null;
+    } else {
+      setTargets(currentTargets(groups));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupSig]);
 
@@ -106,6 +123,31 @@ export default function RebalancePage() {
 
   if (!ready) return null;
   if (!portfolio) return <EmptyState page="The rebalancer" />;
+
+  // Dry powder = idle cash plus whatever new cash the user is adding. This is
+  // what the AI allocator decides how to deploy.
+  const dryPowder = contribution + portfolio.cash;
+
+  // Translate the AI plan's deploy weights into projected post-deployment
+  // holding weights and push them into the rebalancer's targets.
+  const applyPlanToTargets = (plan: AllocationPlan) => {
+    const allocBySym = new Map(
+      plan.deployments.map((d) => [d.symbol, d.allocationPct])
+    );
+    const projected = portfolio.positions.map((p) => ({
+      sym: p.symbol,
+      equity: p.equity + dryPowder * ((allocBySym.get(p.symbol) ?? 0) / 100),
+    }));
+    const total = projected.reduce((s, x) => s + x.equity, 0) || 1;
+    const next: Record<string, number> = {};
+    for (const x of projected) next[x.sym] = (x.equity / total) * 100;
+    if (basis !== "holding") {
+      pendingTargetsRef.current = next;
+      setBasis("holding");
+    } else {
+      setTargets(next);
+    }
+  };
 
   const normalize = () => {
     if (targetSum <= 0) return;
@@ -153,6 +195,12 @@ export default function RebalancePage() {
         eyebrow="Portfolio"
         title="Rebalancer"
         description="Deploy new cash to drift back toward your target mix without selling, or run a full buy-and-sell rebalance. Set targets by holding, sector, or investment style. Estimates from current prices — not trade advice."
+      />
+
+      <AllocatorCard
+        portfolio={portfolio}
+        deployable={dryPowder}
+        onApply={applyPlanToTargets}
       />
 
       <div className="grid gap-5 xl:grid-cols-[400px_1fr]">
@@ -661,5 +709,385 @@ function useAsyncPlan(
           })
         : null,
     [portfolio, basis, targets, contribution, mode, alsoDeployCash, wholeShares]
+  );
+}
+
+/* ─────────────────────────── AI dry-powder allocator ────────────────────── */
+
+const CONVICTION: Record<Conviction, { label: string; cls: string }> = {
+  high: { label: "High", cls: "bg-pos/15 text-pos" },
+  medium: { label: "Medium", cls: "bg-sky/15 text-sky" },
+  low: { label: "Low", cls: "bg-white/[0.06] text-mute" },
+};
+
+/** Compact, fundamentals-enriched snapshot for the allocator model. */
+function buildAllocatorRequest(
+  portfolio: Portfolio,
+  deployable: number
+): AllocatorRequest {
+  const positions = [...portfolio.positions]
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, 30)
+    .map((p) => {
+      const f = p.fundamentals;
+      const upside =
+        f && f.analyst.priceTarget > 0 && p.price > 0
+          ? f.analyst.priceTarget / p.price - 1
+          : null;
+      return {
+        symbol: p.symbol,
+        name: p.name,
+        weight: +p.weight.toFixed(4),
+        sector: f?.sector ?? null,
+        returnPct: +p.returnPct.toFixed(4),
+        dayChangePct:
+          p.prevClose && p.prevClose > 0
+            ? +(p.price / p.prevClose - 1).toFixed(4)
+            : null,
+        forwardPE: f?.forwardPE ?? null,
+        fcfYield: f ? +f.fcfYield.toFixed(4) : null,
+        dividendYield: f ? +f.dividendYield.toFixed(4) : null,
+        roic: f ? +f.roic.toFixed(4) : null,
+        revenueGrowth: f ? +f.revenueGrowth.toFixed(4) : null,
+        beta: f ? +f.beta.toFixed(2) : null,
+        volatility: f ? +f.volatility.toFixed(4) : null,
+        analystRating: f?.analyst.rating ?? null,
+        analystUpside: upside === null ? null : +upside.toFixed(4),
+      };
+    });
+  return {
+    portfolio: {
+      totalValue: portfolio.totalValue,
+      equityValue: portfolio.equityValue,
+      cash: portfolio.cash,
+      cashWeight: +portfolio.cashWeight.toFixed(4),
+      deployable,
+      totalReturnPct: +portfolio.totalReturnPct.toFixed(4),
+      positions,
+    },
+  };
+}
+
+type AllocState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "disabled" }
+  | { kind: "error"; message: string }
+  | { kind: "ready"; data: AllocationResponse };
+
+/** Button-triggered (not auto-loading — it's Opus): the user opts into a plan. */
+function useAllocator(portfolio: Portfolio, deployable: number) {
+  const [state, setState] = useState<AllocState>({ kind: "idle" });
+  // Capture the live deploy amount so a generation sent right after the user
+  // tweaks the cash field carries the latest figure.
+  const deployableRef = useRef(deployable);
+  deployableRef.current = deployable;
+
+  // Drop a stale plan when the holdings actually change (re-import) — but not on
+  // the 60s quote tick, which only reprices the same shape.
+  const shapeSig = portfolio.positions
+    .map((p) => p.symbol)
+    .sort()
+    .join(",");
+  const shapeRef = useRef(shapeSig);
+  useEffect(() => {
+    if (shapeRef.current !== shapeSig) {
+      shapeRef.current = shapeSig;
+      setState({ kind: "idle" });
+    }
+  }, [shapeSig]);
+
+  const generate = useCallback(async () => {
+    setState({ kind: "loading" });
+    try {
+      const res = await fetch("/api/allocate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          buildAllocatorRequest(portfolio, deployableRef.current)
+        ),
+      });
+      if (res.status === 401) {
+        window.location.replace("/lock");
+        return;
+      }
+      if (res.status === 501) {
+        setState({ kind: "disabled" });
+        return;
+      }
+      if (res.status === 429) {
+        setState({
+          kind: "error",
+          message: "AI allocator is rate limited — try again shortly.",
+        });
+        return;
+      }
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      setState({ kind: "ready", data: (await res.json()) as AllocationResponse });
+    } catch {
+      setState({ kind: "error", message: "AI allocator unreachable." });
+    }
+  }, [portfolio]);
+
+  return { state, generate };
+}
+
+function AllocatorCard({
+  portfolio,
+  deployable,
+  onApply,
+}: {
+  portfolio: Portfolio;
+  deployable: number;
+  onApply: (plan: AllocationPlan) => void;
+}) {
+  const { state, generate } = useAllocator(portfolio, deployable);
+  const [applied, setApplied] = useState(false);
+
+  const priceOf = useMemo(() => {
+    const m = new Map<string, number>();
+    portfolio.positions.forEach((p) => m.set(p.symbol, p.price));
+    return m;
+  }, [portfolio]);
+
+  const colorOf = useMemo(() => {
+    const m: Record<string, string> = {};
+    portfolio.positions.forEach((p, i) => (m[p.symbol] = PALETTE[i % PALETTE.length]));
+    return m;
+  }, [portfolio]);
+
+  if (state.kind === "disabled") {
+    return (
+      <Card className="mb-5 px-6 py-4" hover={false}>
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] text-faint">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/20" />
+          AI allocator is off — set
+          <code className="rounded bg-white/[0.05] px-1.5 py-0.5 font-mono text-[11px]">
+            ANTHROPIC_API_KEY
+          </code>
+          to have Claude suggest where to deploy your dry powder.
+        </div>
+      </Card>
+    );
+  }
+
+  const plan = state.kind === "ready" ? state.data.plan : null;
+  const maxAlloc = plan
+    ? Math.max(...plan.deployments.map((d) => d.allocationPct), 1)
+    : 1;
+  const deployingPct = plan
+    ? plan.deployments.reduce((s, d) => s + d.allocationPct, 0)
+    : 0;
+
+  return (
+    <Card className="mb-5 px-6 py-5 sm:px-7" hover={false}>
+      <CardHeader
+        eyebrow="AI · dry powder"
+        title="Where to put your cash to work"
+        right={
+          plan ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  onApply(plan);
+                  setApplied(true);
+                  setTimeout(() => setApplied(false), 1800);
+                }}
+                className="rounded-md border border-mint/30 bg-mint/[0.07] px-2.5 py-1 text-[11px] text-mint transition-colors hover:bg-mint/[0.12]"
+              >
+                {applied ? "✓ Applied" : "Apply to targets"}
+              </button>
+              <button
+                onClick={generate}
+                className="rounded-md border border-edge px-2.5 py-1 text-[11px] text-mute transition-colors hover:text-ink"
+              >
+                Regenerate
+              </button>
+            </div>
+          ) : undefined
+        }
+        className="mb-4"
+      />
+
+      {state.kind === "idle" && (
+        <div className="flex flex-col items-start gap-4">
+          <p className="max-w-2xl text-[12.5px] leading-relaxed text-mute">
+            Claude reads your allocation, valuation, quality and concentration, then
+            proposes how to put{" "}
+            <span className="font-mono text-ink">{fmtUSD(deployable)}</span> of dry
+            powder to work across your holdings — sized by conviction, with the
+            reasoning for each name. An allocation model, not advice.
+          </p>
+          {deployable < 1 ? (
+            <span className="text-[12px] text-faint">
+              Add cash to deploy in the panel below to enable the allocator.
+            </span>
+          ) : (
+            <button onClick={generate} className="btn-primary">
+              Generate AI plan
+            </button>
+          )}
+        </div>
+      )}
+
+      {state.kind === "loading" && (
+        <div className="relative h-[200px]">
+          <Computing active label="sizing the deployment…" />
+        </div>
+      )}
+
+      {state.kind === "error" && (
+        <div className="flex h-[140px] flex-col items-center justify-center gap-3 text-center">
+          <div className="text-[13px] text-mute">{state.message}</div>
+          <button onClick={generate} className="btn-secondary">
+            Retry
+          </button>
+        </div>
+      )}
+
+      {plan && (
+        <div>
+          <p className="max-w-3xl text-[13px] leading-relaxed text-mute">
+            {plan.thesis}
+          </p>
+
+          <div className="mt-5 space-y-1.5">
+            {plan.deployments.map((d, i) => {
+              const price = priceOf.get(d.symbol) ?? 0;
+              const dollars = (deployable * d.allocationPct) / 100;
+              const shares = price > 0 ? dollars / price : 0;
+              const conv = CONVICTION[d.conviction] ?? CONVICTION.low;
+              const color = colorOf[d.symbol] ?? PALETTE[i % PALETTE.length];
+              return (
+                <motion.div
+                  key={d.symbol}
+                  initial={{ opacity: 0, x: -6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.03 }}
+                  className="rounded-lg px-2 py-2 transition-colors hover:bg-white/[0.03]"
+                >
+                  <div className="flex items-center gap-3">
+                    <TickerLogo symbol={d.symbol} accent={color} size={28} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-[13px] font-medium text-ink">
+                          {d.symbol}
+                        </span>
+                        <span
+                          className={`rounded px-1.5 py-0.5 text-[9.5px] font-medium uppercase tracking-wide ${conv.cls}`}
+                        >
+                          {conv.label}
+                        </span>
+                      </div>
+                      <div className="mt-1.5 h-[4px] w-full max-w-[220px] overflow-hidden rounded-full bg-white/[0.05]">
+                        <motion.div
+                          className="h-full rounded-full"
+                          style={{ background: color }}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${(d.allocationPct / maxAlloc) * 100}%` }}
+                          transition={{
+                            duration: 0.6,
+                            delay: 0.1 + i * 0.03,
+                            ease: [0.22, 1, 0.36, 1],
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="w-[100px] shrink-0 text-right">
+                      <div className="font-mono tnum text-[13px] text-ink">
+                        {fmtUSD(dollars)}
+                      </div>
+                      <div className="font-mono tnum text-[11px] text-faint">
+                        {fmtShares(shares)} sh · {fmtNum(d.allocationPct, 0)}%
+                      </div>
+                    </div>
+                  </div>
+                  <p className="mt-1.5 pl-[40px] text-[12px] leading-relaxed text-mute">
+                    {d.rationale}
+                  </p>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t border-edge pt-3 font-mono text-[11.5px] text-faint">
+            <span>
+              Deploy {fmtNum(deployingPct, 0)}% ·{" "}
+              {fmtUSD((deployable * deployingPct) / 100)}
+            </span>
+            <span>
+              Reserve {fmtNum(plan.reservePct, 0)}% ·{" "}
+              {fmtUSD((deployable * plan.reservePct) / 100)} kept dry
+            </span>
+          </div>
+
+          {plan.trims.length > 0 && (
+            <div className="mt-5">
+              <div className="eyebrow mb-2">trim · avoid adding</div>
+              <ul className="space-y-2">
+                {plan.trims.map((t) => (
+                  <li
+                    key={t.symbol}
+                    className="flex items-start gap-2.5 text-[12.5px] leading-snug text-mute"
+                  >
+                    <TickerLogo
+                      symbol={t.symbol}
+                      accent={colorOf[t.symbol] ?? "#8892a0"}
+                      size={20}
+                    />
+                    <span>
+                      <span className="font-mono font-medium text-ink">
+                        {t.symbol}
+                      </span>{" "}
+                      — {t.note}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {plan.considerations.length > 0 && (
+            <div className="mt-5">
+              <div className="eyebrow mb-2.5">considerations</div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {plan.considerations.map((c) => (
+                  <div
+                    key={c.title}
+                    className="rounded-lg border border-edge bg-void/40 px-3.5 py-3"
+                  >
+                    <div className="text-[12.5px] font-medium text-ink">
+                      {c.title}
+                    </div>
+                    <p className="mt-1 text-[11.5px] leading-relaxed text-mute">
+                      {c.detail}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-5 border-l-2 border-edge2 pl-4">
+            <div className="eyebrow mb-1.5">risk note</div>
+            <p className="max-w-3xl text-[12.5px] leading-relaxed text-mute">
+              {plan.risk}
+            </p>
+          </div>
+
+          <p className="mt-4 border-t border-edge pt-3 text-[11px] leading-relaxed text-faint">
+            Allocation model from Claude on your snapshot — sizes are share-of-cash
+            weights applied to {fmtUSD(deployable)} of dry powder, repriced live as
+            you change the amount. Not investment advice.{" "}
+            {state.kind === "ready" && (
+              <span className="font-mono">
+                {state.data.cached ? "cached · " : ""}
+                {relativeTime(state.data.generatedAt)}
+              </span>
+            )}
+          </p>
+        </div>
+      )}
+    </Card>
   );
 }
