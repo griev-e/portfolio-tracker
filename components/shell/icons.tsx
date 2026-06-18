@@ -130,4 +130,13 @@ export const IconPatchNotes = () => (
   </svg>
 );
 
+export const IconReport = () => (
+  <svg {...base}>
+    <path d="M5 2.8 H12.4 L15.6 6 V17.2 H5 Z" />
+    <path d="M12.4 2.8 V6 H15.6" opacity="0.55" />
+    <path d="M10.3 9 V13.6" />
+    <path d="M8.4 11.7 L10.3 13.6 L12.2 11.7" />
+  </svg>
+);
+
 
