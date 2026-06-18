@@ -15,6 +15,7 @@ import {
   IconMatrix,
   IconMonteCarlo,
   IconOverview,
+  IconPatchNotes,
   IconQuality,
   IconRebalance,
   IconResearch,
@@ -36,6 +37,7 @@ const NAV = [
   { href: "/scenarios", label: "Scenarios", icon: IconScenario, group: "Simulation" },
   { href: "/montecarlo", label: "Monte Carlo", icon: IconMonteCarlo, group: "Simulation" },
   { href: "/import", label: "Import & Data", icon: IconImport, group: "Data" },
+  { href: "/patch-notes", label: "Patch Notes", icon: IconPatchNotes, group: "Data" },
 ];
 
 const GROUPS = ["Portfolio", "Analysis", "Simulation", "Data"];

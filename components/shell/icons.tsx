@@ -121,4 +121,13 @@ export const IconRebalance = () => (
   </svg>
 );
 
+export const IconPatchNotes = () => (
+  <svg {...base}>
+    <path d="M5 3.4 H13.4 L16 6 V16.6 H5 Z" />
+    <path d="M13.4 3.4 V6 H16" opacity="0.55" />
+    <path d="M7.2 9.6 H13.4" />
+    <path d="M7.2 12.4 H11.4" />
+  </svg>
+);
+
 
