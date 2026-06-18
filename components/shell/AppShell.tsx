@@ -18,6 +18,7 @@ import {
   IconPatchNotes,
   IconQuality,
   IconRebalance,
+  IconReport,
   IconResearch,
   IconRisk,
   IconScenario,
@@ -36,6 +37,7 @@ const NAV = [
   { href: "/correlation", label: "Correlation", icon: IconMatrix, group: "Analysis" },
   { href: "/scenarios", label: "Scenarios", icon: IconScenario, group: "Simulation" },
   { href: "/montecarlo", label: "Monte Carlo", icon: IconMonteCarlo, group: "Simulation" },
+  { href: "/report", label: "Export Report", icon: IconReport, group: "Data" },
   { href: "/import", label: "Import & Data", icon: IconImport, group: "Data" },
   { href: "/patch-notes", label: "Patch Notes", icon: IconPatchNotes, group: "Data" },
 ];
@@ -252,8 +254,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { portfolio, isDemo, ready, live, refreshLive } = usePortfolio();
 
-  // The lock screen renders bare — no sidebar, no nav.
-  if (pathname === "/lock") {
+  // The lock screen and the print/export report render bare — no sidebar, no
+  // nav, no top bar — so the report is a clean, self-contained document.
+  if (pathname === "/lock" || pathname === "/report") {
     return <main className="min-h-screen">{children}</main>;
   }
 
