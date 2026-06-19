@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { TickerLogo } from "@/components/ui/TickerLogo";
-import type { SymbolHit } from "@/lib/research/types";
+import type { SearchResponse, SymbolHit } from "@/lib/research/types";
 
 /**
  * Debounced ticker / company search. Yahoo-backed (via /api/search) with
@@ -35,7 +35,7 @@ export function TickerSearch({
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(term)}`);
-        const data = (await res.json()) as { results?: SymbolHit[] };
+        const data = (await res.json()) as SearchResponse;
         if (reqId.current !== id) return;
         setResults(data.results ?? []);
         setActive(0);
