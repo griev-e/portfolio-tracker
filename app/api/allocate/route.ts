@@ -1,8 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import type { AllocatorPosition, AllocatorRequest } from "@/lib/allocator/types";
 import {
   allocatorConfigured,
+  allocatorErrorResponse,
   allocatorFingerprint,
   allocatorRateLimited,
   generateAllocation,
@@ -144,22 +144,7 @@ export async function POST(req: NextRequest) {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (err) {
-    // A key that fails auth behaves like no key at all.
-    if (err instanceof Anthropic.AuthenticationError) {
-      return NextResponse.json(
-        { error: "allocator not configured" },
-        { status: 501 }
-      );
-    }
-    if (err instanceof Anthropic.RateLimitError) {
-      return NextResponse.json(
-        { error: "allocator rate limited" },
-        { status: 429 }
-      );
-    }
-    return NextResponse.json(
-      { error: "allocator unavailable" },
-      { status: 502 }
-    );
+    const { status, error } = allocatorErrorResponse(err);
+    return NextResponse.json({ error }, { status });
   }
 }

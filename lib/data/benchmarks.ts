@@ -20,8 +20,9 @@ export const SPX: BenchmarkProfile = {
   beta: 1.0,
   return12m: 0.1,
   fcfYield: 0.038,
+  // Sums to exactly 1.000 (excess trimmed from the largest bucket, Technology).
   sectorWeights: {
-    Technology: 0.34,
+    Technology: 0.325,
     "Communication Services": 0.1,
     "Consumer Discretionary": 0.105,
     Financials: 0.125,

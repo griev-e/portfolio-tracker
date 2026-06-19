@@ -51,6 +51,19 @@ export function allocatorConfigured(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
+/**
+ * Map a provider error to an HTTP outcome. Lives here so the route never has to
+ * import the Anthropic SDK (it stays confined to lib/server/*).
+ */
+export function allocatorErrorResponse(err: unknown): { status: number; error: string } {
+  // A key that fails auth behaves like no key at all.
+  if (err instanceof Anthropic.AuthenticationError)
+    return { status: 501, error: "allocator not configured" };
+  if (err instanceof Anthropic.RateLimitError)
+    return { status: 429, error: "allocator rate limited" };
+  return { status: 502, error: "allocator unavailable" };
+}
+
 /** Day + weight-shape scoped: a quote tick doesn't bust it, an import does. */
 export function allocatorFingerprint(req: AllocatorRequest): string {
   const shape = req.portfolio.positions

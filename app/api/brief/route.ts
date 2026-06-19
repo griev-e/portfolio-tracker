@@ -1,8 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import type { BriefPosition, BriefRequest } from "@/lib/intelligence/types";
 import {
   briefConfigured,
+  briefErrorResponse,
   briefFingerprint,
   briefRateLimited,
   generateBrief,
@@ -132,22 +132,7 @@ export async function POST(req: NextRequest) {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (err) {
-    // A key that fails auth behaves like no key at all.
-    if (err instanceof Anthropic.AuthenticationError) {
-      return NextResponse.json(
-        { error: "brief not configured" },
-        { status: 501 }
-      );
-    }
-    if (err instanceof Anthropic.RateLimitError) {
-      return NextResponse.json(
-        { error: "brief provider rate limited" },
-        { status: 429 }
-      );
-    }
-    return NextResponse.json(
-      { error: "brief provider unavailable" },
-      { status: 502 }
-    );
+    const { status, error } = briefErrorResponse(err);
+    return NextResponse.json({ error }, { status });
   }
 }
