@@ -62,8 +62,15 @@ export function PriceChart({
   }
 
   const last = points[points.length - 1].c;
-  const up = last >= points[0].c;
+  const first = points[0].c;
+  const up = last >= first;
   const color = up ? "var(--color-pos)" : "var(--color-neg)";
+
+  const ariaLabel = `Price history over the past ${RANGE_LABEL[range]}, ${
+    up ? "up" : "down"
+  } from ${fmtUSD(first)} to ${fmtUSD(last)}${
+    currency !== "USD" ? ` (${currency})` : ""
+  }.`;
 
   const onMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!geom || width <= 0) return;
@@ -94,6 +101,8 @@ export function PriceChart({
               height={height}
               className="block"
               style={{ overflow: "visible" }}
+              role="img"
+              aria-label={ariaLabel}
             >
               <defs>
                 <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
@@ -193,6 +202,13 @@ export function PriceChart({
     </div>
   );
 }
+
+const RANGE_LABEL: Record<HistoryRange, string> = {
+  "1m": "month",
+  "6m": "six months",
+  "1y": "year",
+  "5y": "five years",
+};
 
 function fmtFullDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
