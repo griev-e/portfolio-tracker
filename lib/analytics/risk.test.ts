@@ -54,6 +54,24 @@ describe("riskReport", () => {
     expect(r.contributions).toHaveLength(2);
   });
 
+  it("keeps every risk-contribution share non-negative on a tricky book", () => {
+    // SPY's diagonal is floored (β·σ_m > σ_SPY); with the old non-PSD covariance
+    // a marginal contribution share could come out negative. The structural PSD
+    // covariance keeps them all ≥ 0 while still summing to 1.
+    const r = riskReport(
+      makePortfolio([
+        holding({ symbol: "SPY", shares: 10, price: 100 }),
+        holding({ symbol: "NVDA", shares: 10, price: 100 }),
+        holding({ symbol: "AMD", shares: 10, price: 100 }),
+        holding({ symbol: "XOM", shares: 10, price: 100 }),
+      ]),
+      SPX.sectorWeights
+    );
+    for (const c of r.contributions) expect(c.share).toBeGreaterThanOrEqual(-1e-9);
+    const shareSum = r.contributions.reduce((s, c) => s + c.share, 0);
+    expect(shareSum).toBeCloseTo(1, 6);
+  });
+
   it("tracks coverage as the weight of names with fundamentals", () => {
     expect(riskReport(twoStock(0), SPX.sectorWeights).coveragePct).toBeCloseTo(1, 6);
     expect(riskReport(twoStock(2000), SPX.sectorWeights).coveragePct).toBeCloseTo(

@@ -29,7 +29,8 @@ interface Frame {
 /**
  * Blend a layer's signals. Signal significance is dynamic: the further a
  * reading sits from its own historical norm (|score|), the more it says, so
- * the more it weighs. Nothing here is per-signal hand-tuning.
+ * the more it weighs. No per-signal thresholds or layer weights are hand-tuned
+ * (the aggregation/labelling step does carry structural constants).
  */
 function evalLayer(signals: (SignalResult | null)[]): Frame & {
   got: SignalResult[];
