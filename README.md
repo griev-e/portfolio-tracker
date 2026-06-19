@@ -92,9 +92,11 @@ Or from the CLI: `npx vercel`.
 
 Set `ACCESS_PIN` (a 4-digit code) in Vercel → Project → Settings →
 Environment Variables to require a PIN before anyone can see the app.
-Entry is masked, the cookie stores only a salted hash, and failed attempts
-are rate-limited by a flat delay. When the variable is unset the gate is
-disabled — so local dev and fresh deploys never lock you out.
+Entry is masked, the cookie stores only a SHA-256 hash of the PIN with a fixed
+application prefix (never the PIN itself), and failed attempts are rate-limited
+by a flat delay. It's meant to keep casual visitors out, not to be hardened
+auth. When the variable is unset the gate is disabled — so local dev and fresh
+deploys never lock you out.
 
 ## Disclaimer
 

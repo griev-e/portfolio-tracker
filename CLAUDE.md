@@ -37,7 +37,9 @@ Carlo, the regime engine and its `mathx` helpers, CSV parsing, fundamentals).
 
 - `ACCESS_PIN` — a 4-digit code that gates the whole app via `middleware.ts`.
   When unset, the app is open (so local dev never locks you out). The auth
-  cookie stores a SHA-256 of the salted PIN, never the PIN itself.
+  cookie stores a SHA-256 hash of the PIN with a fixed application prefix
+  (`SHA-256("grieve:" + pin)`), never the PIN itself. The gate is meant to keep
+  casual visitors out, not to be hardened auth.
 - `ANTHROPIC_API_KEY` — enables the AI daily brief on the Intelligence page.
   When unset, the brief section degrades gracefully and everything else works.
 
@@ -119,10 +121,13 @@ GBM — deterministic per portfolio), `rebalance.ts`, `dividends/`.
 **The market regime engine (`lib/analytics/regime/`)** is the most involved
 subsystem. It turns ~23 daily index series into 8 analytical layers
 (`layers/`) → a composite regime score, confidence, health, and drivers. Its
-defining principle: **nothing is hand-tuned**. Every signal is ranked against
-its own trailing-year distribution (percentiles, not fixed thresholds), and
-each layer's weight is *earned* from its data coverage, internal agreement, and
-month-long stability (`engine.ts`). To add a signal layer, implement a
+defining principle: **no hand-tuned signal thresholds or layer weights**. Every
+signal is ranked against its own trailing-year distribution (percentiles, not
+fixed thresholds), and each layer's weight is *earned* from its data coverage,
+internal agreement, and month-long stability (`engine.ts`). The aggregation and
+labelling layer on top does use structural constants (a confidence exponent,
+coherence/stability multipliers, a sign deadband, and the regime-label /
+driver cutoffs). To add a signal layer, implement a
 `LayerSpec` and register it in `layers/index.ts` — weighting, consensus,
 confidence, and UI all adapt automatically.
 
