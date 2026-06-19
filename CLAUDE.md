@@ -22,10 +22,16 @@ npm run build      # production build
 npm run start      # serve the production build
 npm run lint       # next lint (ESLint)
 npm run typecheck  # tsc --noEmit — strict type check, run this after edits
+npm test           # vitest run — the analytics unit suite
+npm run test:watch # vitest in watch mode
 ```
 
-There is no test runner configured. Verify changes with `npm run typecheck`
-and `npm run lint`.
+After edits, verify with `npm run typecheck` and `npm run lint`; run `npm test`
+when you touch anything under `lib/analytics`, `lib/csv.ts`, or `lib/data`.
+Tests live next to the code as `*.test.ts` (Vitest, `node` environment — see
+`vitest.config.ts`); shared fixtures are in `lib/__tests__/factory.ts`. The
+suite covers the pure analytics (risk, correlation, quality, scenarios, Monte
+Carlo, the regime engine and its `mathx` helpers, CSV parsing, fundamentals).
 
 ### Environment variables (both optional, see `.env.example`)
 
@@ -60,8 +66,7 @@ defaults (β = 1.0, σ derived from beta).
 
 ### Client state flow
 
-`app/layout.tsx` wraps everything in `PortfolioProvider` → `AlertsProvider` →
-`AppShell`.
+`app/layout.tsx` wraps everything in `PortfolioProvider` → `AppShell`.
 
 - **`lib/store.tsx`** (`usePortfolio`) is the single source of truth for the
   portfolio. It reads/writes `localStorage` (key `grieve.portfolio.v1`,
@@ -75,9 +80,10 @@ defaults (β = 1.0, σ derived from beta).
   tab is visible), fetches the fundamentals overlay once per symbol set, and
   exposes a `refresh()` that punches through every cache layer. Symbols are
   sorted into a stable key to keep the CDN cache hot.
-- **`lib/alerts/store.tsx`** (`useAlerts`) holds user-defined alert rules
-  (`localStorage` key `grieve.alerts.v1`) and evaluates them against the live
-  portfolio via `lib/alerts/engine.ts`. Must mount inside `PortfolioProvider`.
+- **`lib/research/useResearch.ts`** (`useResearch`) backs the Research terminal:
+  given a single symbol it polls `/api/quotes`, fetches the fundamentals patch,
+  and merges them onto the bundled snapshot via `lib/live/merge.ts` — the same
+  three-tier fallback as the main portfolio, scoped to one ticker.
 
 ### Server routes (`app/api/*`) — all thin cached proxies
 
@@ -90,12 +96,14 @@ Maps as a warm-lambda cache. Provider code (`yahoo-finance2`, Anthropic SDK) is
 | --- | --- | --- |
 | `/api/quotes` | `lib/server/yahoo.ts` | Live prices, 60s CDN cache, `?fresh=1` bypasses caches. Extended-hours aware. |
 | `/api/fundamentals` | `lib/server/yahoo.ts` | Fundamentals patch, 12h cache. |
+| `/api/history` | `lib/server/yahoo.ts` | Adjusted-close price history for one symbol (`?symbol=&range=1m\|6m\|1y\|5y`), 10min cache. Powers the Research price chart. |
+| `/api/search` | `lib/server/yahoo.ts` | Ticker / company lookup for the Research terminal, 6h cache. Failures return an empty list, never a 5xx. |
 | `/api/market` | `lib/server/marketData.ts` | Market regime report (see below), 5min cache. |
 | `/api/news` | `lib/server/news.ts` | Headlines for the Intelligence page. |
 | `/api/dividends` | `lib/server/dividends.ts` | Dividend history/projection. |
 | `/api/brief` | `lib/server/brief.ts` | AI daily brief (Anthropic). POSTs the in-browser portfolio snapshot since holdings never persist server-side. Caches one brief per day per portfolio shape. |
 | `/api/allocate` | `lib/server/allocator.ts` | AI dry-powder allocator for the Rebalance page (Anthropic). POSTs a fundamentals-enriched snapshot; returns a structured cash-deployment plan. Caches one plan per day per portfolio shape. |
-| `/api/auth` | — | Validates the PIN, sets the auth cookie. |
+| `/api/auth` | `lib/server/rateLimit.ts` | Validates the PIN, sets the auth cookie. A fixed-window limiter throttles brute force (locks a client after a handful of wrong PINs). |
 
 `middleware.ts` enforces the PIN gate: pages redirect to `/lock`, APIs return
 401, and `/api/auth` is always allowed through.
@@ -120,18 +128,33 @@ confidence, and UI all adapt automatically.
 
 ### Pages & components
 
-- `app/*/page.tsx` — one route per nav item (Overview, Intelligence, Risk,
-  Research, Dividends, Rebalance, Market Analysis, Quality, Benchmark,
-  Correlation, Scenarios, Monte Carlo, Import). The nav list itself is defined
-  in `components/shell/AppShell.tsx` (`NAV` array) — add routes there.
+- `app/*/page.tsx` — one route per nav item. The nav list is defined in
+  `components/shell/AppShell.tsx` (`NAV` array, grouped under **Portfolio** /
+  **Analysis** / **Simulation** / **Data**) — add routes there. Current items:
+  Overview (`/`), Intelligence, Risk, Research, Dividends, Rebalance; Market
+  Analysis, Quality, Benchmark & Factors, Correlation; Scenarios, Monte Carlo;
+  Export Report (`/report`), Import & Data (`/import`), Patch Notes.
+- **`/report`** renders a print-optimized, full-portfolio dossier and exports it
+  via the browser's native `window.print()` (→ Save as PDF). Toolbar/nav chrome
+  is hidden with `no-print` classes — there is no PDF library. It recomputes
+  every analytics report (risk, quality, factors, correlation, dividends,
+  regime) inline against the live `Portfolio`.
+- **Patch Notes** (`/patch-notes`) renders `lib/data/patchNotes.ts` (`PATCH_NOTES`,
+  newest first). Add an entry there whenever a notable change ships.
+- `lib/data/benchmarks.ts` holds the S&P 500 / NASDAQ-100 (`SPX`, `NDX`)
+  reference profiles the Quality and Report pages score holdings against.
 - `components/charts/*` — hand-built SVG visualizations (Treemap, Donut, Radar,
-  Heatmap, FanChart, Histogram, Scatter, Sparkline).
+  Heatmap, FanChart, Histogram, Scatter, Sparkline, PriceChart).
 - `components/ui/*` — reusable primitives (Card, Gauge, Ring, Stat, Meter,
-  AnimatedNumber, etc.).
+  AnimatedNumber, Delta, EmptyState, ErrorBoundary, PageHeader, Computing,
+  TickerLogo, etc.).
 - `lib/useAsyncCompute.ts` — runs expensive synchronous analytics off the
   critical render path (paints UI first, computes on the next tick, keeps the
   previous value so charts don't unmount). Use this for heavy page-level
-  computations rather than computing inline.
+  computations rather than computing inline. **Monte Carlo** goes one step
+  further: `lib/analytics/useMonteCarlo.ts` runs the sim in a Web Worker
+  (`montecarlo.worker.ts`) to keep the main thread free, falling back to
+  synchronous compute when Workers are unavailable.
 
 ## Conventions
 
