@@ -46,6 +46,8 @@ export async function POST(req: NextRequest) {
   }
 
   recordSuccess(key); // clear the failure counter on success
+  // SHA-256 of the PIN with a fixed application prefix (not a per-value salt);
+  // the cookie never holds the PIN itself. Must match middleware.ts.
   const token = createHash("sha256").update(`grieve:${pin}`).digest("hex");
   const res = NextResponse.json({ ok: true });
   res.cookies.set(COOKIE, token, {
