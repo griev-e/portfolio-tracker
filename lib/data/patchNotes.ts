@@ -8,6 +8,15 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.12",
+    date: "2026-06-19",
+    title: "Consistent, PSD correlation model",
+    changes: [
+      "Rebuilt the correlation/covariance estimate as a positive-semi-definite factor model, so risk contributions can no longer come out negative.",
+      "The correlation heatmap and the risk math now share one source of truth; most pairwise correlations are unchanged.",
+    ],
+  },
+  {
     version: "1.11",
     date: "2026-06-18",
     title: "Patch notes",
