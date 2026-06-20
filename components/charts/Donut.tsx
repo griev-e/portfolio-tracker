@@ -42,7 +42,7 @@ export function Donut({
 
   return (
     <div className="flex items-center gap-6 flex-wrap justify-center">
-      <div className="relative" style={{ width: size, height: size }}>
+      <div className="relative shrink-0" style={{ width: size, height: size }}>
         <svg
           width={size}
           height={size}
@@ -96,10 +96,11 @@ export function Donut({
           </motion.div>
         </div>
       </div>
-      <div className="flex max-h-[230px] min-w-[150px] flex-col gap-1.5 overflow-y-auto pr-1">
+      <div className="flex max-h-[230px] min-w-0 grow basis-[110px] flex-col gap-1.5 overflow-y-auto pr-1">
         {arcs.map((a) => (
           <button
             key={a.id}
+            title={a.label}
             onMouseEnter={() => setHover(a)}
             onMouseLeave={() => setHover(null)}
             className={`flex items-center gap-2 rounded-md px-2 py-1 text-left transition-colors ${
@@ -110,7 +111,7 @@ export function Donut({
               className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
               style={{ background: a.color }}
             />
-            <span className="flex-1 truncate text-[12px] text-mute">{a.label}</span>
+            <span className="min-w-0 flex-1 truncate text-[12px] text-mute">{a.label}</span>
             <span className="font-mono tnum text-[12px] text-ink">
               {fmtPct(a.frac, 1)}
             </span>

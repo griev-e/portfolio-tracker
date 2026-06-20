@@ -8,6 +8,14 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.13",
+    date: "2026-06-20",
+    title: "Steadier Portfolio Mix legend",
+    changes: [
+      "The allocation donut legend now stays beside the chart and truncates long labels instead of wrapping below it, so switching to the Sector view no longer reflows or grows the card.",
+    ],
+  },
+  {
     version: "1.12",
     date: "2026-06-19",
     title: "Consistent, PSD correlation model",
