@@ -394,9 +394,10 @@ export function dividendReport(
   const top3Share = holdings.slice(0, 3).reduce((a, h) => a + h.incomeShare, 0);
 
   // Sector income with ETF look-through where the fund mix is known.
+  const posBySymbol = new Map(portfolio.positions.map((p) => [p.symbol, p]));
   const sectorMap = new Map<string, number>();
   for (const h of holdings) {
-    const pos = portfolio.positions.find((p) => p.symbol === h.symbol);
+    const pos = posBySymbol.get(h.symbol);
     const fundMix = pos?.fundamentals?.fund?.sectorWeights;
     if (h.kind === "fund" && fundMix) {
       for (const [sector, w] of Object.entries(fundMix)) {

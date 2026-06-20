@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchSymbols } from "@/lib/server/yahoo";
+import type { SearchResponse } from "@/lib/research/types";
 
 export const dynamic = "force-dynamic";
 
@@ -12,10 +13,10 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get("q") ?? "").slice(0, 40);
   if (q.trim().length === 0) {
-    return NextResponse.json({ results: [] });
+    return NextResponse.json<SearchResponse>({ results: [] });
   }
   const results = await searchSymbols(q);
-  return NextResponse.json(
+  return NextResponse.json<SearchResponse>(
     { results },
     {
       headers: {

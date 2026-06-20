@@ -19,9 +19,6 @@ export const fmtScore = (v: number): string =>
 export const scoreTone = (v: number): string =>
   v >= 0.15 ? "text-pos" : v <= -0.15 ? "text-neg" : "text-mute";
 
-export const scoreColor = (v: number): string =>
-  v >= 0.15 ? "var(--color-pos)" : v <= -0.15 ? "var(--color-neg)" : "var(--color-sky)";
-
 /**
  * Centered ±1 score bar — losses grow left of center, gains grow right.
  * The fill eases in; re-renders animate to the new width.
