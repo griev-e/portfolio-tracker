@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Donut, PALETTE } from "@/components/charts/Donut";
 import { Treemap } from "@/components/charts/Treemap";
+import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { Delta, deltaToneClass } from "@/components/ui/Delta";
+import { deltaToneClass } from "@/components/ui/Delta";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -66,6 +67,9 @@ export default function OverviewPage() {
     ...portfolio.positions.map((x) => Math.abs(x.returnPct)),
     0.0001
   );
+
+  // Tone the hero's ambient glow off today's move (falling back to all-time).
+  const heroUp = (portfolio.dayChange ?? portfolio.totalReturn) >= 0;
 
   const treemapItems = portfolio.positions.map((p) => ({
     id: p.symbol,
@@ -148,71 +152,65 @@ export default function OverviewPage() {
         description={`Imported ${new Date(portfolio.asOf).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · ${portfolio.positions.length} positions`}
       />
 
-      {/* Hero strip */}
-      <Card className="mb-5 px-6 py-6 sm:px-8" i={0}>
+      {/* Hero strip — headline net value, then capital & risk metrics */}
+      <Card className="relative mb-5 overflow-hidden px-6 py-6 sm:px-8" i={0}>
         <div
-          className={`grid grid-cols-2 gap-x-6 gap-y-6 md:grid-cols-4 ${
-            portfolio.dayChange !== null ? "lg:grid-cols-7" : "lg:grid-cols-6"
-          }`}
-        >
-          <div className="col-span-2">
+          aria-hidden
+          className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full blur-[90px]"
+          style={{
+            background: heroUp ? "rgba(52,211,153,0.10)" : "rgba(251,113,133,0.10)",
+          }}
+        />
+        <div className="relative flex flex-col gap-7 lg:flex-row lg:items-stretch lg:gap-8">
+          {/* Primary: net value with all-time + today returns stacked beneath */}
+          <div className="lg:w-[260px] lg:shrink-0">
+            <div className="eyebrow">Net value</div>
+            <div className="mt-1.5 font-mono tnum text-[34px] font-medium leading-none text-ink sm:text-[40px]">
+              <AnimatedNumber value={portfolio.totalValue} format={(v) => fmtUSD(v)} />
+            </div>
+            <div className="mt-4 grid w-fit grid-cols-[auto_auto_auto] items-baseline gap-x-3 gap-y-1.5 font-mono tnum text-[13px]">
+              <HeroDelta
+                amount={portfolio.totalReturn}
+                pct={portfolio.totalReturnPct}
+                label="all-time"
+              />
+              {portfolio.dayChange !== null && portfolio.dayChangePct !== null && (
+                <HeroDelta
+                  amount={portfolio.dayChange}
+                  pct={portfolio.dayChangePct}
+                  label="today"
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Secondary: capital deployment + risk shape */}
+          <div className="grid flex-1 grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4 lg:self-center lg:border-l lg:border-edge lg:pl-8">
             <Stat
-              label="Net value"
-              value={portfolio.totalValue}
-              format={(v) => fmtUSD(v)}
-              size="lg"
-              sub={
-                <span>
-                  <Delta
-                    value={portfolio.totalReturn}
-                    format={(v) => `${v >= 0 ? "+" : ""}${fmtUSD(v)}`}
-                  />{" "}
-                  <Delta
-                    value={portfolio.totalReturnPct}
-                    format={(v) => `(${fmtPct(v, 2, true)})`}
-                  />{" "}
-                  all-time
-                </span>
-              }
+              label="Invested"
+              value={portfolio.equityValue}
+              format={fmtUSDCompact}
+              sub={`${fmtPct(1 - portfolio.cashWeight, 1)} deployed`}
+            />
+            <Stat
+              label="Cash"
+              value={portfolio.cash}
+              format={fmtUSDCompact}
+              sub={`${fmtPct(portfolio.cashWeight, 1)} dry powder`}
+            />
+            <Stat
+              label="Portfolio beta"
+              value={risk.beta}
+              format={(v) => fmtNum(v, 2)}
+              sub="vs S&P 500"
+            />
+            <Stat
+              label="Est. volatility"
+              value={risk.volatility}
+              format={(v) => fmtPct(v, 1)}
+              sub="annualized"
             />
           </div>
-          {portfolio.dayChange !== null && (
-            <Stat
-              label="Today"
-              value={portfolio.dayChange}
-              format={(v) => `${v >= 0 ? "+" : ""}${fmtUSD(v)}`}
-              toneClass={portfolio.dayChange >= 0 ? "text-pos" : "text-neg"}
-              sub={
-                portfolio.dayChangePct !== null
-                  ? `${fmtPct(portfolio.dayChangePct, 2, true)} vs prior close`
-                  : undefined
-              }
-            />
-          )}
-          <Stat
-            label="Invested"
-            value={portfolio.equityValue}
-            format={fmtUSDCompact}
-            sub={`${fmtPct(1 - portfolio.cashWeight, 1)} deployed`}
-          />
-          <Stat
-            label="Cash"
-            value={portfolio.cash}
-            format={fmtUSDCompact}
-            sub={`${fmtPct(portfolio.cashWeight, 1)} dry powder`}
-          />
-          <Stat
-            label="Portfolio beta"
-            value={risk.beta}
-            format={(v) => fmtNum(v, 2)}
-            sub="vs S&P 500"
-          />
-          <Stat
-            label="Est. volatility"
-            value={risk.volatility}
-            format={(v) => fmtPct(v, 1)}
-            sub="annualized"
-          />
         </div>
       </Card>
 
@@ -347,6 +345,33 @@ export default function OverviewPage() {
         </div>
       </Card>
     </div>
+  );
+}
+
+/**
+ * One return row beneath the hero value: arrow + dollars + percent + label.
+ * Renders three cells into the parent grid so the all-time and today rows line
+ * up column-for-column.
+ */
+function HeroDelta({
+  amount,
+  pct,
+  label,
+}: {
+  amount: number;
+  pct: number;
+  label: string;
+}) {
+  const pos = amount >= 0;
+  const toneClass = pos ? "text-pos" : "text-neg";
+  return (
+    <>
+      <span className={`text-right ${toneClass}`}>
+        {pos ? "▲" : "▼"} {fmtUSD(Math.abs(amount))}
+      </span>
+      <span className={`text-right ${toneClass}`}>{fmtPct(pct, 2, true)}</span>
+      <span className="text-faint">{label}</span>
+    </>
   );
 }
 
