@@ -399,15 +399,23 @@ function NewsCard({ symbols }: { symbols: string[] }) {
   }, [items, filter, expanded]);
 
   return (
-    <Card className="relative px-6 py-5" i={2}>
+    // On xl the news card sits beside the (shorter, finite) earnings calendar.
+    // It becomes a flex column whose body is absolutely positioned, so the
+    // headline list contributes no intrinsic height to the grid row — the
+    // earnings card sets the row height and the news body scrolls to match it.
+    // Below xl the cards stack, so heights stay natural.
+    <Card
+      className="relative px-6 py-5 xl:flex xl:flex-col xl:overflow-hidden"
+      i={2}
+    >
       <CardHeader
         eyebrow="Holdings news"
         title="What's being written about your names"
-        className="mb-3"
+        className="mb-3 xl:shrink-0"
       />
 
       {items && withNews.length > 1 && (
-        <div className="mb-4 flex flex-wrap gap-1.5">
+        <div className="mb-4 flex flex-wrap gap-1.5 xl:shrink-0">
           {[null, ...withNews].map((s) => (
             <button
               key={s ?? "all"}
@@ -424,70 +432,74 @@ function NewsCard({ symbols }: { symbols: string[] }) {
         </div>
       )}
 
-      {loading && !items && (
-        <div className="relative h-[200px]">
-          <Computing active label="pulling headlines…" />
+      <div className="xl:relative xl:min-h-0 xl:flex-1">
+        <div className="xl:absolute xl:inset-0 xl:overflow-y-auto xl:pr-1">
+          {loading && !items && (
+            <div className="relative h-[200px]">
+              <Computing active label="pulling headlines…" />
+            </div>
+          )}
+
+          {!loading && error && !items && (
+            <div className="flex h-[160px] flex-col items-center justify-center gap-3">
+              <div className="text-[13px] text-mute">{error}</div>
+              <button onClick={refresh} className="btn-secondary">
+                Retry
+              </button>
+            </div>
+          )}
+
+          {items && items.length === 0 && (
+            <p className="py-6 text-center text-[12.5px] text-faint">
+              No recent headlines for these holdings.
+            </p>
+          )}
+
+          {items && visible.length > 0 && (
+            <div className="space-y-1">
+              {visible.map((n, i) => (
+                <motion.a
+                  key={n.id}
+                  href={n.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: Math.min(i * 0.03, 0.4) }}
+                  className="group flex items-start gap-3 rounded-md px-2 py-2.5 transition-colors hover:bg-white/[0.03]"
+                >
+                  <TickerLogo symbol={n.symbol} accent={symbolColor(n.symbol)} size={24} />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[12.5px] leading-snug text-mute transition-colors group-hover:text-ink">
+                      {n.title}
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 font-mono text-[10px] text-faint">
+                      <span className="text-ink/70">{n.symbol}</span>
+                      {n.publisher && <span>{n.publisher}</span>}
+                      <span>{relativeTime(n.publishedAt)}</span>
+                    </div>
+                  </div>
+                </motion.a>
+              ))}
+            </div>
+          )}
+
+          {items &&
+            !expanded &&
+            (filter
+              ? items.filter(
+                  (n) => n.symbol === filter || n.relatedTickers.includes(filter)
+                ).length
+              : items.length) > 12 && (
+              <button
+                onClick={() => setExpanded(true)}
+                className="mt-3 w-full rounded-md border border-edge py-2 text-[11.5px] text-mute transition-colors hover:bg-white/[0.03] hover:text-ink"
+              >
+                Show more
+              </button>
+            )}
         </div>
-      )}
-
-      {!loading && error && !items && (
-        <div className="flex h-[160px] flex-col items-center justify-center gap-3">
-          <div className="text-[13px] text-mute">{error}</div>
-          <button onClick={refresh} className="btn-secondary">
-            Retry
-          </button>
-        </div>
-      )}
-
-      {items && items.length === 0 && (
-        <p className="py-6 text-center text-[12.5px] text-faint">
-          No recent headlines for these holdings.
-        </p>
-      )}
-
-      {items && visible.length > 0 && (
-        <div className="space-y-1">
-          {visible.map((n, i) => (
-            <motion.a
-              key={n.id}
-              href={n.link}
-              target="_blank"
-              rel="noreferrer"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: Math.min(i * 0.03, 0.4) }}
-              className="group flex items-start gap-3 rounded-md px-2 py-2.5 transition-colors hover:bg-white/[0.03]"
-            >
-              <TickerLogo symbol={n.symbol} accent={symbolColor(n.symbol)} size={24} />
-              <div className="min-w-0 flex-1">
-                <div className="text-[12.5px] leading-snug text-mute transition-colors group-hover:text-ink">
-                  {n.title}
-                </div>
-                <div className="mt-1 flex items-center gap-2 font-mono text-[10px] text-faint">
-                  <span className="text-ink/70">{n.symbol}</span>
-                  {n.publisher && <span>{n.publisher}</span>}
-                  <span>{relativeTime(n.publishedAt)}</span>
-                </div>
-              </div>
-            </motion.a>
-          ))}
-        </div>
-      )}
-
-      {items &&
-        !expanded &&
-        (filter
-          ? items.filter(
-              (n) => n.symbol === filter || n.relatedTickers.includes(filter)
-            ).length
-          : items.length) > 12 && (
-          <button
-            onClick={() => setExpanded(true)}
-            className="mt-3 w-full rounded-md border border-edge py-2 text-[11.5px] text-mute transition-colors hover:bg-white/[0.03] hover:text-ink"
-          >
-            Show more
-          </button>
-        )}
+      </div>
     </Card>
   );
 }
