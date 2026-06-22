@@ -297,10 +297,11 @@ export default function OverviewPage() {
           eyebrow="Holdings"
           title="All positions"
           right={
-            <span className="font-mono text-[10px] text-faint">
-              {portfolio.positions.length} positions ·{" "}
-              {fmtUSDCompact(portfolio.equityValue)} invested
-            </span>
+            <div className="flex items-center gap-2 font-mono text-[10px] text-faint">
+              <span>{portfolio.positions.length} positions</span>
+              <span className="text-edge2">·</span>
+              <span>{fmtUSDCompact(portfolio.equityValue)} invested</span>
+            </div>
           }
           className="px-6 pt-5 mb-1"
         />
@@ -316,18 +317,46 @@ export default function OverviewPage() {
                     ["weight", "Weight", false],
                     ["returnPct", "Total return", true],
                   ] as [SortKey, string, boolean][]
-                ).map(([key, label, right]) => (
-                  <th
-                    key={key}
-                    onClick={() => setSort(key)}
-                    className={`cursor-pointer select-none px-6 py-3 text-[12px] font-medium transition-colors hover:text-ink ${
-                      sortKey === key ? "text-mint" : "text-faint"
-                    } ${right ? "text-right" : ""}`}
-                  >
-                    {label}
-                    {sortKey === key && (asc ? " ↑" : " ↓")}
-                  </th>
-                ))}
+                ).map(([key, label, right]) => {
+                  const active = sortKey === key;
+                  return (
+                    <th
+                      key={key}
+                      onClick={() => setSort(key)}
+                      className={`group/th cursor-pointer select-none px-6 py-3 text-[11.5px] font-medium uppercase tracking-[0.04em] transition-colors hover:text-ink ${
+                        active ? "text-mint" : "text-faint"
+                      }`}
+                    >
+                      <span
+                        className={`inline-flex items-center gap-1 ${
+                          right ? "flex-row-reverse" : ""
+                        }`}
+                      >
+                        <span>{label}</span>
+                        <svg
+                          viewBox="0 0 10 6"
+                          aria-hidden
+                          className={`h-[6px] w-[10px] transition-all duration-200 ${
+                            asc ? "rotate-180" : ""
+                          } ${
+                            active
+                              ? "opacity-100"
+                              : "opacity-0 group-hover/th:opacity-40"
+                          }`}
+                        >
+                          <path
+                            d="M1 1l4 4 4-4"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </span>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
@@ -402,15 +431,28 @@ function HoldingRow({
 
   return (
     <motion.tr
-      initial={{ opacity: 0, x: -8 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: 0.25 + i * 0.035, duration: 0.35 }}
-      className="group border-b border-edge/60 transition-colors hover:bg-white/[0.03]"
+      layout="position"
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        layout: { type: "spring", stiffness: 520, damping: 42 },
+        opacity: { delay: 0.25 + i * 0.035, duration: 0.35 },
+        y: { delay: 0.25 + i * 0.035, duration: 0.35 },
+      }}
+      className="group relative border-b border-edge/60 transition-colors hover:bg-white/[0.03]"
     >
       {/* Asset: brand logo + symbol + name */}
-      <td className="px-6 py-3">
+      <td className="relative px-6 py-3">
+        {/* Accent edge that lights up on hover */}
+        <span
+          aria-hidden
+          className="absolute inset-y-[6px] left-0 w-[2px] rounded-full opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+          style={{ background: accent }}
+        />
         <div className="flex items-center gap-3">
-          <TickerLogo symbol={p.symbol} accent={accent} size={32} />
+          <div className="transition-transform duration-200 group-hover:scale-[1.06]">
+            <TickerLogo symbol={p.symbol} accent={accent} size={32} />
+          </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="font-mono text-[13px] font-medium text-ink">
@@ -466,13 +508,14 @@ function HoldingRow({
         <div className="flex items-center gap-2.5">
           <div className="h-[5px] w-20 overflow-hidden rounded-full bg-white/[0.05]">
             <motion.div
-              className="h-full rounded-full"
+              className="h-full rounded-full transition-shadow duration-200 group-hover:shadow-[0_0_8px_var(--accent-glow)]"
               style={{
                 background: `linear-gradient(90deg, color-mix(in srgb, ${accent} 45%, transparent), ${accent})`,
+                ["--accent-glow" as string]: `color-mix(in srgb, ${accent} 45%, transparent)`,
               }}
               initial={{ width: 0 }}
               animate={{ width: `${(p.weight / maxWeight) * 100}%` }}
-              transition={{ delay: 0.4 + i * 0.03, duration: 0.7 }}
+              transition={{ delay: 0.4 + i * 0.03, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             />
           </div>
           <span className="font-mono tnum text-[12px] text-mute">
@@ -498,7 +541,7 @@ function HoldingRow({
               animate={{
                 width: `${(Math.abs(p.returnPct) / maxAbsReturn) * 48}%`,
               }}
-              transition={{ delay: 0.35 + i * 0.03, duration: 0.6 }}
+              transition={{ delay: 0.35 + i * 0.03, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             />
           </div>
           <div className="w-[88px] text-right">
