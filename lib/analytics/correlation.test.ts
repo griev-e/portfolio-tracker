@@ -118,6 +118,35 @@ describe("correlationMatrix", () => {
     expect(avgCorrelation).toBeLessThan(1);
     expect(highest!.rho).toBeGreaterThanOrEqual(lowest!.rho);
   });
+
+  it("keeps the risk-weighted average inside the pairwise range", () => {
+    const { weightedAvgCorrelation, highest, lowest } =
+      correlationMatrix(portfolio);
+    expect(weightedAvgCorrelation).toBeGreaterThanOrEqual(lowest!.rho - 1e-9);
+    expect(weightedAvgCorrelation).toBeLessThanOrEqual(highest!.rho + 1e-9);
+  });
+
+  it("weights the dominant pair: two large coupled names pull the average up", () => {
+    // AAPL & MSFT (same sector, high ρ) dominate; XOM (Energy, low ρ to tech)
+    // is a tiny tail position. The equal-weighted mean dilutes the high
+    // AAPL·MSFT correlation across the two low cross-sector pairs, but the
+    // risk-weighted average — dominated by the big AAPL·MSFT pair — sits higher.
+    const skewed = makePortfolio([
+      holding({ symbol: "AAPL", shares: 100, price: 100 }),
+      holding({ symbol: "MSFT", shares: 100, price: 100 }),
+      holding({ symbol: "XOM", shares: 1, price: 10 }),
+    ]);
+    const { avgCorrelation, weightedAvgCorrelation } =
+      correlationMatrix(skewed);
+    expect(weightedAvgCorrelation).toBeGreaterThan(avgCorrelation);
+  });
+
+  it("returns 0 when there are no pairs", () => {
+    const single = makePortfolio([
+      holding({ symbol: "AAPL", shares: 10, price: 100 }),
+    ]);
+    expect(correlationMatrix(single).weightedAvgCorrelation).toBe(0);
+  });
 });
 
 describe("covarianceMatrix", () => {
