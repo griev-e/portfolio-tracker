@@ -29,10 +29,11 @@ export default function CorrelationPage() {
 
   const { corr, risk } = data;
 
+  const wAvgRho = corr.weightedAvgCorrelation;
   const verdict =
-    corr.avgCorrelation > 0.55
+    wAvgRho > 0.55
       ? "These holdings largely move as one trade. In a drawdown, expect them to fall together."
-      : corr.avgCorrelation > 0.38
+      : wAvgRho > 0.38
         ? "Moderate co-movement — typical for a growth-tilted equity book."
         : "Genuinely differentiated holdings. The pieces can offset each other.";
 
@@ -48,12 +49,13 @@ export default function CorrelationPage() {
         <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
           <Stat
             label="Avg pairwise ρ"
-            value={corr.avgCorrelation}
+            value={wAvgRho}
             format={(v) => fmtNum(v, 2)}
+            sub="risk-weighted"
             toneClass={
-              corr.avgCorrelation > 0.55
+              wAvgRho > 0.55
                 ? "text-warn"
-                : corr.avgCorrelation > 0.38
+                : wAvgRho > 0.38
                   ? "text-ink"
                   : "text-mint"
             }

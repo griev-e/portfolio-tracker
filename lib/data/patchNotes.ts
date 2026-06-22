@@ -8,6 +8,14 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.15",
+    date: "2026-06-22",
+    title: "Risk-weighted average correlation",
+    changes: [
+      "The Correlation page and Export Report now headline a risk-weighted average pairwise correlation — each pair weighted by its contribution to portfolio variance — so two large, volatile holdings moving together count for more than two tiny tail positions. It tracks the diversification math in the risk model and reflects realized co-movement better than the old equal-weighted mean.",
+    ],
+  },
+  {
     version: "1.14",
     date: "2026-06-20",
     title: "Aligned Intelligence cards",
