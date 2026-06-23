@@ -10,7 +10,7 @@ export default function PatchNotesPage() {
       <PageHeader
         eyebrow="Data"
         title="Patch Notes"
-        description="What's changed in grieve, release by release."
+        description="What's changed in alpha, release by release."
       />
 
       <div className="space-y-5">

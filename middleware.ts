@@ -4,10 +4,10 @@ import { NextRequest, NextResponse } from "next/server";
  * PIN gate. Enabled by setting ACCESS_PIN (e.g. in Vercel project env vars);
  * when unset the app is open — so local dev and first deploys never lock you
  * out. The auth cookie stores a SHA-256 hash of the PIN with a fixed
- * application prefix (SHA-256("grieve:" + pin)), never the PIN itself. This
+ * application prefix (SHA-256("alpha:" + pin)), never the PIN itself. This
  * keeps casual visitors out; it is not hardened auth.
  */
-const COOKIE = "grieve_auth";
+const COOKIE = "alpha_auth";
 
 async function sha256Hex(input: string): Promise<string> {
   const digest = await crypto.subtle.digest(
@@ -26,7 +26,7 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (pathname.startsWith("/api/auth")) return NextResponse.next();
 
-  const expected = await sha256Hex(`grieve:${pin}`);
+  const expected = await sha256Hex(`alpha:${pin}`);
   const authed = req.cookies.get(COOKIE)?.value === expected;
 
   if (pathname === "/lock") {
