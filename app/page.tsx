@@ -209,6 +209,7 @@ export default function OverviewPage() {
               value={risk.volatility}
               format={(v) => fmtPct(v, 1)}
               sub="annualized"
+              tip="Volatility is how much the portfolio's value tends to swing — the annualized standard deviation of returns. A higher number means wider day-to-day and year-to-year fluctuations in both directions. This is a model estimate built from each holding's volatility and how they move together, not a realized figure."
             />
           </div>
         </div>
@@ -280,6 +281,7 @@ export default function OverviewPage() {
               format={(v) => fmtNum(v, 1)}
               size="sm"
               sub="diversification"
+              tip="Effective N is how many equally-weighted positions your portfolio behaves like (the inverse of the Herfindahl concentration index). A 20-stock portfolio split evenly has an effective N of 20; if a few names dominate, the effective N drops far below the headcount — a quick read on true diversification."
             />
             <Stat
               label="Coverage"
@@ -317,19 +319,20 @@ export default function OverviewPage() {
                     ["weight", "Weight", false],
                     ["returnPct", "Total return", true],
                   ] as [SortKey, string, boolean][]
-                ).map(([key, label, right]) => {
+                ).map(([key, label]) => {
                   const active = sortKey === key;
+                  const center = key !== "symbol";
                   return (
                     <th
                       key={key}
                       onClick={() => setSort(key)}
                       className={`group/th cursor-pointer select-none px-6 py-3 text-[11.5px] font-medium uppercase tracking-[0.04em] transition-colors hover:text-ink ${
-                        active ? "text-mint" : "text-faint"
-                      }`}
+                        center ? "text-center" : "text-left"
+                      } ${active ? "text-mint" : "text-faint"}`}
                     >
                       <span
                         className={`inline-flex items-center gap-1 ${
-                          right ? "flex-row-reverse" : ""
+                          center ? "justify-center" : ""
                         }`}
                       >
                         <span>{label}</span>

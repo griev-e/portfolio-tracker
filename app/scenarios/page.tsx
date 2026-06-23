@@ -24,7 +24,7 @@ export default function ScenariosPage() {
   const [activePreset, setActivePreset] = useState<string | null>(null);
   const [kind, setKind] = useState<Kind>("stock");
   const [symbol, setSymbol] = useState<string | null>(null);
-  const [magnitude, setMagnitude] = useState(-20); // % for stock/market, bp/100 for rates
+  const [magnitude, setMagnitude] = useState(0); // % for stock/market, bp/100 for rates
   const [rateMove, setRateMove] = useState(1.0);
   // No scenario is run until the user picks a preset or touches a custom
   // control — the results panel starts empty rather than auto-shocking.
@@ -222,9 +222,9 @@ export default function ScenariosPage() {
         </div>
 
         {/* Results */}
-        <div className="relative min-w-0">
+        <div className="relative flex min-w-0 flex-col">
           {!shock ? (
-            <div className="panel flex h-[420px] flex-col items-center justify-center gap-3 px-8 text-center">
+            <div className="panel flex min-h-[420px] flex-1 flex-col items-center justify-center gap-3 px-8 text-center">
               <div className="text-[14px] font-medium text-mute">
                 No scenario selected
               </div>

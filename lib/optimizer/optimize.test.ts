@@ -23,7 +23,11 @@ const PORTFOLIO = makePortfolio(
   5000
 );
 
-const DEFAULTS: OptimizerConstraints = { maxWeight: 0.3, minWeight: 0 };
+const DEFAULTS: OptimizerConstraints = {
+  maxWeight: 0.3,
+  minWeight: 0,
+  allowExit: true,
+};
 const ALL: ObjectiveId[] = [
   "sharpe",
   "min-vol",
@@ -101,20 +105,36 @@ describe("optimizePortfolio", () => {
   });
 
   it("a tighter cap lowers the top weight", () => {
-    const loose = optimizePortfolio(PORTFOLIO, "max-return", { maxWeight: 0.6, minWeight: 0 })!;
-    const tight = optimizePortfolio(PORTFOLIO, "max-return", { maxWeight: 0.25, minWeight: 0 })!;
+    const loose = optimizePortfolio(PORTFOLIO, "max-return", { maxWeight: 0.6, minWeight: 0, allowExit: true })!;
+    const tight = optimizePortfolio(PORTFOLIO, "max-return", { maxWeight: 0.25, minWeight: 0, allowExit: true })!;
     expect(tight.metricsAfter.topWeight).toBeLessThanOrEqual(
       loose.metricsAfter.topWeight + 1e-9
     );
     expect(tight.metricsAfter.topWeight).toBeLessThanOrEqual(0.25 + 1e-6);
   });
 
-  it("the drop threshold zeroes small positions", () => {
-    const r = optimizePortfolio(PORTFOLIO, "sharpe", { maxWeight: 0.4, minWeight: 0.05 })!;
+  it("the hold floor keeps held names from being fully exited", () => {
+    // allowExit off + a 5% floor: every currently-held name stays above it.
+    const r = optimizePortfolio(PORTFOLIO, "sharpe", {
+      maxWeight: 0.4,
+      minWeight: 0.05,
+      allowExit: false,
+    })!;
     for (const p of r.positions) {
-      expect(p.targetWeight === 0 || p.targetWeight >= 0.05 - 1e-9).toBe(true);
+      expect(p.targetWeight).toBeGreaterThanOrEqual(0.05 - 1e-6);
     }
     expect(sum(r.positions.map((p) => p.targetWeight))).toBeCloseTo(1, 4);
+  });
+
+  it("allowExit lets the optimizer drive a name to zero", () => {
+    // max-return with a high cap concentrates into the highest-μ names; with
+    // exits allowed, at least one held name should be fully trimmed out.
+    const r = optimizePortfolio(PORTFOLIO, "max-return", {
+      maxWeight: 0.5,
+      minWeight: 0.05,
+      allowExit: true,
+    })!;
+    expect(r.positions.some((p) => p.targetWeight < 1e-6)).toBe(true);
   });
 
   it("income tilts the book toward higher yield", () => {

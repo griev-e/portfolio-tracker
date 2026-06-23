@@ -32,8 +32,17 @@ export type ObjectiveId =
 export interface OptimizerConstraints {
   /** Per-name cap on the invested book, decimal (0.30 = 30%). */
   maxWeight: number;
-  /** Names below this invested weight are dropped to zero, decimal. */
+  /**
+   * Minimum invested weight for a currently-held position, decimal. Acts as a
+   * floor that keeps the optimizer from fully exiting a name (unless `allowExit`
+   * is set). Ignored when `allowExit` is true.
+   */
   minWeight: number;
+  /**
+   * When true, the optimizer may drive any position to zero (a full exit). When
+   * false (default), held positions keep at least `minWeight`.
+   */
+  allowExit: boolean;
 }
 
 /** Risk/return characteristics of a weight vector, on the total book (incl. cash). */
@@ -194,4 +203,6 @@ export interface OptimizerResponse {
   plan: OptimizerPlan;
   generatedAt: string;
   cached: boolean;
+  /** Estimated USD cost of the review. Null when the model is unpriced. */
+  costUSD?: number | null;
 }

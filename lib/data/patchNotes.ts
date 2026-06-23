@@ -8,6 +8,23 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.17",
+    date: "2026-06-23",
+    title: "Hover explainers & cross-tab polish",
+    changes: [
+      "Added hover-reveal explanation boxes throughout the terminal — rest the pointer on a metric (beta, volatility, Sharpe, expected return, diversification ratio, HHI, effective N, average pairwise ρ, regime confidence/health/direction/age, and the analytical layers' weight/agreement/stability) to read what it actually measures.",
+      "Overview: centered the holdings table column headers over their columns.",
+      "Intelligence: the daily brief now generates on a button instead of on page load, the earnings calendar has a legend for the weight bar, the holdings news feed dedupes and counts per ticker, and the brief shows its estimated AI cost.",
+      "Optimizer: default position cap is now 10%, a new guardrail lets you allow full exits (off by default, with a minimum-position floor when off), the efficient-frontier chart fills its column, bought slices in the allocation bars glow, and the AI review reports its estimated cost.",
+      "Market Analysis: the Direction and Regime-age tiles read more clearly at the same size.",
+      "Quality: per-holding drill-down cards now show a book-relative grade and a strongest/softest category read alongside the bars.",
+      "Dividends: the explainability panel is collapsible and starts collapsed.",
+      "Rebalance: target-mix inputs are wider and step in 0.1% increments.",
+      "Scenarios: the custom stock-move slider now defaults to 0%, and the empty results panel matches the controls' height.",
+      "Monte Carlo: the target can now reach 100× today, hovering a terminal-distribution bar shows how many outcomes landed there, and a Refresh simulation button redraws a fresh set of paths.",
+    ],
+  },
+  {
     version: "1.16",
     date: "2026-06-23",
     title: "AI Optimizer",

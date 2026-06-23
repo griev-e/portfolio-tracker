@@ -180,11 +180,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const plan = await generateOptimization(parsed);
+    const { plan, costUSD } = await generateOptimization(parsed);
     const payload = {
       plan,
       generatedAt: new Date().toISOString(),
       cached: false,
+      costUSD,
     };
     setCachedOptimization(key, payload);
     return NextResponse.json(payload, {

@@ -22,6 +22,8 @@ export default function MonteCarloPage() {
   const [years, setYears] = useState(10);
   const [contribution, setContribution] = useState(500);
   const [targetMultiple, setTargetMultiple] = useState(4);
+  // Bumped by the "refresh simulation" control to redraw a fresh set of paths.
+  const [seedSalt, setSeedSalt] = useState(0);
 
   const risk = useMemo(
     () => (portfolio ? riskReport(portfolio, SPX.sectorWeights) : null),
@@ -45,8 +47,9 @@ export default function MonteCarloPage() {
       monthlyContribution: contribution,
       targetValue: target,
       paths: 3000,
+      seedSalt,
     };
-  }, [portfolio, risk, years, contribution, target]);
+  }, [portfolio, risk, years, contribution, target, seedSalt]);
 
   const { result, pending } = useMonteCarlo(mcInputs);
 
@@ -65,6 +68,29 @@ export default function MonteCarloPage() {
 
       {/* Controls */}
       <Card className="mb-5 px-6 py-5" i={0}>
+        <div className="mb-5 flex items-center justify-between">
+          <div className="eyebrow">Assumptions</div>
+          <button
+            onClick={() => setSeedSalt((s) => s + 1)}
+            className="flex items-center gap-1.5 rounded-md border border-edge px-2.5 py-1 font-mono text-[11px] text-mute transition-colors hover:border-edge2 hover:text-ink"
+            title="Redraw a fresh set of 3,000 paths"
+          >
+            <svg
+              viewBox="0 0 16 16"
+              aria-hidden
+              className="h-3 w-3"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M13.6 6.5A6 6 0 1 0 14 9" />
+              <path d="M13.5 2.5v4h-4" />
+            </svg>
+            Refresh simulation
+          </button>
+        </div>
         <div className="grid gap-x-10 gap-y-6 md:grid-cols-3">
           <div>
             <div className="mb-2 flex items-baseline justify-between">
@@ -111,7 +137,7 @@ export default function MonteCarloPage() {
             <input
               type="range"
               min={1.5}
-              max={20}
+              max={100}
               step={0.5}
               value={targetMultiple}
               onChange={(e) => setTargetMultiple(Number(e.target.value))}

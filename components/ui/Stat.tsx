@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { AnimatedNumber } from "./AnimatedNumber";
+import { Tooltip } from "./Tooltip";
 
 export function Stat({
   label,
@@ -10,6 +11,7 @@ export function Stat({
   sub,
   toneClass = "text-ink",
   size = "md",
+  tip,
 }: {
   label: string;
   value: number;
@@ -17,6 +19,8 @@ export function Stat({
   sub?: ReactNode;
   toneClass?: string;
   size?: "sm" | "md" | "lg";
+  /** When set, the label gains a hover box explaining the metric. */
+  tip?: ReactNode;
 }) {
   const sizeClass =
     size === "lg"
@@ -26,7 +30,13 @@ export function Stat({
         : "text-[16px]";
   return (
     <div>
-      <div className="eyebrow">{label}</div>
+      {tip ? (
+        <Tooltip content={tip}>
+          <span className="eyebrow">{label}</span>
+        </Tooltip>
+      ) : (
+        <div className="eyebrow">{label}</div>
+      )}
       <div className={`font-mono tnum ${sizeClass} font-medium ${toneClass} mt-1 leading-tight`}>
         <AnimatedNumber value={value} format={format} />
       </div>
