@@ -65,25 +65,12 @@ export default function LockPage() {
             }
           }, 650);
         } else {
+          // Stays red/"wrong pin" until the user edits the input themselves
+          // (see the input's onChange) rather than auto-clearing on a timer.
           setError(true);
-          setTimeout(() => {
-            if (!cancelled) {
-              setError(false);
-              setPin("");
-              inputRef.current?.focus();
-            }
-          }, 650);
         }
       } catch {
-        if (!cancelled) {
-          setError(true);
-          setTimeout(() => {
-            if (!cancelled) {
-              setError(false);
-              setPin("");
-            }
-          }, 650);
-        }
+        if (!cancelled) setError(true);
       } finally {
         if (!cancelled) setChecking(false);
       }
@@ -117,22 +104,22 @@ export default function LockPage() {
           transition={{ delay: 0.2 }}
           className="font-display text-[22px] font-semibold tracking-[0.22em] text-ink"
         >
-          GRIEVE
+          grieve
         </motion.h1>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.35 }}
-          className="eyebrow mt-2"
-        >
-          {unlocked
-            ? "welcome back"
-            : locked
-              ? `too many tries — wait ${cooldown}s`
-              : error
-                ? "wrong pin"
-                : "enter pin"}
-        </motion.div>
+        {(unlocked || locked || error) && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.35 }}
+            className="eyebrow mt-2"
+          >
+            {unlocked
+              ? "welcome back"
+              : locked
+                ? `too many tries — wait ${cooldown}s`
+                : "wrong pin"}
+          </motion.div>
+        )}
       </div>
 
       {/* Hidden input drives the boxes; digits render censored. */}
@@ -152,7 +139,11 @@ export default function LockPage() {
         disabled={locked}
         onChange={(e) => {
           if (locked) return;
-          setPin(e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH));
+          const next = e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH);
+          // Wrong-pin state clears as soon as the user starts correcting it
+          // (deleting a digit), not on a timer.
+          if (error && next.length < pin.length) setError(false);
+          setPin(next);
         }}
         className="absolute h-0 w-0 opacity-0"
         aria-label="PIN"
@@ -179,9 +170,9 @@ export default function LockPage() {
                 error || locked
                   ? "border-neg/60 bg-neg/[0.06] text-neg"
                   : unlocked
-                    ? "border-mint/60 bg-mint/[0.08] text-mint"
+                    ? "border-ink/60 bg-ink/[0.08] text-ink"
                     : filled
-                      ? "border-mint/40 bg-mint/[0.05] text-mint"
+                      ? "border-ink/40 bg-ink/[0.05] text-ink"
                       : "border-edge bg-panel text-faint"
               }`}
               style={{ width: 52 }}
@@ -191,9 +182,9 @@ export default function LockPage() {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: "spring", stiffness: 500, damping: 22 }}
-                  className="font-mono"
+                  className="font-mono text-[34px] leading-none translate-y-[5px]"
                 >
-                  ✱
+                  *
                 </motion.span>
               ) : (
                 <span className="font-mono opacity-40">·</span>
@@ -202,19 +193,6 @@ export default function LockPage() {
           );
         })}
       </motion.div>
-
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.8 }}
-        className="font-mono text-[10px] uppercase tracking-[0.18em] text-faint"
-      >
-        {checking
-          ? "verifying…"
-          : locked
-            ? "locked out — too many attempts"
-            : "private — authorized access only"}
-      </motion.p>
     </div>
   );
 }

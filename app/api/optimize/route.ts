@@ -15,8 +15,9 @@ import {
 } from "@/lib/server/optimizer";
 
 export const dynamic = "force-dynamic";
-// Sonnet with adaptive thinking can run longer than the brief; streaming keeps
-// the connection warm and the client also bounds its own wait.
+// generateOptimization's own 45s abort deadline is the real ceiling (typical
+// latency is much lower; 45s is tail-case headroom, not the target); this is
+// just a generous platform backstop in case that deadline ever fails to fire.
 export const maxDuration = 60;
 
 const SYMBOL_RE = /[^A-Z0-9.\-]/g;
