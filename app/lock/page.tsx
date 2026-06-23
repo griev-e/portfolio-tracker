@@ -51,8 +51,19 @@ export default function LockPage() {
         if (cancelled) return;
         if (res.ok) {
           setUnlocked(true);
-          // Full reload so the middleware re-evaluates every route.
-          setTimeout(() => window.location.replace("/"), 450);
+          // Hand the entrance off to the app shell across the reload: it reads
+          // this flag and plays a matching reveal so the two screens feel like
+          // one continuous motion (see AppShell). sessionStorage survives the
+          // navigation but is scoped to this tab and one-shot.
+          try {
+            sessionStorage.setItem("alpha.entrance", "1");
+          } catch {
+            /* private mode / disabled storage — entrance just no-ops */
+          }
+          // Full reload so the middleware re-evaluates every route. Timed to
+          // land while the unlock veil has fully covered the screen, so the
+          // swap to the app is invisible.
+          setTimeout(() => window.location.replace("/"), 880);
         } else if (res.status === 429) {
           // Brute-force lockout — surface the cooldown and stop accepting input.
           const retryAfter = Number(res.headers.get("Retry-After")) || 900;
@@ -87,17 +98,26 @@ export default function LockPage() {
       onClick={() => inputRef.current?.focus()}
     >
       <motion.div
+        className="relative z-30"
         initial={{ opacity: 0, scale: 0.7 }}
         animate={{
           opacity: 1,
-          scale: unlocked ? 1.15 : 1,
+          scale: unlocked ? 2.1 : 1,
+          y: unlocked ? -4 : 0,
         }}
-        transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+        transition={{
+          duration: unlocked ? 0.8 : 0.9,
+          ease: unlocked ? [0.16, 1, 0.3, 1] : [0.22, 1, 0.36, 1],
+        }}
       >
         <Sigil size={64} />
       </motion.div>
 
-      <div className="text-center">
+      <motion.div
+        className="relative z-30 text-center"
+        animate={{ opacity: unlocked ? 0 : 1, y: unlocked ? -14 : 0 }}
+        transition={{ duration: 0.45, ease: [0.4, 0, 1, 1] }}
+      >
         <motion.h1
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -128,7 +148,7 @@ export default function LockPage() {
                 : "wrong pin"}
           </motion.div>
         )}
-      </div>
+      </motion.div>
 
       {/* Hidden input drives the boxes; digits render censored. */}
       {/* type="text" (not "password") so browsers and password managers
@@ -159,12 +179,14 @@ export default function LockPage() {
 
       <motion.div
         animate={
-          error
-            ? { x: [0, -10, 10, -7, 7, -3, 0] }
-            : { x: 0 }
+          unlocked
+            ? { opacity: 0, y: -12, scale: 0.96 }
+            : error
+              ? { x: [0, -10, 10, -7, 7, -3, 0] }
+              : { x: 0 }
         }
-        transition={{ duration: 0.45 }}
-        className="mt-2 flex gap-3"
+        transition={{ duration: unlocked ? 0.4 : 0.45, ease: [0.4, 0, 1, 1] }}
+        className="relative z-30 mt-2 flex gap-3"
       >
         {Array.from({ length: PIN_LENGTH }).map((_, i) => {
           const filled = i < pin.length;
@@ -201,6 +223,40 @@ export default function LockPage() {
           );
         })}
       </motion.div>
+
+      {/* Unlock choreography. Both overlays mount only on success and play once.
+          The bloom is a soft mint light expanding from the sigil; the veil then
+          fades the whole screen to pure black just before the reload, so the
+          hard navigation to the app is hidden inside the dark. The app shell
+          fades back out of that same black on the other side. */}
+      {unlocked && (
+        <>
+          <motion.div
+            className="pointer-events-none fixed inset-0 z-10 flex items-center justify-center"
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 1 }}
+          >
+            <motion.div
+              initial={{ scale: 0.2, opacity: 0 }}
+              animate={{ scale: 3.2, opacity: [0, 0.5, 0] }}
+              transition={{ duration: 0.85, ease: "easeOut", times: [0, 0.45, 1] }}
+              className="h-[460px] w-[460px] rounded-full"
+              style={{
+                background:
+                  "radial-gradient(circle, rgba(94,234,212,0.42) 0%, rgba(94,234,212,0.10) 38%, rgba(94,234,212,0) 66%)",
+              }}
+            />
+          </motion.div>
+
+          <motion.div
+            className="pointer-events-none fixed inset-0 z-20"
+            style={{ background: "var(--color-void)" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.44, ease: [0.4, 0, 1, 1] }}
+          />
+        </>
+      )}
     </div>
   );
 }

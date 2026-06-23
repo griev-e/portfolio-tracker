@@ -8,6 +8,14 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.19",
+    date: "2026-06-23",
+    title: "Unlock transition",
+    changes: [
+      "Entering the correct PIN now plays a single continuous animation into the terminal: the PIN field and title recede, the α sigil swells with a soft mint bloom, the lock screen fades to black, and the app fades back out of that same black with the sigil dissolving — so the two screens read as one motion instead of a hard page swap.",
+    ],
+  },
+  {
     version: "1.18",
     date: "2026-06-23",
     title: "Rebrand to alpha",
