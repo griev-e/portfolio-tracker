@@ -236,7 +236,10 @@ export async function generateOptimization(
   genCount += 1;
   const stream = client.messages.stream({
     model: OPTIMIZER_MODEL,
-    max_tokens: 6000,
+    // `high` effort thinking can run long, and thinking tokens count against
+    // max_tokens — too tight a cap truncates the run before the structured
+    // JSON gets written, which surfaced as a generic "unavailable" error.
+    max_tokens: 12_000,
     // Adaptive thinking lets the model reason through the tradeoffs; the schema
     // constrains the final shape, so no reasoning leaks into the JSON.
     thinking: { type: "adaptive" },
@@ -252,9 +255,16 @@ export async function generateOptimization(
   if (response.stop_reason === "refusal") {
     throw new Error("optimization review declined");
   }
+  if (response.stop_reason === "max_tokens") {
+    throw new Error("optimization review truncated: hit max_tokens before completing");
+  }
   for (const block of response.content) {
     if (block.type === "text") {
-      return JSON.parse(block.text) as OptimizerPlan;
+      try {
+        return JSON.parse(block.text) as OptimizerPlan;
+      } catch {
+        throw new Error(`optimization review returned unparseable JSON: ${block.text.slice(0, 200)}`);
+      }
     }
   }
   throw new Error("empty optimization response");

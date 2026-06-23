@@ -959,22 +959,22 @@ function useOptimizerReview(
         return;
       }
       if (!res.ok) {
-        let errorText = "";
-        try {
-          errorText = await res.text();
-        } catch {}
-        throw new Error(`HTTP ${res.status}: ${errorText || 'unknown error'}`);
+        const body = await res.json().catch(() => null);
+        throw new Error(
+          typeof body?.error === "string"
+            ? `${body.error} (${res.status})`
+            : `HTTP ${res.status}`
+        );
       }
       setState({ kind: "ready", data: (await res.json()) as OptimizerResponse });
     } catch (err) {
       console.error("Optimizer review failed:", err);
-      let msg = "AI optimizer unreachable. Check connection, deployment, or ANTHROPIC_API_KEY in Vercel env vars.";
-      if (err instanceof Error) {
-        if (err.message.includes("Failed to fetch")) {
-          msg = "Network error — make sure the app is deployed and reachable.";
-        } else if (err.message.includes("401")) {
-          msg = "Auth error — check your API key.";
-        }
+      let msg =
+        err instanceof Error && err.message
+          ? `AI optimizer unavailable: ${err.message}`
+          : "AI optimizer unreachable.";
+      if (err instanceof Error && err.message.includes("Failed to fetch")) {
+        msg = "Network error — make sure the app is deployed and reachable.";
       }
       setState({ kind: "error", message: msg });
     }
