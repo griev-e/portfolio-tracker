@@ -235,16 +235,20 @@ function buildUserMessage(req: OptimizerRequest): string {
   ].join("\n");
 }
 
-// Hard wall-clock deadline for the whole call. `low` effort comfortably lands
-// in single-digit-to-low-teens seconds for this prompt size, so 30s is a
-// generous ceiling that still fires well inside the route's maxDuration (60s)
-// — a slow turn raises a catchable abort instead of the platform killing the
-// function outright and returning a bare 504. The SDK's own `timeout` option
-// resets on every streamed chunk (it's an idle timeout, not a total one) —
-// adaptive thinking streams deltas the whole time it's "thinking", so that
-// option alone never fires here. This timer fires on elapsed time regardless
-// of stream activity.
-const DEADLINE_MS = 30_000;
+// Hard wall-clock deadline for the whole call. `low` effort typically lands
+// in single-digit-to-low-teens seconds for this prompt size (capped at 16
+// shifts client-side), but adaptive thinking has no fixed token/time budget —
+// `effort` only biases depth/verbosity, it doesn't bound latency — so the
+// tail occasionally runs well past the typical case. 45s gives that tail
+// genuine room without pinning the deadline to the optimistic estimate (which
+// just turns ordinary variance into spurious aborts), while still firing
+// safely inside the route's maxDuration (60s) — a slow turn raises a
+// catchable abort instead of the platform killing the function outright and
+// returning a bare 504. The SDK's own `timeout` option resets on every
+// streamed chunk (it's an idle timeout, not a total one) — adaptive thinking
+// streams deltas the whole time it's "thinking", so that option alone never
+// fires here. This timer fires on elapsed time regardless of stream activity.
+const DEADLINE_MS = 45_000;
 
 export async function generateOptimization(
   req: OptimizerRequest
@@ -252,7 +256,7 @@ export async function generateOptimization(
   // reads ANTHROPIC_API_KEY; caller checks optimizerConfigured() first. No
   // retry budget: a retry on a near-deadline request would blow through the
   // ceiling anyway.
-  const client = new Anthropic({ timeout: 30_000, maxRetries: 0 });
+  const client = new Anthropic({ timeout: 45_000, maxRetries: 0 });
   genCount += 1;
   const controller = new AbortController();
   const deadline = setTimeout(() => controller.abort(), DEADLINE_MS);
