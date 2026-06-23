@@ -8,7 +8,7 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
-    version: "1.15",
+    version: "1.16",
     date: "2026-06-23",
     title: "AI Optimizer",
     changes: [
@@ -16,6 +16,14 @@ export const PATCH_NOTES: PatchNote[] = [
       "Eight objective presets — maximum Sharpe, minimum volatility, risk parity, max diversification, maximum return, income, quality tilt, and equal weight — with position-cap and drop-threshold guardrails.",
       "Plots the efficient frontier with your current and optimized portfolios, shows the before → after risk/return metrics, and generates a rebalance order ticket.",
       "Claude Sonnet 4.6 reviews each optimization and writes the construction desk note: the thesis, the tradeoffs you take on, the residual risk, and a calibrated verdict.",
+    ],
+  },
+  {
+    version: "1.15",
+    date: "2026-06-22",
+    title: "Risk-weighted average correlation",
+    changes: [
+      "The Correlation page and Export Report now headline a risk-weighted average pairwise correlation — each pair weighted by its contribution to portfolio variance — so two large, volatile holdings moving together count for more than two tiny tail positions. It tracks the diversification math in the risk model and reflects realized co-movement better than the old equal-weighted mean.",
     ],
   },
   {

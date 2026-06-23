@@ -643,7 +643,7 @@ export default function ReportPage() {
           <div className="kpis avoid-break">
             <div className="kpi">
               <div className="label">Avg Pairwise Correlation</div>
-              <div className="value">{fmtNum(corr.avgCorrelation, 2)}</div>
+              <div className="value">{fmtNum(corr.weightedAvgCorrelation, 2)}</div>
             </div>
             <div className="kpi">
               <div className="label">Diversification Ratio</div>
