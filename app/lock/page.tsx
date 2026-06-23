@@ -164,7 +164,7 @@ export default function LockPage() {
             : { x: 0 }
         }
         transition={{ duration: 0.45 }}
-        className="flex gap-3"
+        className="mt-2 flex gap-3"
       >
         {Array.from({ length: PIN_LENGTH }).map((_, i) => {
           const filled = i < pin.length;
