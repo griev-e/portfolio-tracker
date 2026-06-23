@@ -333,12 +333,12 @@ function ResearchView({
         </div>
       </Card>
 
-      {/* Position context (holdings only) */}
+      {/* Position context (holdings only) — your lot, plus a deeper read beside it */}
       {holding && (
-        <Card className="px-6 py-4" i={1}>
-          <div className="flex flex-wrap items-center justify-between gap-x-10 gap-y-4">
-            <div className="eyebrow">Your position</div>
-            <div className="flex flex-wrap gap-x-10 gap-y-4">
+        <div className="grid gap-5 lg:grid-cols-2">
+          <Card className="px-6 py-4" i={1}>
+            <div className="eyebrow mb-3">Your position</div>
+            <div className="flex flex-wrap gap-x-8 gap-y-4">
               <MiniStat
                 label="Value"
                 value={fmtUSD(holding.equity)}
@@ -356,8 +356,50 @@ function ResearchView({
                 tone={holding.returnPct}
               />
             </div>
-          </div>
-        </Card>
+          </Card>
+
+          <Card className="px-6 py-4" i={1}>
+            <div className="eyebrow mb-3">Position detail</div>
+            <div className="flex flex-wrap gap-x-8 gap-y-4">
+              <MiniStat
+                label="Cost basis"
+                value={fmtUSD(holding.costBasis)}
+                sub={`${fmtShares(holding.shares)} sh @ ${fmtUSD(holding.averageCost)}`}
+              />
+              {(() => {
+                const dc = holding.dayChange;
+                const denom = holding.equity - (dc ?? 0);
+                const dcPct = dc !== null && denom > 0 ? dc / denom : null;
+                return (
+                  <MiniStat
+                    label="Day's change"
+                    value={
+                      dc === null
+                        ? "—"
+                        : `${dc >= 0 ? "+" : "−"}${fmtUSD(Math.abs(dc))}`
+                    }
+                    sub={dcPct !== null ? fmtPct(dcPct, 2, true) : "no live quote"}
+                    tone={dc ?? undefined}
+                  />
+                );
+              })()}
+              <MiniStat
+                label="Est. annual income"
+                value={
+                  f.dividendYield > 0
+                    ? fmtUSD(holding.equity * f.dividendYield)
+                    : "—"
+                }
+                sub={
+                  f.dividendYield > 0
+                    ? `${fmtPct(f.dividendYield, 2)} yield`
+                    : "no dividend"
+                }
+                accent={f.dividendYield > 0 ? "text-mint" : undefined}
+              />
+            </div>
+          </Card>
+        </div>
       )}
 
       {/* Analyst price target */}
@@ -799,29 +841,25 @@ function MiniStat({
   value,
   sub,
   tone,
+  accent,
 }: {
   label: string;
   value: string;
   sub: string;
   tone?: number;
+  /** Override the value color when there's no signed tone (e.g. income). */
+  accent?: string;
 }) {
+  const valueClass =
+    tone !== undefined ? deltaToneClass(tone) : accent ?? "text-ink";
+  const subClass = tone !== undefined ? deltaToneClass(tone) : "text-faint";
   return (
     <div>
       <div className="eyebrow">{label}</div>
-      <div
-        className={`mt-1 font-mono tnum text-[17px] ${
-          tone === undefined ? "text-ink" : deltaToneClass(tone)
-        }`}
-      >
+      <div className={`mt-1 font-mono tnum text-[17px] ${valueClass}`}>
         {value}
       </div>
-      <div
-        className={`font-mono text-[11px] ${
-          tone === undefined ? "text-faint" : deltaToneClass(tone)
-        }`}
-      >
-        {sub}
-      </div>
+      <div className={`font-mono text-[11px] ${subClass}`}>{sub}</div>
     </div>
   );
 }

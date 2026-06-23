@@ -14,6 +14,7 @@ import { fmtScore, REGIME_COLOR, scoreTone } from "@/components/market/regimeUi"
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Computing } from "@/components/ui/Computing";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Tooltip } from "@/components/ui/Tooltip";
 import type {
   DriverItem,
   RegimeReport,
@@ -93,20 +94,35 @@ function StatTile({
   label,
   children,
   sub,
+  tip,
 }: {
   label: string;
   children: React.ReactNode;
   sub?: React.ReactNode;
+  tip?: React.ReactNode;
 }) {
   return (
     <div className="rounded-xl border border-edge bg-white/[0.015] px-3.5 py-3">
-      <div className="eyebrow">{label}</div>
+      {tip ? (
+        <Tooltip content={tip}>
+          <span className="eyebrow">{label}</span>
+        </Tooltip>
+      ) : (
+        <div className="eyebrow">{label}</div>
+      )}
       <div className="mt-1.5 font-mono tnum text-[22px] font-medium leading-none">
         {children}
       </div>
       {sub && <div className="mt-1.5 text-[10px] text-faint">{sub}</div>}
     </div>
   );
+}
+
+/** Plain-language phase label for how long the regime has held. */
+function regimePhase(days: number): string {
+  if (days < 10) return "young";
+  if (days < 30) return "maturing";
+  return "entrenched";
 }
 
 const healthColor = (h: number) =>
@@ -286,25 +302,44 @@ export default function MarketPage() {
             </p>
 
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <StatTile label="Confidence" sub={`agreement ${r.agreement.toFixed(2)}`}>
+              <StatTile
+                label="Confidence"
+                sub={`agreement ${r.agreement.toFixed(2)}`}
+                tip="How much weight to put on this regime call (0–100%). It rises when the eight layers agree with each other, the reading is well-covered by available data, and it's been stable — and falls when the signals are mixed or data is thin."
+              >
                 <span className="text-ink">
                   <Count value={r.confidence} format={(v) => `${Math.round(v)}%`} />
                 </span>
                 <MiniMeter value={r.confidence} color="var(--color-sky)" />
               </StatTile>
 
-              <StatTile label="Health" sub="internals, 0–100">
+              <StatTile
+                label="Health"
+                sub="internals, 0–100"
+                tip="A 0–100 read on the market's internal condition — breadth, leadership, volatility, and credit, not just the index price. Above 50 is healthy participation; below 50 means the tape is being carried by fewer names or showing stress under the surface."
+              >
                 <span className={healthTone(r.health)}>
                   <Count value={r.health} format={(v) => `${Math.round(v)}`} />
                 </span>
                 <MiniMeter value={r.health} color={healthColor(r.health)} />
               </StatTile>
 
-              <StatTile label="Direction" sub={r.direction.toLowerCase()}>
-                <span className={dirTone}>{dirArrow}</span>
+              <StatTile
+                label="Direction"
+                sub={`${r.direction.toLowerCase()} · ${fmtScore(r.directionSlope)}/mo`}
+                tip="Which way the regime is drifting — whether the composite score has been improving, deteriorating, or holding steady over the last month. The figure is the projected monthly change in the −1…+1 score."
+              >
+                <span className={`flex items-baseline gap-1.5 whitespace-nowrap ${dirTone}`}>
+                  {dirArrow}
+                  <span className="text-[12px] font-medium">{r.direction}</span>
+                </span>
               </StatTile>
 
-              <StatTile label="Regime age" sub="sessions">
+              <StatTile
+                label="Regime age"
+                sub={`${regimePhase(r.maturityDays)} · sessions`}
+                tip="How long the current regime has been in place, in trading sessions. A young regime is still establishing itself and can flip more easily; an entrenched one has persisted and tends to carry more inertia. Capped, shown with a + when at the cap."
+              >
                 <span className="text-ink">
                   <Count
                     value={r.maturityDays}

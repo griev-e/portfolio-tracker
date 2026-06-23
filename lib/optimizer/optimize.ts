@@ -190,17 +190,51 @@ function riskParity(cov: number[][], cap: number): number[] {
   return projectCappedSimplex(w, cap);
 }
 
-/** Drop names below the floor, then re-project the survivors onto the simplex. */
-function applyMinWeight(w: number[], minWeight: number, cap: number): number[] {
-  if (minWeight <= 0) return w;
-  const idx: number[] = [];
-  for (let i = 0; i < w.length; i++) if (w[i] >= minWeight) idx.push(i);
-  if (idx.length === 0) return w; // nothing clears the floor — keep as-is
-  const sub = idx.map((i) => w[i]);
-  const proj = projectCappedSimplex(sub, Math.max(cap, 1 / idx.length + 1e-9));
-  const out = new Array(w.length).fill(0);
-  idx.forEach((i, k) => (out[i] = proj[k]));
-  return out;
+/**
+ * Euclidean projection of v onto { w : Σwᵢ = 1, loᵢ ≤ wᵢ ≤ cap } — the capped
+ * simplex with a per-name lower bound. Same monotone-τ bisection as the plain
+ * version, generalized so held positions can carry a floor.
+ */
+function projectBoxedSimplex(v: number[], lo: number[], cap: number): number[] {
+  const n = v.length;
+  if (n === 0) return [];
+  let tauLo = Number.POSITIVE_INFINITY;
+  let tauHi = Number.NEGATIVE_INFINITY;
+  for (let i = 0; i < n; i++) {
+    tauLo = Math.min(tauLo, v[i] - cap);
+    tauHi = Math.max(tauHi, v[i] - lo[i]);
+  }
+  for (let iter = 0; iter < 100; iter++) {
+    const mid = (tauLo + tauHi) / 2;
+    let s = 0;
+    for (let i = 0; i < n; i++) s += Math.max(lo[i], Math.min(cap, v[i] - mid));
+    if (s > 1) tauLo = mid;
+    else tauHi = mid;
+  }
+  const tau = (tauLo + tauHi) / 2;
+  return v.map((x, i) => Math.max(lo[i], Math.min(cap, x - tau)));
+}
+
+/**
+ * Keep the optimizer from fully exiting names you already hold: enforce a floor
+ * of `minHold` on every currently-held position, then re-project so the vector
+ * still sums to 1 under the cap. The floor is clamped so the floors can always
+ * fit inside a full portfolio.
+ */
+function applyHoldFloor(
+  w: number[],
+  current: number[],
+  minHold: number,
+  cap: number
+): number[] {
+  if (minHold <= 0) return w;
+  let heldCount = 0;
+  for (const c of current) if (c > 1e-9) heldCount++;
+  if (heldCount === 0) return w;
+  // Floors must leave room to sum to 1 (with a little slack for the others).
+  const effFloor = Math.min(minHold, (0.95 / heldCount), cap);
+  const lo = current.map((c) => (c > 1e-9 ? effFloor : 0));
+  return projectBoxedSimplex(w, lo, cap);
 }
 
 /* ───────────────────────────── inputs & metrics ─────────────────────────── */
@@ -447,7 +481,11 @@ export function optimizePortfolio(
   const cap = Math.min(1, Math.max(constraints.maxWeight, 1 / ctx.n + 1e-9));
 
   let target = solveObjective(ctx, objective, cap);
-  target = applyMinWeight(target, constraints.minWeight, cap);
+  // Unless full exits are allowed, keep currently-held names above the floor so
+  // the optimizer trims rather than zeroes them out.
+  if (!constraints.allowExit) {
+    target = applyHoldFloor(target, ctx.current, constraints.minWeight, cap);
+  }
 
   const metricsBefore = metricsFor(ctx.current, ctx);
   const metricsAfter = metricsFor(target, ctx);

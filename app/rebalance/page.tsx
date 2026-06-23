@@ -365,7 +365,7 @@ export default function RebalancePage() {
                           type="number"
                           min={0}
                           max={100}
-                          step={0.5}
+                          step={0.1}
                           value={Number(t.toFixed(1))}
                           onChange={(e) =>
                             setTargets((prev) => ({
@@ -373,9 +373,9 @@ export default function RebalancePage() {
                               [g.id]: Math.max(0, Number(e.target.value) || 0),
                             }))
                           }
-                          className="w-[58px] rounded-md border border-edge2 bg-panel py-1 pl-2 pr-4 text-right font-mono text-[12px] text-ink outline-none transition-colors focus:border-white/35"
+                          className="w-[78px] rounded-md border border-edge2 bg-panel py-1 pl-2 pr-8 text-right font-mono text-[12px] text-ink outline-none transition-colors focus:border-white/35"
                         />
-                        <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 font-mono text-[10px] text-faint">
+                        <span className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 font-mono text-[10px] text-faint">
                           %
                         </span>
                       </div>

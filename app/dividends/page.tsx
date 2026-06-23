@@ -592,14 +592,50 @@ export default function DividendsPage() {
       </div>
 
       {/* Methodology */}
-      <Card className="px-6 py-5" i={6} hover={false}>
-        <CardHeader
-          eyebrow="Explainability"
-          title="How this is computed"
-          className="mb-4"
-        />
-        <ol className="grid gap-x-8 gap-y-2 md:grid-cols-2">
-          {r.methodology.map((m, i) => (
+      <Methodology steps={r.methodology} />
+    </div>
+  );
+}
+
+/** Collapsible explainability panel, collapsed by default to stay out of the way. */
+function Methodology({ steps }: { steps: string[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card className="px-6 py-5" i={6} hover={false}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-start justify-between gap-3 text-left"
+      >
+        <div>
+          <div className="eyebrow mb-0.5">Explainability</div>
+          <h2 className="font-display text-[14px] font-medium text-ink">
+            How this is computed
+          </h2>
+        </div>
+        <span className="mt-0.5 flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-faint">
+          {open ? "Hide" : "Show"}
+          <svg
+            viewBox="0 0 10 6"
+            aria-hidden
+            className={`h-[6px] w-[10px] transition-transform duration-200 ${
+              open ? "rotate-180" : ""
+            }`}
+          >
+            <path
+              d="M1 1l4 4 4-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      </button>
+      {open && (
+        <ol className="mt-4 grid gap-x-8 gap-y-2 md:grid-cols-2">
+          {steps.map((m, i) => (
             <li
               key={m}
               className="flex gap-2.5 text-[11.5px] leading-relaxed text-mute"
@@ -611,8 +647,8 @@ export default function DividendsPage() {
             </li>
           ))}
         </ol>
-      </Card>
-    </div>
+      )}
+    </Card>
   );
 }
 

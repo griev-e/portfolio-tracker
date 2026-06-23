@@ -18,6 +18,12 @@ export interface MonteCarloInputs {
   monthlyContribution: number;
   targetValue: number;
   paths?: number;
+  /**
+   * Optional salt mixed into the seed. The sim is deterministic per portfolio +
+   * inputs; bumping this redraws a fresh-but-still-reproducible set of paths
+   * (the "refresh simulation" control).
+   */
+  seedSalt?: number;
 }
 
 export interface MonteCarloResult {
@@ -70,7 +76,8 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
     (months << 8) ^
     Math.round(monthlyContribution * 7) ^
     Math.round(mu * 10000) ^
-    Math.round(sigma * 10000);
+    Math.round(sigma * 10000) ^
+    Math.imul((inputs.seedSalt ?? 0) | 0, 0x9e3779b1);
   const rand = rng(seed || 42);
 
   // Box-Muller pairs.

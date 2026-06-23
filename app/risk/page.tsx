@@ -55,6 +55,7 @@ export default function RiskPage() {
             marker={{ value: 1, label: "S&P 500 β=1.0" }}
             label="portfolio beta"
             format={(v) => fmtNum(v, 2)}
+            tip="Beta measures how much the portfolio moves relative to the broad market (the S&P 500, which is defined as β = 1.0). A beta of 1.25 means it tends to rise and fall about 25% more than the market; below 1.0 means it's less reactive. It captures market-driven risk, not company-specific risk."
           />
           <Gauge
             value={risk.volatility}
@@ -64,6 +65,7 @@ export default function RiskPage() {
             label="volatility (ann.)"
             format={(v) => fmtPct(v, 1)}
             color="var(--color-sky)"
+            tip="Volatility is the annualized standard deviation of returns — how widely the portfolio's value swings over a year. A higher figure means larger ups and downs in both directions. This estimate blends each holding's own volatility with how the holdings move together."
           />
           <Gauge
             value={risk.sharpe}
@@ -76,6 +78,7 @@ export default function RiskPage() {
             label="est. sharpe"
             format={(v) => fmtNum(v, 2)}
             color="var(--color-vio)"
+            tip="The Sharpe ratio is return earned per unit of risk taken — expected return above the risk-free rate, divided by volatility. Higher is better: it tells you whether the portfolio's returns justify its swings. Around 1.0 is generally considered solid for an equity book."
           />
           <div className="grid grid-cols-2 gap-x-10 gap-y-5">
             <Stat
@@ -83,24 +86,28 @@ export default function RiskPage() {
               value={risk.expectedReturn}
               format={(v) => fmtPct(v, 1)}
               sub="CAPM, long-run"
+              tip="A long-run annual return estimate from the Capital Asset Pricing Model (CAPM): the risk-free rate plus the portfolio's beta times the market's equity risk premium. It's a model-based expectation tied to how much market risk the book carries — not a forecast of any given year."
             />
             <Stat
               label="Diversification ratio"
               value={risk.diversificationRatio}
               format={(v) => fmtNum(v, 2)}
               sub=">1 = risk canceling"
+              tip="The diversification ratio compares the weighted-average volatility of the individual holdings to the portfolio's actual volatility. A value above 1 means the holdings partly cancel each other out — the higher it is, the more risk reduction you're getting from combining names rather than holding them alone."
             />
             <Stat
               label="HHI"
               value={risk.hhi}
               format={(v) => fmtNum(v, 3)}
               sub="concentration index"
+              tip="The Herfindahl-Hirschman Index is the sum of each position's squared weight — a concentration gauge. It runs from near 0 (many tiny, evenly-sized positions) to 1 (everything in a single name). The lower the number, the more spread out the portfolio is."
             />
             <Stat
               label="Effective names"
               value={risk.effectiveN}
               format={(v) => fmtNum(v, 1)}
               sub={`${portfolio.positions.length} actual`}
+              tip="The number of equally-weighted positions the portfolio behaves like (1 ÷ HHI). If a few holdings dominate, the effective count falls well below the actual headcount — a quick reality check on how diversified the book truly is versus how many tickers it holds."
             />
           </div>
         </div>

@@ -121,11 +121,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const brief = await generateBrief(parsed);
+    const { brief, costUSD } = await generateBrief(parsed);
     const payload = {
       brief,
       generatedAt: new Date().toISOString(),
       cached: false,
+      costUSD,
     };
     setCachedBrief(key, payload);
     return NextResponse.json(payload, {

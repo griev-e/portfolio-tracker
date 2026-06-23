@@ -1,6 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
+import type { ReactNode } from "react";
+import { Tooltip } from "./Tooltip";
 
 /**
  * 240° arc gauge. `value` is positioned within [min, max]; an optional
@@ -15,6 +17,7 @@ export function Gauge({
   format,
   color = "var(--color-mint)",
   size = 150,
+  tip,
 }: {
   value: number;
   min: number;
@@ -24,6 +27,8 @@ export function Gauge({
   format: (v: number) => string;
   color?: string;
   size?: number;
+  /** When set, hovering the gauge reveals a box explaining the metric. */
+  tip?: ReactNode;
 }) {
   const cx = size / 2;
   const cy = size / 2;
@@ -50,7 +55,7 @@ export function Gauge({
   const markerAngle =
     markerFrac !== null ? startAngle + markerFrac * sweep : null;
 
-  return (
+  const body = (
     <div className="flex flex-col items-center" style={{ width: size }}>
       <svg
         width={size}
@@ -122,5 +127,13 @@ export function Gauge({
         </div>
       )}
     </div>
+  );
+
+  return tip ? (
+    <Tooltip content={tip} underline={false}>
+      {body}
+    </Tooltip>
+  ) : (
+    body
   );
 }
