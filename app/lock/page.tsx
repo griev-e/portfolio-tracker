@@ -104,7 +104,7 @@ export default function LockPage() {
           transition={{ delay: 0.2 }}
           className="font-display text-[22px] font-semibold tracking-[0.22em] text-ink"
         >
-          grieve
+          alpha
         </motion.h1>
         {(unlocked || locked || error) && (
           <motion.div
@@ -130,7 +130,7 @@ export default function LockPage() {
         type="text"
         inputMode="numeric"
         autoComplete="off"
-        name="grieve-code"
+        name="alpha-code"
         data-1p-ignore="true"
         data-lpignore="true"
         data-bwignore="true"

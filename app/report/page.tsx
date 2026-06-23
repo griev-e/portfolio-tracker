@@ -211,7 +211,7 @@ export default function ReportPage() {
       <article className="report-doc">
         {/* Header */}
         <header className="avoid-break">
-          <h1>grieve — Portfolio Report</h1>
+          <h1>alpha — Portfolio Report</h1>
           <p className="muted">
             Generated {generatedAt.toLocaleString("en-US")} · Holdings as of{" "}
             {new Date(portfolio.asOf).toLocaleDateString("en-US")}
@@ -753,7 +753,7 @@ export default function ReportPage() {
           className="muted"
           style={{ marginTop: 28, fontSize: 10, borderTop: "1px solid #e4e4e7", paddingTop: 8 }}
         >
-          grieve · model-based analytics, not investment advice ·{" "}
+          alpha · model-based analytics, not investment advice ·{" "}
           {generatedAt.toLocaleString("en-US")}
         </footer>
       </article>

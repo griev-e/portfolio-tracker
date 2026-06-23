@@ -317,7 +317,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Link href="/" className="flex items-center gap-2.5">
             <Sigil size={24} />
             <span className="text-[14px] font-medium text-ink">
-              grieve
+              alpha
             </span>
           </Link>
           {isDemo && (
@@ -335,7 +335,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="min-w-0">
         {/* Desktop top bar */}
         <header className="sticky top-0 z-40 hidden h-12 items-center border-b border-edge bg-black/80 px-6 backdrop-blur-md lg:flex">
-          <span className="text-[13px] text-faint">{current?.group ?? "grieve"}</span>
+          <span className="text-[13px] text-faint">{current?.group ?? "alpha"}</span>
           <span className="absolute left-1/2 -translate-x-1/2 text-[13px] font-medium text-mute">
             {current?.label ?? ""}
           </span>
@@ -360,7 +360,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link href="/" className="flex items-center gap-2.5">
               <Sigil size={22} />
               <span className="text-[13px] font-medium text-ink">
-                grieve
+                alpha
               </span>
             </Link>
             <div className="flex items-center gap-1.5">

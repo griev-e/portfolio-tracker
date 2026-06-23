@@ -9,7 +9,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const COOKIE = "grieve_auth";
+const COOKIE = "alpha_auth";
 const THIRTY_DAYS = 60 * 60 * 24 * 30;
 
 const lockedResponse = (retryAfter: number) =>
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   recordSuccess(key); // clear the failure counter on success
   // SHA-256 of the PIN with a fixed application prefix (not a per-value salt);
   // the cookie never holds the PIN itself. Must match middleware.ts.
-  const token = createHash("sha256").update(`grieve:${pin}`).digest("hex");
+  const token = createHash("sha256").update(`alpha:${pin}`).digest("hex");
   const res = NextResponse.json({ ok: true });
   res.cookies.set(COOKIE, token, {
     httpOnly: true,
