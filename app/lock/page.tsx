@@ -106,6 +106,14 @@ export default function LockPage() {
         >
           alpha
         </motion.h1>
+        <motion.p
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="eyebrow mt-2"
+        >
+          a measure of risk-adjusted excess return
+        </motion.p>
         {(unlocked || locked || error) && (
           <motion.div
             initial={{ opacity: 0 }}
