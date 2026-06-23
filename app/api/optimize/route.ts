@@ -192,6 +192,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     const { status, error } = optimizerErrorResponse(err);
+    // The route maps every failure to a generic status + message for the
+    // client; log the real cause server-side so it's diagnosable.
+    if (status === 502) console.error("optimizer generation failed:", err);
     return NextResponse.json({ error }, { status });
   }
 }
