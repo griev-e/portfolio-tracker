@@ -281,7 +281,19 @@ function EarningsCard({ portfolio }: { portfolio: Portfolio }) {
     [portfolio]
   );
 
-  const maxWeight = Math.max(...upcoming.map((u) => u.position.weight), 0.01);
+  // Bars are scaled across the *actual* weight range (min → max) rather than
+  // 0 → max. For a near-equal-weight book every weight clusters tightly, so a
+  // relative-to-max bar leaves them all 80–100% full and the real spread is
+  // invisible. Stretching to the observed range exaggerates the differences so
+  // they read clearly; a floor keeps the smallest bar visible. When every
+  // weight is identical (or there's one row) the bars all fill.
+  const weights = upcoming.map((u) => u.position.weight);
+  const maxWeight = weights.length ? Math.max(...weights) : 0.01;
+  const minWeight = weights.length ? Math.min(...weights) : 0;
+  const span = maxWeight - minWeight;
+  const FLOOR = 18; // % — shortest bar's minimum visible width
+  const barWidth = (w: number) =>
+    span > 0 ? FLOOR + ((w - minWeight) / span) * (100 - FLOOR) : 100;
 
   return (
     <Card className="px-6 py-5" i={1}>
@@ -324,7 +336,7 @@ function EarningsCard({ portfolio }: { portfolio: Portfolio }) {
                 <div className="mt-1 h-[3px] w-full max-w-[140px] overflow-hidden rounded-full bg-white/[0.05]">
                   <div
                     className="h-full rounded-full bg-vio/60"
-                    style={{ width: `${(p.weight / maxWeight) * 100}%` }}
+                    style={{ width: `${barWidth(p.weight)}%` }}
                   />
                 </div>
               </div>
