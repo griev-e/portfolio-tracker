@@ -154,21 +154,36 @@ export function pairCorrelation(a: CorrInputs, b: CorrInputs): number {
 export interface CorrelationMatrix {
   symbols: string[];
   matrix: number[][]; // matrix[i][j] = ρ
-  /** Average pairwise correlation, weighted equally. */
+  /** Average pairwise correlation, weighted equally across pairs. */
   avgCorrelation: number;
+  /**
+   * Risk-weighted average pairwise correlation: each pair is weighted by its
+   * contribution to portfolio variance, (wᵢσᵢ)(wⱼσⱼ). This is the correlation
+   * term that actually drives `wᵀΣw`, so two large, volatile holdings moving
+   * together count far more than two tiny tail positions. Reflects realized
+   * diversification better than the equal-weighted mean.
+   */
+  weightedAvgCorrelation: number;
   /** Most and least correlated pairs (excluding self). */
   highest: { a: string; b: string; rho: number } | null;
   lowest: { a: string; b: string; rho: number } | null;
 }
 
 export function correlationMatrix(portfolio: Portfolio): CorrelationMatrix {
-  const inputs = portfolio.positions.map(corrInputs);
+  const ps = portfolio.positions;
+  const inputs = ps.map(corrInputs);
   const n = inputs.length;
   const cov = factorCovariance(inputs);
   const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(1));
 
+  // Risk weight per name: invested (ex-cash) weight × volatility. Cash carries
+  // σ = 0 and so drops out of the weighted average naturally.
+  const riskW = ps.map((p, i) => p.equityWeight * inputs[i].vol);
+
   let sum = 0;
   let count = 0;
+  let wSum = 0;
+  let wDenom = 0;
   let highest: CorrelationMatrix["highest"] = null;
   let lowest: CorrelationMatrix["lowest"] = null;
 
@@ -179,6 +194,9 @@ export function correlationMatrix(portfolio: Portfolio): CorrelationMatrix {
       matrix[j][i] = rho;
       sum += rho;
       count++;
+      const pairW = riskW[i] * riskW[j];
+      wSum += pairW * rho;
+      wDenom += pairW;
       if (!highest || rho > highest.rho)
         highest = { a: inputs[i].symbol, b: inputs[j].symbol, rho };
       if (!lowest || rho < lowest.rho)
@@ -190,6 +208,7 @@ export function correlationMatrix(portfolio: Portfolio): CorrelationMatrix {
     symbols: inputs.map((x) => x.symbol),
     matrix,
     avgCorrelation: count > 0 ? sum / count : 0,
+    weightedAvgCorrelation: wDenom > 0 ? wSum / wDenom : 0,
     highest,
     lowest,
   };
