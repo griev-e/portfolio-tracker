@@ -8,6 +8,15 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.20",
+    date: "2026-06-23",
+    title: "Holdings news tagging fix",
+    changes: [
+      "The holdings news feed now tags each story with the holding it's genuinely about. Previously the ticker shown (and the filter chip a story fell under) was just whichever holding's search returned it first — so a market-wide story like \"Alphabet joins the Dow\" could surface under AAPL and stay mislabeled. Tags are now driven by Yahoo's own related-tickers (a confirmed ticker wins, then any other holding the story names), falling back to the search bucket only when there's no better signal.",
+      "Incidental noise is filtered out: when Yahoo says a story is about other companies and none of them are in your book, it's no longer shown just because it mentioned a holding in passing.",
+    ],
+  },
+  {
     version: "1.19",
     date: "2026-06-23",
     title: "Unlock transition",
