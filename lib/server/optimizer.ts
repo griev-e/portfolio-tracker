@@ -25,11 +25,12 @@ const CACHE_MAX = 24;
  * dry-powder allocator's blank-slate sizing (the optimal weights are already
  * computed). Sonnet 4.6 is the right tier: strong reasoning at a third of Opus's
  * cost, with adaptive thinking to reason through the tradeoffs before committing.
- * Effort is kept at `high` for a quality read while the json_schema constrains
- * the final shape.
+ * Effort is `medium`, same as the allocator: a full `high`-effort thinking pass
+ * routinely ran past the serverless function's deadline (504s at the platform
+ * edge, observed in production) before it ever reached the JSON write.
  */
 const OPTIMIZER_MODEL = "claude-sonnet-4-6";
-const OPTIMIZER_EFFORT = "high" as const;
+const OPTIMIZER_EFFORT = "medium" as const;
 
 /**
  * Cost backstop: cap fresh generations (cache misses that hit the API) per warm
@@ -66,6 +67,8 @@ export function optimizerErrorResponse(err: unknown): {
     return { status: 501, error: "optimizer not configured" };
   if (err instanceof Anthropic.RateLimitError)
     return { status: 429, error: "optimizer rate limited" };
+  if (err instanceof Anthropic.APIConnectionTimeoutError)
+    return { status: 504, error: "optimizer review timed out — try again" };
   return { status: 502, error: "optimizer unavailable" };
 }
 
@@ -230,16 +233,18 @@ export async function generateOptimization(
   req: OptimizerRequest
 ): Promise<OptimizerPlan> {
   // reads ANTHROPIC_API_KEY; caller checks optimizerConfigured() first. Stream +
-  // finalMessage keeps the connection alive while the model thinks, so a slow
-  // turn doesn't trip the SDK's HTTP timeout; the route caps total duration.
-  const client = new Anthropic({ timeout: 55_000, maxRetries: 1 });
+  // finalMessage keeps the connection alive while the model thinks. The SDK
+  // timeout is kept well under the route's maxDuration (60s) so a slow turn
+  // throws a catchable APIConnectionTimeoutError instead of the platform
+  // killing the function and returning a bare 504; no retry budget, since a
+  // retry on a near-deadline request would blow through the ceiling anyway.
+  const client = new Anthropic({ timeout: 45_000, maxRetries: 0 });
   genCount += 1;
   const stream = client.messages.stream({
     model: OPTIMIZER_MODEL,
-    // `high` effort thinking can run long, and thinking tokens count against
-    // max_tokens — too tight a cap truncates the run before the structured
-    // JSON gets written, which surfaced as a generic "unavailable" error.
-    max_tokens: 12_000,
+    // Thinking tokens count against max_tokens — too tight a cap truncates the
+    // run before the structured JSON gets written.
+    max_tokens: 8_000,
     // Adaptive thinking lets the model reason through the tradeoffs; the schema
     // constrains the final shape, so no reasoning leaks into the JSON.
     thinking: { type: "adaptive" },
