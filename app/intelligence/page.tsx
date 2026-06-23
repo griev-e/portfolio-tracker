@@ -288,8 +288,8 @@ function EarningsCard({ portfolio }: { portfolio: Portfolio }) {
   // they read clearly; a floor keeps the smallest bar visible. When every
   // weight is identical (or there's one row) the bars all fill.
   const weights = upcoming.map((u) => u.position.weight);
-  const maxWeight = Math.max(...weights, 0.01);
-  const minWeight = Math.min(...weights, 0);
+  const maxWeight = weights.length ? Math.max(...weights) : 0.01;
+  const minWeight = weights.length ? Math.min(...weights) : 0;
   const span = maxWeight - minWeight;
   const FLOOR = 18; // % — shortest bar's minimum visible width
   const barWidth = (w: number) =>
