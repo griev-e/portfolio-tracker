@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Card } from "@/components/ui/Card";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { fmtPct } from "@/lib/format";
 import type { LayerResult, SignalResult } from "@/lib/analytics/regime/types";
 import { fmtScore, ScoreBar, scoreTone } from "./regimeUi";
@@ -51,12 +52,14 @@ export function LayerCard({ layer, i }: { layer: LayerResult; i: number }) {
     >
       <div className="flex items-baseline justify-between gap-2">
         <div className="text-[13px] font-medium text-ink">{layer.name}</div>
-        <span
-          className="rounded border border-edge bg-white/[0.03] px-1.5 py-0.5 font-mono text-[9.5px] text-faint"
-          title="Share of the composite this layer earned: coverage × √(agreement × stability), renormalized across layers daily"
+        <Tooltip
+          underline={false}
+          content="Weight — how much this layer counts toward the overall regime score. It's earned each day from the layer's data coverage, how strongly its own signals agree, and how steady it's been over the past month, then renormalized so all eight layers sum to 100%."
         >
-          w {fmtPct(layer.weight, 0)}
-        </span>
+          <span className="rounded border border-edge bg-white/[0.03] px-1.5 py-0.5 font-mono text-[9.5px] text-faint">
+            w {fmtPct(layer.weight, 0)}
+          </span>
+        </Tooltip>
       </div>
       <div className="mt-0.5 text-[10.5px] text-faint">{layer.question}</div>
 
@@ -125,10 +128,18 @@ export function LayerCard({ layer, i }: { layer: LayerResult; i: number }) {
                     </div>
                   ))}
                 </div>
-                <div className="mt-3 font-mono text-[9.5px] text-faint">
-                  agreement{" "}
-                  {layer.coherence === null ? "—" : layer.coherence.toFixed(2)} · stability{" "}
-                  {layer.stability === null ? "—" : layer.stability.toFixed(2)} · data{" "}
+                <div className="mt-3 flex flex-wrap items-center gap-x-1 font-mono text-[9.5px] text-faint">
+                  <Tooltip content="Agreement — how strongly this layer's own signals point the same way (0–1). High means they reinforce each other; low means the signals are mixed.">
+                    <span>agreement</span>
+                  </Tooltip>
+                  {layer.coherence === null ? "—" : layer.coherence.toFixed(2)} ·{" "}
+                  <Tooltip content="Stability — how steady this layer's reading has been over the past month (0–1). Higher is a calmer, more reliable signal; lower means it's been swinging around.">
+                    <span>stability</span>
+                  </Tooltip>
+                  {layer.stability === null ? "—" : layer.stability.toFixed(2)} ·{" "}
+                  <Tooltip content="Data — the share of this layer's underlying index series that were available for today's reading.">
+                    <span>data</span>
+                  </Tooltip>
                   {fmtPct(layer.coverage, 0)}
                 </div>
               </motion.div>

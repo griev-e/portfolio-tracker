@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Computing } from "@/components/ui/Computing";
@@ -53,69 +53,52 @@ function buildBriefRequest(portfolio: Portfolio): BriefRequest {
 }
 
 type BriefState =
+  | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "disabled" }
   | { kind: "error"; message: string }
   | { kind: "ready"; data: BriefResponse };
 
 function useBrief(portfolio: Portfolio | null) {
-  const [state, setState] = useState<BriefState>({ kind: "loading" });
-  // One request per day + portfolio shape — quote ticks shouldn't re-bill.
-  const fingerprint = useMemo(() => {
-    if (!portfolio) return null;
-    const shape = portfolio.positions
-      .map((p) => `${p.symbol}:${p.weight.toFixed(3)}`)
-      .sort()
-      .join(",");
-    return `${new Date().toISOString().slice(0, 10)}|${shape}`;
-  }, [portfolio]);
-  const requestedRef = useRef<string | null>(null);
+  // Generation is now user-triggered — no auto-fetch on mount.
+  const [state, setState] = useState<BriefState>({ kind: "idle" });
 
-  const load = useCallback(
-    async (force = false) => {
-      if (!portfolio || !fingerprint) return;
-      if (!force && requestedRef.current === fingerprint) return;
-      requestedRef.current = fingerprint;
-      setState({ kind: "loading" });
-      try {
-        const res = await fetch("/api/brief", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(buildBriefRequest(portfolio)),
-        });
-        if (res.status === 401) {
-          window.location.replace("/lock");
-          return;
-        }
-        if (res.status === 501) {
-          setState({ kind: "disabled" });
-          return;
-        }
-        if (res.status === 429) {
-          setState({
-            kind: "error",
-            message: "Brief provider is rate limited — try again shortly.",
-          });
-          return;
-        }
-        if (!res.ok) throw new Error(`status ${res.status}`);
-        setState({ kind: "ready", data: (await res.json()) as BriefResponse });
-      } catch {
-        setState({ kind: "error", message: "Brief provider unreachable." });
+  const load = useCallback(async () => {
+    if (!portfolio) return;
+    setState({ kind: "loading" });
+    try {
+      const res = await fetch("/api/brief", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildBriefRequest(portfolio)),
+      });
+      if (res.status === 401) {
+        window.location.replace("/lock");
+        return;
       }
-    },
-    [portfolio, fingerprint]
-  );
+      if (res.status === 501) {
+        setState({ kind: "disabled" });
+        return;
+      }
+      if (res.status === 429) {
+        setState({
+          kind: "error",
+          message: "Brief provider is rate limited — try again shortly.",
+        });
+        return;
+      }
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      setState({ kind: "ready", data: (await res.json()) as BriefResponse });
+    } catch {
+      setState({ kind: "error", message: "Brief provider unreachable." });
+    }
+  }, [portfolio]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  return { state, retry: () => load(true) };
+  return { state, generate: load };
 }
 
 function BriefCard({ portfolio }: { portfolio: Portfolio }) {
-  const { state, retry } = useBrief(portfolio);
+  const { state, generate } = useBrief(portfolio);
 
   if (state.kind === "disabled") {
     return (
@@ -148,6 +131,18 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
         className="mb-4"
       />
 
+      {state.kind === "idle" && (
+        <div className="flex h-[150px] flex-col items-center justify-center gap-3 text-center">
+          <p className="max-w-sm text-[12.5px] leading-relaxed text-faint">
+            Generate an AI-written desk note on today&apos;s book — movers,
+            themes, positioning, and a risk read.
+          </p>
+          <button onClick={generate} className="btn-primary">
+            Generate daily brief
+          </button>
+        </div>
+      )}
+
       {state.kind === "loading" && (
         <div className="relative h-[180px]">
           <Computing active label="writing the morning brief…" />
@@ -157,7 +152,7 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
       {state.kind === "error" && (
         <div className="flex h-[120px] flex-col items-center justify-center gap-3 text-center">
           <div className="text-[13px] text-mute">{state.message}</div>
-          <button onClick={retry} className="btn-secondary">
+          <button onClick={generate} className="btn-secondary">
             Retry
           </button>
         </div>
@@ -251,10 +246,22 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
               </div>
             </div>
           </div>
+
+          {typeof state.data.costUSD === "number" && (
+            <div className="mt-5 border-t border-edge pt-3 text-right font-mono text-[10px] text-faint">
+              generated with Claude Haiku 4.5 · est. cost {fmtCost(state.data.costUSD)}
+            </div>
+          )}
         </div>
       )}
     </Card>
   );
+}
+
+/** Compact USD cost — sub-cent figures need more precision than $0.00. */
+function fmtCost(usd: number): string {
+  if (usd < 0.01) return `$${usd.toFixed(4)}`;
+  return `$${usd.toFixed(3)}`;
 }
 
 /* -------------------------------- earnings -------------------------------- */
@@ -282,9 +289,13 @@ function EarningsCard({ portfolio }: { portfolio: Portfolio }) {
         eyebrow="Earnings calendar"
         title="Reports in the next 60 days"
         right={
-          <span className="font-mono text-[10px] text-faint">
-            {upcoming.length} scheduled
-          </span>
+          <div className="flex items-center gap-3 font-mono text-[10px] text-faint">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-3 rounded-full bg-vio/60" /> weight of book
+            </span>
+            <span className="text-edge2">·</span>
+            <span>{upcoming.length} scheduled</span>
+          </div>
         }
         className="mb-4"
       />
@@ -375,28 +386,62 @@ function useNews(symbols: string[]) {
   return { items, error, loading, refresh: load };
 }
 
+const NEWS_PAGE = 12;
+
 function NewsCard({ symbols }: { symbols: string[] }) {
   const { items, error, loading, refresh } = useNews(symbols);
   const [filter, setFilter] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
 
+  // One story can come back under several holdings (provider returns it per
+  // symbol); collapse on the stable UUID and order newest-first so the feed is
+  // clean rather than a jumble of repeats.
+  const deduped = useMemo(() => {
+    if (!items) return [];
+    const seen = new Set<string>();
+    const out: NewsItem[] = [];
+    for (const n of [...items].sort(
+      (a, b) => +new Date(b.publishedAt) - +new Date(a.publishedAt)
+    )) {
+      if (seen.has(n.id)) continue;
+      seen.add(n.id);
+      out.push(n);
+    }
+    return out;
+  }, [items]);
+
+  // Per-symbol story counts drive the filter chips (and their order).
+  const counts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const n of deduped) m.set(n.symbol, (m.get(n.symbol) ?? 0) + 1);
+    return m;
+  }, [deduped]);
+
   const withNews = useMemo(
     () =>
-      items
-        ? [...new Set(items.map((n) => n.symbol))].sort()
-        : [],
-    [items]
+      [...counts.keys()].sort(
+        (a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0) || a.localeCompare(b)
+      ),
+    [counts]
   );
 
-  const visible = useMemo(() => {
-    if (!items) return [];
-    const filtered = filter
-      ? items.filter(
-          (n) => n.symbol === filter || n.relatedTickers.includes(filter)
-        )
-      : items;
-    return expanded ? filtered : filtered.slice(0, 12);
-  }, [items, filter, expanded]);
+  const filtered = useMemo(
+    () =>
+      filter
+        ? deduped.filter(
+            (n) => n.symbol === filter || n.relatedTickers.includes(filter)
+          )
+        : deduped,
+    [deduped, filter]
+  );
+
+  const visible = expanded ? filtered : filtered.slice(0, NEWS_PAGE);
+
+  // Switching the filter resets the expand state so the new view starts capped.
+  const pick = (s: string | null) => {
+    setFilter(s);
+    setExpanded(false);
+  };
 
   return (
     // On xl the news card sits beside the (shorter, finite) earnings calendar.
@@ -416,19 +461,26 @@ function NewsCard({ symbols }: { symbols: string[] }) {
 
       {items && withNews.length > 1 && (
         <div className="mb-4 flex flex-wrap gap-1.5 xl:shrink-0">
-          {[null, ...withNews].map((s) => (
-            <button
-              key={s ?? "all"}
-              onClick={() => setFilter(s)}
-              className={`rounded-md px-2.5 py-1 font-mono text-[11px] transition-colors ${
-                filter === s
-                  ? "bg-white/[0.08] text-ink"
-                  : "text-mute hover:bg-white/[0.04] hover:text-ink"
-              }`}
-            >
-              {s ?? "All"}
-            </button>
-          ))}
+          {[null, ...withNews].map((s) => {
+            const active = filter === s;
+            const count = s === null ? deduped.length : counts.get(s) ?? 0;
+            return (
+              <button
+                key={s ?? "all"}
+                onClick={() => pick(s)}
+                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-mono text-[11px] transition-colors ${
+                  active
+                    ? "bg-white/[0.08] text-ink"
+                    : "text-mute hover:bg-white/[0.04] hover:text-ink"
+                }`}
+              >
+                {s ?? "All"}
+                <span className={active ? "text-mint" : "text-faint"}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -449,9 +501,15 @@ function NewsCard({ symbols }: { symbols: string[] }) {
             </div>
           )}
 
-          {items && items.length === 0 && (
+          {items && deduped.length === 0 && (
             <p className="py-6 text-center text-[12.5px] text-faint">
               No recent headlines for these holdings.
+            </p>
+          )}
+
+          {items && deduped.length > 0 && filtered.length === 0 && (
+            <p className="py-6 text-center text-[12.5px] text-faint">
+              No recent headlines mentioning {filter}.
             </p>
           )}
 
@@ -484,20 +542,14 @@ function NewsCard({ symbols }: { symbols: string[] }) {
             </div>
           )}
 
-          {items &&
-            !expanded &&
-            (filter
-              ? items.filter(
-                  (n) => n.symbol === filter || n.relatedTickers.includes(filter)
-                ).length
-              : items.length) > 12 && (
-              <button
-                onClick={() => setExpanded(true)}
-                className="mt-3 w-full rounded-md border border-edge py-2 text-[11.5px] text-mute transition-colors hover:bg-white/[0.03] hover:text-ink"
-              >
-                Show more
-              </button>
-            )}
+          {items && !expanded && filtered.length > NEWS_PAGE && (
+            <button
+              onClick={() => setExpanded(true)}
+              className="mt-3 w-full rounded-md border border-edge py-2 text-[11.5px] text-mute transition-colors hover:bg-white/[0.03] hover:text-ink"
+            >
+              Show {filtered.length - NEWS_PAGE} more
+            </button>
+          )}
         </div>
       </div>
     </Card>

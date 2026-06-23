@@ -23,7 +23,7 @@ import type {
 import { usePortfolio } from "@/lib/store";
 import type { Portfolio } from "@/lib/types";
 import { useAsyncCompute } from "@/lib/useAsyncCompute";
-import { useElementWidth } from "@/lib/useElementWidth";
+import { useElementSize } from "@/lib/useElementWidth";
 
 /* ──────────────────────────────── presets ───────────────────────────────── */
 
@@ -113,12 +113,14 @@ export default function OptimizerPage() {
   const { ready, portfolio } = usePortfolio();
 
   const [objective, setObjective] = useState<ObjectiveId>("sharpe");
-  const [maxWeight, setMaxWeight] = useState(0.3);
-  const [minWeight, setMinWeight] = useState(0);
+  const [maxWeight, setMaxWeight] = useState(0.1);
+  const [allowExit, setAllowExit] = useState(false);
+  // Floor that keeps held names from being fully exited when exits are off.
+  const [minWeight, setMinWeight] = useState(0.01);
 
   const constraints = useMemo(
-    () => ({ maxWeight, minWeight }),
-    [maxWeight, minWeight]
+    () => ({ maxWeight, minWeight, allowExit }),
+    [maxWeight, minWeight, allowExit]
   );
 
   const { value: result, pending } = useAsyncCompute(
@@ -160,18 +162,20 @@ export default function OptimizerPage() {
           <ConstraintsCard
             maxWeight={maxWeight}
             minWeight={minWeight}
+            allowExit={allowExit}
             setMaxWeight={setMaxWeight}
             setMinWeight={setMinWeight}
+            setAllowExit={setAllowExit}
             positionCount={portfolio.positions.length}
           />
           <SummaryCard result={result} accent={preset.accent} />
         </div>
 
         {/* ───────────── Frontier ───────────── */}
-        <div className="relative min-w-0">
+        <div className="relative flex min-w-0 flex-col">
           <Computing active={pending || !result} label="optimizing…" />
           {!result ? (
-            <div className="panel h-[420px]" />
+            <div className="panel min-h-[420px] flex-1" />
           ) : (
             <FrontierCard result={result} accent={preset.accent} />
           )}
@@ -262,14 +266,18 @@ function PresetCard({
 function ConstraintsCard({
   maxWeight,
   minWeight,
+  allowExit,
   setMaxWeight,
   setMinWeight,
+  setAllowExit,
   positionCount,
 }: {
   maxWeight: number;
   minWeight: number;
+  allowExit: boolean;
   setMaxWeight: (v: number) => void;
   setMinWeight: (v: number) => void;
+  setAllowExit: (v: boolean) => void;
   positionCount: number;
 }) {
   const minCap = positionCount > 0 ? 1 / positionCount : 0;
@@ -287,7 +295,7 @@ function ConstraintsCard({
           </div>
           <input
             type="range"
-            min={0.1}
+            min={0.05}
             max={1}
             step={0.05}
             value={maxWeight}
@@ -300,26 +308,55 @@ function ConstraintsCard({
           </p>
         </div>
 
-        <div>
-          <div className="mb-2 flex items-baseline justify-between">
-            <span className="text-[12.5px] text-mute">Drop threshold</span>
-            <span className="font-mono tnum text-[13px] text-ink">
-              {minWeight > 0 ? fmtPct(minWeight, 1) : "off"}
+        <div className="border-t border-edge pt-5">
+          <button
+            onClick={() => setAllowExit(!allowExit)}
+            role="switch"
+            aria-checked={allowExit}
+            className="flex w-full items-center justify-between gap-3 text-left"
+          >
+            <span className="text-[12.5px] text-mute">Allow full exit</span>
+            <span
+              className={`relative h-[18px] w-[32px] shrink-0 rounded-full transition-colors ${
+                allowExit ? "bg-mint/70" : "bg-white/[0.12]"
+              }`}
+            >
+              <span
+                className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-ink transition-transform ${
+                  allowExit ? "translate-x-[16px]" : "translate-x-[2px]"
+                }`}
+              />
             </span>
-          </div>
-          <input
-            type="range"
-            min={0}
-            max={0.05}
-            step={0.005}
-            value={minWeight}
-            onChange={(e) => setMinWeight(Number(e.target.value))}
-            className="w-full"
-          />
+          </button>
           <p className="mt-1.5 text-[11px] leading-snug text-faint">
-            Holdings the optimizer would weight below this are dropped to zero —
-            a cleaner book with fewer dust positions.
+            {allowExit
+              ? "The optimizer may sell a holding all the way to zero when the objective calls for it."
+              : "Held names are kept above the floor below — the optimizer trims them rather than exiting outright."}
           </p>
+
+          {!allowExit && (
+            <div className="mt-4">
+              <div className="mb-2 flex items-baseline justify-between">
+                <span className="text-[12.5px] text-mute">Minimum position</span>
+                <span className="font-mono tnum text-[13px] text-ink">
+                  {fmtPct(minWeight, 1)}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0.005}
+                max={0.05}
+                step={0.005}
+                value={minWeight}
+                onChange={(e) => setMinWeight(Number(e.target.value))}
+                className="w-full"
+              />
+              <p className="mt-1.5 text-[11px] leading-snug text-faint">
+                Smallest weight a holding you already own can be trimmed to before
+                it would count as a full exit.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </Card>
@@ -411,7 +448,7 @@ function FrontierCard({
   accent: string;
 }) {
   return (
-    <Card className="px-6 py-5" hover={false}>
+    <Card className="flex flex-1 flex-col px-6 py-5" hover={false}>
       <CardHeader
         eyebrow="Efficient frontier"
         title="Risk vs. expected return"
@@ -432,7 +469,9 @@ function FrontierCard({
         }
         className="mb-2"
       />
-      <FrontierChart result={result} accent={accent} />
+      <div className="min-h-[300px] flex-1">
+        <FrontierChart result={result} accent={accent} />
+      </div>
       <p className="mt-3 border-t border-edge pt-3 text-[11px] leading-relaxed text-faint">
         The curve is the best expected return achievable at each volatility,
         swept across the holdings under your constraints. Expected returns are
@@ -450,8 +489,9 @@ function FrontierChart({
   result: OptimizerResult;
   accent: string;
 }) {
-  const [ref, width] = useElementWidth<HTMLDivElement>();
-  const H = 320;
+  const [ref, size] = useElementSize<HTMLDivElement>();
+  // Fill the column the card stretches to; clamp so it never gets cramped.
+  const H = Math.max(300, size.height || 320);
   const PAD = { l: 52, r: 22, t: 18, b: 40 };
 
   const pts = result.frontier;
@@ -464,7 +504,7 @@ function FrontierChart({
   const xPad = (xMax - xMin) * 0.12 || 0.01;
   const yPad = (yMax - yMin) * 0.16 || 0.01;
 
-  const W = width;
+  const W = size.width;
   const x = (v: number) =>
     PAD.l + ((v - (xMin - xPad)) / (xMax - xMin + 2 * xPad)) * (W - PAD.l - PAD.r);
   const y = (v: number) =>
@@ -483,7 +523,7 @@ function FrontierChart({
   });
 
   return (
-    <div ref={ref} style={{ height: H }} className="w-full">
+    <div ref={ref} className="h-full w-full">
       {W > 0 && (
         <svg width={W} height={H} role="img" aria-label="Efficient frontier of expected return versus volatility">
           <defs>
@@ -657,6 +697,7 @@ function AllocationCard({ result }: { result: OptimizerResult }) {
         {rows.map((r, i) => {
           const color = colorOf[r.symbol] ?? PALETTE[i % PALETTE.length];
           const neg = r.deltaWeight < 0;
+          const buying = r.deltaWeight > 0.001;
           return (
             <motion.div
               key={r.symbol}
@@ -690,6 +731,24 @@ function AllocationCard({ result }: { result: OptimizerResult }) {
                   animate={{ width: `${(r.targetWeight / scaleMax) * 100}%` }}
                   transition={{ duration: 0.7, delay: 0.08 + i * 0.025, ease: [0.22, 1, 0.36, 1] }}
                 />
+                {/* The slice being added to a name that's being bought — a subtle
+                    glow on just the new capital, from the current edge to target. */}
+                {buying && (
+                  <motion.div
+                    className="absolute inset-y-0 rounded-full"
+                    style={{
+                      left: `${(r.currentWeight / scaleMax) * 100}%`,
+                      background: `color-mix(in srgb, ${color} 88%, white)`,
+                      boxShadow: `0 0 9px 1px color-mix(in srgb, ${color} 65%, transparent)`,
+                    }}
+                    initial={{ width: 0, opacity: 0 }}
+                    animate={{
+                      width: `${((r.targetWeight - r.currentWeight) / scaleMax) * 100}%`,
+                      opacity: 1,
+                    }}
+                    transition={{ duration: 0.7, delay: 0.12 + i * 0.025, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                )}
               </div>
             </motion.div>
           );
@@ -894,7 +953,10 @@ function buildReviewRequest(
     objective: { id: result.objective, label: objectiveLabel },
     constraints: {
       maxWeightPct: +(result.constraints.maxWeight * 100).toFixed(0),
-      minWeightPct: +(result.constraints.minWeight * 100).toFixed(1),
+      // When exits are allowed there is no held-position floor.
+      minWeightPct: +(
+        (result.constraints.allowExit ? 0 : result.constraints.minWeight) * 100
+      ).toFixed(1),
     },
     before: metricsToPct(result.metricsBefore),
     after: metricsToPct(result.metricsAfter),
@@ -921,7 +983,7 @@ function useOptimizerReview(
 
   // Reset the review whenever the objective, constraints, or holdings change —
   // the previous read no longer describes what's on screen.
-  const sig = `${result.objective}|${result.constraints.maxWeight}|${result.constraints.minWeight}|${portfolio.positions.map((p) => p.symbol).sort().join(",")}`;
+  const sig = `${result.objective}|${result.constraints.maxWeight}|${result.constraints.minWeight}|${result.constraints.allowExit}|${portfolio.positions.map((p) => p.symbol).sort().join(",")}`;
   const sigRef = useRef(sig);
   useEffect(() => {
     if (sigRef.current !== sig) {
@@ -1189,9 +1251,17 @@ function ReviewBody({
           <span className="font-mono">
             {meta.cached ? "cached · " : ""}
             {relativeTime(meta.generatedAt)}
+            {typeof meta.costUSD === "number" &&
+              ` · est. cost ${fmtCostUSD(meta.costUSD)}`}
           </span>
         )}
       </p>
     </motion.div>
   );
+}
+
+/** Compact USD cost — sub-cent figures need more precision than $0.00. */
+function fmtCostUSD(usd: number): string {
+  if (usd < 0.01) return `$${usd.toFixed(4)}`;
+  return `$${usd.toFixed(3)}`;
 }

@@ -59,12 +59,14 @@ export default function CorrelationPage() {
                   ? "text-ink"
                   : "text-mint"
             }
+            tip="The average correlation (ρ) between every pair of holdings, weighted by position size. Correlation runs from −1 to +1: near +1 the names move almost in lockstep, near 0 they move independently. A lower average means the book is genuinely diversified rather than many bets on the same thing."
           />
           <Stat
             label="Diversification ratio"
             value={risk.diversificationRatio}
             format={(v) => fmtNum(v, 2)}
             sub="risk canceled by mixing"
+            tip="The weighted-average volatility of the individual holdings divided by the portfolio's actual volatility. Above 1 means combining the names cancels out some risk; the higher it is, the more diversification benefit you're capturing versus holding the positions in isolation."
           />
           {corr.highest && (
             <div>

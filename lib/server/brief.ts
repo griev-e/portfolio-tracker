@@ -5,6 +5,7 @@ import type {
   BriefResponse,
 } from "@/lib/intelligence/types";
 import { fetchNews } from "@/lib/server/news";
+import { usdCost } from "@/lib/server/cost";
 
 /**
  * AI morning brief: one Claude call per day per portfolio shape, cached in
@@ -185,7 +186,9 @@ function buildUserMessage(req: BriefRequest, headlines: string[], earnings: stri
   ].join("\n");
 }
 
-export async function generateBrief(req: BriefRequest): Promise<Brief> {
+export async function generateBrief(
+  req: BriefRequest
+): Promise<{ brief: Brief; costUSD: number | null }> {
   const positions = req.portfolio.positions;
 
   // Enrich server-side so the client can't inflate the token bill.
@@ -234,5 +237,8 @@ export async function generateBrief(req: BriefRequest): Promise<Brief> {
   }
   const text = response.content.find((b) => b.type === "text");
   if (!text) throw new Error("empty brief response");
-  return JSON.parse(text.text) as Brief;
+  return {
+    brief: JSON.parse(text.text) as Brief,
+    costUSD: usdCost(BRIEF_MODEL, response.usage),
+  };
 }

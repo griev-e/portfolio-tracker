@@ -4,6 +4,7 @@ import type {
   OptimizerRequest,
   OptimizerResponse,
 } from "@/lib/optimizer/types";
+import { usdCost } from "@/lib/server/cost";
 
 /**
  * AI optimizer reasoning: the quantitative core (lib/optimizer/optimize.ts)
@@ -231,7 +232,7 @@ function buildUserMessage(req: OptimizerRequest): string {
 
 export async function generateOptimization(
   req: OptimizerRequest
-): Promise<OptimizerPlan> {
+): Promise<{ plan: OptimizerPlan; costUSD: number | null }> {
   // reads ANTHROPIC_API_KEY; caller checks optimizerConfigured() first. Stream +
   // finalMessage keeps the connection alive while the model thinks. The SDK
   // timeout is kept well under the route's maxDuration (60s) so a slow turn
@@ -266,7 +267,10 @@ export async function generateOptimization(
   for (const block of response.content) {
     if (block.type === "text") {
       try {
-        return JSON.parse(block.text) as OptimizerPlan;
+        return {
+          plan: JSON.parse(block.text) as OptimizerPlan,
+          costUSD: usdCost(OPTIMIZER_MODEL, response.usage),
+        };
       } catch {
         throw new Error(`optimization review returned unparseable JSON: ${block.text.slice(0, 200)}`);
       }

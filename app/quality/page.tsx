@@ -163,7 +163,7 @@ export default function QualityPage() {
         />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {report.holdings.map((h, i) => (
-            <HoldingCard key={h.symbol} h={h} i={i} />
+            <HoldingCard key={h.symbol} h={h} i={i} bookScore={report.composite} />
           ))}
         </div>
       </Card>
@@ -282,7 +282,26 @@ function MetricRow({ m, delay }: { m: QualityMetric; delay: number }) {
   );
 }
 
-function HoldingCard({ h, i }: { h: HoldingQuality; i: number }) {
+function HoldingCard({
+  h,
+  i,
+  bookScore,
+}: {
+  h: HoldingQuality;
+  i: number;
+  bookScore: number;
+}) {
+  // Strongest / softest category, derived from the per-category sub-scores.
+  const cats = CATEGORY_ORDER.map((id) => ({ id, score: h.categories[id] }));
+  const strongest = cats.reduce((a, b) => (b.score > a.score ? b : a));
+  const softest = cats.reduce((a, b) => (b.score < a.score ? b : a));
+  const spread = strongest.score - softest.score;
+
+  // How this name grades against the whole book.
+  const vsBook = Math.round(h.score - bookScore);
+  const vsTone =
+    vsBook > 0 ? "text-pos" : vsBook < 0 ? "text-neg" : "text-faint";
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -296,37 +315,54 @@ function HoldingCard({ h, i }: { h: HoldingQuality; i: number }) {
           <div className="font-mono text-[13px] font-medium text-ink">{h.symbol}</div>
           <div className="truncate text-[10.5px] text-faint">{h.name}</div>
         </div>
-        <div className={`font-display text-[22px] font-bold leading-none ${GRADE_COLOR[h.grade]}`}>
-          {h.grade}
+        <div className="text-right">
+          <div className={`font-display text-[22px] font-bold leading-none ${GRADE_COLOR[h.grade]}`}>
+            {h.grade}
+          </div>
+          <div className="mt-1 font-mono tnum text-[10px] text-mute">{h.score}</div>
         </div>
       </div>
 
-      <div className="mt-2 font-mono text-[10px] text-faint">
-        {h.score}/100 · {fmtPct(h.weight, 1)} of book
+      <div className="mt-2 flex items-center justify-between font-mono text-[10px]">
+        <span className="text-faint">{fmtPct(h.weight, 1)} of book</span>
+        <span className={vsTone}>
+          {vsBook > 0 ? "+" : ""}
+          {vsBook} vs book
+        </span>
       </div>
 
       <div className="mt-3 flex items-end gap-2">
-        {CATEGORY_ORDER.map((id, ci) => {
-          const s = h.categories[id];
-          return (
-            <div
-              key={id}
-              className="flex flex-1 flex-col items-center gap-1"
-              title={`${CATEGORY_LABEL[id]}: ${s}/100`}
-            >
-              <div className="flex h-9 w-full items-end overflow-hidden rounded bg-white/[0.04]">
-                <motion.div
-                  className="w-full rounded"
-                  style={{ background: tierColor(s), opacity: 0.85 }}
-                  initial={{ height: 0 }}
-                  animate={{ height: `${s}%` }}
-                  transition={{ duration: 0.6, delay: 0.2 + i * 0.04 + ci * 0.04 }}
-                />
-              </div>
-              <span className="font-mono text-[8.5px] text-faint">{CATEGORY_LETTER[id]}</span>
+        {cats.map(({ id, score: s }, ci) => (
+          <div key={id} className="flex flex-1 flex-col items-center gap-1">
+            <span className="font-mono tnum text-[8.5px] text-mute">{s}</span>
+            <div className="flex h-9 w-full items-end overflow-hidden rounded bg-white/[0.04]">
+              <motion.div
+                className="w-full rounded"
+                style={{ background: tierColor(s), opacity: 0.85 }}
+                initial={{ height: 0 }}
+                animate={{ height: `${s}%` }}
+                transition={{ duration: 0.6, delay: 0.2 + i * 0.04 + ci * 0.04 }}
+              />
             </div>
-          );
-        })}
+            <span className="font-mono text-[8.5px] text-faint">{CATEGORY_LETTER[id]}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Strongest / softest read so the card says something, not just shows bars. */}
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-edge pt-2.5 font-mono text-[9.5px]">
+        <span className="flex items-center gap-1 text-mute">
+          <span className="text-pos">▲</span>
+          {CATEGORY_LABEL[strongest.id]}
+        </span>
+        {spread > 4 ? (
+          <span className="flex items-center gap-1 text-mute">
+            <span className="text-neg">▼</span>
+            {CATEGORY_LABEL[softest.id]}
+          </span>
+        ) : (
+          <span className="text-faint">evenly balanced</span>
+        )}
       </div>
     </motion.div>
   );
