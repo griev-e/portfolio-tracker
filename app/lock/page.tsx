@@ -72,7 +72,7 @@ export default function LockPage() {
               setPin("");
               inputRef.current?.focus();
             }
-          }, 650);
+          }, 5000);
         }
       } catch {
         if (!cancelled) {
@@ -82,7 +82,7 @@ export default function LockPage() {
               setError(false);
               setPin("");
             }
-          }, 650);
+          }, 5000);
         }
       } finally {
         if (!cancelled) setChecking(false);
