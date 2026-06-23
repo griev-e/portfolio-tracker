@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-grieve is a dark, institutional-grade personal portfolio
+alpha is a dark, institutional-grade personal portfolio
 analytics terminal. You import holdings as CSV and it computes allocation,
 risk, research, quality, factor, scenario, correlation, and Monte Carlo
 analysis. There are no accounts and no database: the portfolio lives in the
@@ -38,7 +38,7 @@ Carlo, the regime engine and its `mathx` helpers, CSV parsing, fundamentals).
 - `ACCESS_PIN` — a 4-digit code that gates the whole app via `middleware.ts`.
   When unset, the app is open (so local dev never locks you out). The auth
   cookie stores a SHA-256 hash of the PIN with a fixed application prefix
-  (`SHA-256("grieve:" + pin)`), never the PIN itself. The gate is meant to keep
+  (`SHA-256("alpha:" + pin)`), never the PIN itself. The gate is meant to keep
   casual visitors out, not to be hardened auth.
 - `ANTHROPIC_API_KEY` — enables the AI daily brief on the Intelligence page.
   When unset, the brief section degrades gracefully and everything else works.
@@ -71,7 +71,7 @@ defaults (β = 1.0, σ derived from beta).
 `app/layout.tsx` wraps everything in `PortfolioProvider` → `AppShell`.
 
 - **`lib/store.tsx`** (`usePortfolio`) is the single source of truth for the
-  portfolio. It reads/writes `localStorage` (key `grieve.portfolio.v1`,
+  portfolio. It reads/writes `localStorage` (key `alpha.portfolio.v1`,
   migrates legacy keys), drives `useLiveData`, and memoizes the enriched
   `Portfolio` via `buildPortfolio`.
 - **`lib/analytics/build.ts`** (`buildPortfolio`) is the central enrichment

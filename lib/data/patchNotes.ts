@@ -8,6 +8,12 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.18",
+    date: "2026-06-23",
+    title: "Rebrand to alpha",
+    changes: ["Renamed the project from grieve to alpha across the app, storage keys, and the auth cookie."],
+  },
+  {
     version: "1.17",
     date: "2026-06-23",
     title: "Hover explainers & cross-tab polish",
@@ -108,7 +114,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       "Overhauled Research into a search-first terminal for any ticker.",
       "Tab-by-tab UI and analytics refinements across the app.",
-      "Renamed the project from Sanctum to grieve and stopped the lock-screen logo spin.",
+      "Renamed the project from Sanctum to alpha and stopped the lock-screen logo spin.",
     ],
   },
   {
@@ -134,7 +140,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       "Added the Dividends tab: income quality and durability engine.",
       "Added the Market Analysis tab with an adaptive regime engine.",
-      "Redesigned the UI in a Vercel-inspired layout with Geist, and rebranded to grieve.",
+      "Redesigned the UI in a Vercel-inspired layout with Geist, and rebranded to alpha.",
       "Redesigned the All Positions table, added holdings logos, and compacted the correlation matrix.",
     ],
   },

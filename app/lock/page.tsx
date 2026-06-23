@@ -104,8 +104,16 @@ export default function LockPage() {
           transition={{ delay: 0.2 }}
           className="font-display text-[22px] font-semibold tracking-[0.22em] text-ink"
         >
-          grieve
+          alpha
         </motion.h1>
+        <motion.p
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="eyebrow mt-2"
+        >
+          a measure of risk-adjusted excess return
+        </motion.p>
         {(unlocked || locked || error) && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -130,7 +138,7 @@ export default function LockPage() {
         type="text"
         inputMode="numeric"
         autoComplete="off"
-        name="grieve-code"
+        name="alpha-code"
         data-1p-ignore="true"
         data-lpignore="true"
         data-bwignore="true"
@@ -156,7 +164,7 @@ export default function LockPage() {
             : { x: 0 }
         }
         transition={{ duration: 0.45 }}
-        className="flex gap-3"
+        className="mt-2 flex gap-3"
       >
         {Array.from({ length: PIN_LENGTH }).map((_, i) => {
           const filled = i < pin.length;
