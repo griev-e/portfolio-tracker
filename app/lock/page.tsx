@@ -61,9 +61,9 @@ export default function LockPage() {
             /* private mode / disabled storage — entrance just no-ops */
           }
           // Full reload so the middleware re-evaluates every route. Timed to
-          // land while the unlock veil has fully covered the screen, so the
+          // land after the unlock veil has fully covered the screen, so the
           // swap to the app is invisible.
-          setTimeout(() => window.location.replace("/"), 880);
+          setTimeout(() => window.location.replace("/"), 1450);
         } else if (res.status === 429) {
           // Brute-force lockout — surface the cooldown and stop accepting input.
           const retryAfter = Number(res.headers.get("Retry-After")) || 900;
@@ -102,11 +102,14 @@ export default function LockPage() {
         initial={{ opacity: 0, scale: 0.7 }}
         animate={{
           opacity: 1,
-          scale: unlocked ? 2.1 : 1,
+          scale: unlocked ? 2.3 : 1,
           y: unlocked ? -4 : 0,
+          filter: unlocked
+            ? "drop-shadow(0 0 30px rgba(255,255,255,0.7))"
+            : "drop-shadow(0 0 0px rgba(255,255,255,0))",
         }}
         transition={{
-          duration: unlocked ? 0.8 : 0.9,
+          duration: unlocked ? 1.2 : 0.9,
           ease: unlocked ? [0.16, 1, 0.3, 1] : [0.22, 1, 0.36, 1],
         }}
       >
@@ -115,8 +118,8 @@ export default function LockPage() {
 
       <motion.div
         className="relative z-30 text-center"
-        animate={{ opacity: unlocked ? 0 : 1, y: unlocked ? -14 : 0 }}
-        transition={{ duration: 0.45, ease: [0.4, 0, 1, 1] }}
+        animate={{ opacity: unlocked ? 0 : 1, y: unlocked ? -18 : 0 }}
+        transition={{ duration: 0.7, ease: [0.4, 0, 1, 1] }}
       >
         <motion.h1
           initial={{ opacity: 0, y: 8 }}
@@ -180,12 +183,12 @@ export default function LockPage() {
       <motion.div
         animate={
           unlocked
-            ? { opacity: 0, y: -12, scale: 0.96 }
+            ? { opacity: 0, y: -10, scale: 0.4 }
             : error
               ? { x: [0, -10, 10, -7, 7, -3, 0] }
               : { x: 0 }
         }
-        transition={{ duration: unlocked ? 0.4 : 0.45, ease: [0.4, 0, 1, 1] }}
+        transition={{ duration: unlocked ? 0.7 : 0.45, ease: [0.5, 0, 0.75, 0] }}
         className="relative z-30 mt-2 flex gap-3"
       >
         {Array.from({ length: PIN_LENGTH }).map((_, i) => {
@@ -224,36 +227,54 @@ export default function LockPage() {
         })}
       </motion.div>
 
-      {/* Unlock choreography. Both overlays mount only on success and play once.
-          The bloom is a soft mint light expanding from the sigil; the veil then
-          fades the whole screen to pure black just before the reload, so the
-          hard navigation to the app is hidden inside the dark. The app shell
-          fades back out of that same black on the other side. */}
+      {/* Unlock choreography. All overlays mount only on success and play once.
+          A soft white bloom swells from the sigil while two thin light rings
+          ripple outward; the veil then washes the whole screen to pure black
+          just after, so the hard navigation to the app is hidden inside the
+          dark. The app shell fades back out of that same black on the other
+          side, with the sigil dissolving from where it left off. */}
       {unlocked && (
         <>
-          <motion.div
-            className="pointer-events-none fixed inset-0 z-10 flex items-center justify-center"
-            initial={{ opacity: 1 }}
-            animate={{ opacity: 1 }}
-          >
+          <div className="pointer-events-none fixed inset-0 z-10 flex items-center justify-center">
+            {/* Core bloom — a white glow expanding from behind the sigil. */}
             <motion.div
-              initial={{ scale: 0.2, opacity: 0 }}
-              animate={{ scale: 3.2, opacity: [0, 0.5, 0] }}
-              transition={{ duration: 0.85, ease: "easeOut", times: [0, 0.45, 1] }}
-              className="h-[460px] w-[460px] rounded-full"
+              initial={{ scale: 0.12, opacity: 0 }}
+              animate={{ scale: 3.6, opacity: [0, 0.55, 0] }}
+              transition={{ duration: 1.25, ease: "easeOut", times: [0, 0.38, 1] }}
+              className="absolute h-[540px] w-[540px] rounded-full"
               style={{
                 background:
-                  "radial-gradient(circle, rgba(94,234,212,0.42) 0%, rgba(94,234,212,0.10) 38%, rgba(94,234,212,0) 66%)",
+                  "radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.14) 36%, rgba(255,255,255,0) 64%)",
               }}
             />
-          </motion.div>
+            {/* Two light rings rippling outward at different speeds for depth. */}
+            <motion.div
+              initial={{ scale: 0.3, opacity: 0 }}
+              animate={{ scale: 6, opacity: [0, 0.6, 0] }}
+              transition={{ duration: 1.15, ease: [0.16, 1, 0.3, 1], times: [0, 0.2, 1] }}
+              className="absolute h-[160px] w-[160px] rounded-full border border-white/70"
+            />
+            <motion.div
+              initial={{ scale: 0.3, opacity: 0 }}
+              animate={{ scale: 8.5, opacity: [0, 0.4, 0] }}
+              transition={{
+                duration: 1.25,
+                ease: [0.16, 1, 0.3, 1],
+                times: [0, 0.22, 1],
+                delay: 0.16,
+              }}
+              className="absolute h-[160px] w-[160px] rounded-full border border-white/40"
+            />
+          </div>
 
+          {/* Final wash to black — sits above everything so it covers the
+              glowing sigil too, leaving a clean black frame for the reload. */}
           <motion.div
-            className="pointer-events-none fixed inset-0 z-20"
+            className="pointer-events-none fixed inset-0 z-40"
             style={{ background: "var(--color-void)" }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.44, ease: [0.4, 0, 1, 1] }}
+            transition={{ duration: 0.6, delay: 0.82, ease: [0.4, 0, 1, 1] }}
           />
         </>
       )}

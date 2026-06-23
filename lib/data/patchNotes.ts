@@ -12,7 +12,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: "2026-06-23",
     title: "Unlock transition",
     changes: [
-      "Entering the correct PIN now plays a single continuous animation into the terminal: the PIN field and title recede, the α sigil swells with a soft mint bloom, the lock screen fades to black, and the app fades back out of that same black with the sigil dissolving — so the two screens read as one motion instead of a hard page swap.",
+      "Entering the correct PIN now plays a single continuous animation into the terminal: the PIN field collapses inward and the title recedes, the α sigil swells under a soft white glow while two light rings ripple outward, the lock screen washes to black, and the app fades back out of that same black with the sigil dissolving from where it left off — so the two screens read as one slow, deliberate motion instead of a hard page swap.",
     ],
   },
   {

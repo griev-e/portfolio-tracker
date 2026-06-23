@@ -359,20 +359,29 @@ export function AppShell({ children }: { children: ReactNode }) {
           style={{ background: "var(--color-void)" }}
           initial={{ opacity: 1 }}
           animate={{ opacity: entrance === "reveal" ? 0 : 1 }}
-          transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
+          transition={{ duration: 0.95, ease: [0.4, 0, 0.2, 1] }}
           onAnimationComplete={() =>
             setEntrance((e) => (e === "reveal" ? "idle" : e))
           }
         >
-          {/* Picks up where the lock screen's sigil left off (scaled ~2.1) and
-              dissolves — the visual thread between the two screens. */}
+          {/* Picks up where the lock screen's sigil left off (scaled ~2.3, lit
+              by a soft white glow) and dissolves — the visual thread that makes
+              the two screens read as one continuous motion. */}
           <motion.div
-            initial={{ opacity: 0.5, scale: 2.1 }}
-            animate={{
-              opacity: entrance === "reveal" ? 0 : 0.5,
-              scale: entrance === "reveal" ? 2.4 : 2.1,
+            initial={{
+              opacity: 0.55,
+              scale: 2.3,
+              filter: "drop-shadow(0 0 30px rgba(255,255,255,0.7))",
             }}
-            transition={{ duration: 0.7, ease: "easeOut" }}
+            animate={{
+              opacity: entrance === "reveal" ? 0 : 0.55,
+              scale: entrance === "reveal" ? 2.6 : 2.3,
+              filter:
+                entrance === "reveal"
+                  ? "drop-shadow(0 0 8px rgba(255,255,255,0))"
+                  : "drop-shadow(0 0 30px rgba(255,255,255,0.7))",
+            }}
+            transition={{ duration: 0.95, ease: "easeOut" }}
           >
             <Sigil size={64} />
           </motion.div>
