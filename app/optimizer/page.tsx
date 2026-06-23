@@ -958,10 +958,25 @@ function useOptimizerReview(
         });
         return;
       }
-      if (!res.ok) throw new Error(`status ${res.status}`);
+      if (!res.ok) {
+        let errorText = "";
+        try {
+          errorText = await res.text();
+        } catch {}
+        throw new Error(`HTTP ${res.status}: ${errorText || 'unknown error'}`);
+      }
       setState({ kind: "ready", data: (await res.json()) as OptimizerResponse });
-    } catch {
-      setState({ kind: "error", message: "AI optimizer unreachable." });
+    } catch (err) {
+      console.error("Optimizer review failed:", err);
+      let msg = "AI optimizer unreachable. Check connection, deployment, or ANTHROPIC_API_KEY in Vercel env vars.";
+      if (err instanceof Error) {
+        if (err.message.includes("Failed to fetch")) {
+          msg = "Network error — make sure the app is deployed and reachable.";
+        } else if (err.message.includes("401")) {
+          msg = "Auth error — check your API key.";
+        }
+      }
+      setState({ kind: "error", message: msg });
     }
   }, []);
 
@@ -1039,8 +1054,8 @@ function ReviewCard({
       )}
 
       {state.kind === "error" && (
-        <div className="flex h-[140px] flex-col items-center justify-center gap-3 text-center">
-          <div className="text-[13px] text-mute">{state.message}</div>
+        <div className="flex h-[180px] flex-col items-center justify-center gap-3 text-center">
+          <div className="text-[13px] text-mute max-w-md">{state.message}</div>
           <button onClick={generate} className="btn-secondary">
             Retry
           </button>
