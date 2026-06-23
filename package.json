@@ -1,8 +1,8 @@
 {
-  "name": "grieve",
+  "name": "alpha",
   "version": "1.0.0",
   "private": true,
-  "description": "grieve — private portfolio intelligence",
+  "description": "alpha — private portfolio intelligence",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

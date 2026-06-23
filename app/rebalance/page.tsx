@@ -184,7 +184,7 @@ export default function RebalancePage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `grieve-rebalance-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `alpha-rebalance-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
