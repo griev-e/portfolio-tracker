@@ -910,7 +910,7 @@ function AllocatorCard({
       />
 
       {state.kind === "idle" && (
-        <div className="flex flex-col items-start gap-4">
+        <div className="flex flex-col items-center gap-4 text-center">
           <p className="max-w-2xl text-[12.5px] leading-relaxed text-mute">
             Claude reads your allocation, valuation, quality and concentration, then
             proposes how to put{" "}

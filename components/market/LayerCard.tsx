@@ -113,18 +113,25 @@ export function LayerCard({ layer, i }: { layer: LayerResult; i: number }) {
                 transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                 className="overflow-hidden"
               >
-                <div className="mt-3 space-y-1.5">
+                <div className="mt-3 space-y-2.5">
                   {layer.signals.map((sg) => (
-                    <div key={sg.id} className="flex items-center gap-2" title={sg.detail}>
-                      <span className="min-w-0 flex-1 truncate text-[11px] text-mute">
-                        {sg.label}
-                      </span>
-                      <ScoreBar score={sg.score} height={4} className="w-14 shrink-0" />
-                      <span
-                        className={`w-8 shrink-0 text-right font-mono tnum text-[10.5px] ${scoreTone(sg.score)}`}
-                      >
-                        {fmtScore(sg.score)}
-                      </span>
+                    <div key={sg.id}>
+                      <div className="flex items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate text-[11px] text-mute">
+                          {sg.label}
+                        </span>
+                        <ScoreBar score={sg.score} height={4} className="w-14 shrink-0" />
+                        <span
+                          className={`w-8 shrink-0 text-right font-mono tnum text-[10.5px] ${scoreTone(sg.score)}`}
+                        >
+                          {fmtScore(sg.score)}
+                        </span>
+                      </div>
+                      {sg.detail && (
+                        <p className="mt-0.5 text-[10px] leading-snug text-faint">
+                          {sg.detail}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -405,7 +405,7 @@ export default function MarketPage() {
         <div className="eyebrow">Eight analytical layers</div>
         <span className="font-mono text-[10px] text-faint">tap a card for its signals</span>
       </div>
-      <div className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-5 grid items-start gap-4 md:grid-cols-2 xl:grid-cols-4">
         {r.layers.map((layer, i) => (
           <LayerCard key={layer.id} layer={layer} i={i} />
         ))}

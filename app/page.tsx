@@ -321,18 +321,34 @@ export default function OverviewPage() {
                   ] as [SortKey, string, boolean][]
                 ).map(([key, label]) => {
                   const active = sortKey === key;
-                  const center = key !== "symbol";
+                  // Weight's bar grows from the left, so center its header; the
+                  // numeric columns are right-aligned, so their headers sit
+                  // right too, directly over the figures.
+                  const align =
+                    key === "symbol"
+                      ? "left"
+                      : key === "weight"
+                        ? "center"
+                        : "right";
                   return (
                     <th
                       key={key}
                       onClick={() => setSort(key)}
                       className={`group/th cursor-pointer select-none px-6 py-3 text-[11.5px] font-medium uppercase tracking-[0.04em] transition-colors hover:text-ink ${
-                        center ? "text-center" : "text-left"
+                        align === "right"
+                          ? "text-right"
+                          : align === "center"
+                            ? "text-center"
+                            : "text-left"
                       } ${active ? "text-mint" : "text-faint"}`}
                     >
                       <span
                         className={`inline-flex items-center gap-1 ${
-                          center ? "justify-center" : ""
+                          align === "center"
+                            ? "justify-center"
+                            : align === "right"
+                              ? "justify-end"
+                              : ""
                         }`}
                       >
                         <span>{label}</span>

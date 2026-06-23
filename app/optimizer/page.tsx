@@ -334,29 +334,35 @@ function ConstraintsCard({
               : "Held names are kept above the floor below — the optimizer trims them rather than exiting outright."}
           </p>
 
-          {!allowExit && (
-            <div className="mt-4">
-              <div className="mb-2 flex items-baseline justify-between">
-                <span className="text-[12.5px] text-mute">Minimum position</span>
-                <span className="font-mono tnum text-[13px] text-ink">
-                  {fmtPct(minWeight, 1)}
-                </span>
-              </div>
-              <input
-                type="range"
-                min={0.005}
-                max={0.05}
-                step={0.005}
-                value={minWeight}
-                onChange={(e) => setMinWeight(Number(e.target.value))}
-                className="w-full"
-              />
-              <p className="mt-1.5 text-[11px] leading-snug text-faint">
-                Smallest weight a holding you already own can be trimmed to before
-                it would count as a full exit.
-              </p>
+          {/* Kept mounted but greyed out when full exit is on, so the panel
+              doesn't jump as you toggle. */}
+          <div
+            className={`mt-4 transition-opacity ${
+              allowExit ? "pointer-events-none opacity-40" : "opacity-100"
+            }`}
+            aria-disabled={allowExit}
+          >
+            <div className="mb-2 flex items-baseline justify-between">
+              <span className="text-[12.5px] text-mute">Minimum position</span>
+              <span className="font-mono tnum text-[13px] text-ink">
+                {fmtPct(minWeight, 1)}
+              </span>
             </div>
-          )}
+            <input
+              type="range"
+              min={0.005}
+              max={0.05}
+              step={0.005}
+              value={minWeight}
+              disabled={allowExit}
+              onChange={(e) => setMinWeight(Number(e.target.value))}
+              className="w-full"
+            />
+            <p className="mt-1.5 text-[11px] leading-snug text-faint">
+              Smallest weight a holding you already own can be trimmed to before
+              it would count as a full exit.
+            </p>
+          </div>
         </div>
       </div>
     </Card>
@@ -1094,7 +1100,7 @@ function ReviewCard({
       />
 
       {state.kind === "idle" && (
-        <div className="flex flex-col items-start gap-4">
+        <div className="flex flex-col items-center gap-4 text-center">
           <p className="max-w-2xl text-[12.5px] leading-relaxed text-mute">
             Claude reads the{" "}
             <span className="font-mono text-ink">{objectiveLabel}</span> solution —
