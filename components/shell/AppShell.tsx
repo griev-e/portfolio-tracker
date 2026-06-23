@@ -67,7 +67,7 @@ export function Sigil({ size = 26 }: { size?: number }) {
 }
 
 /** Signs out by clearing the auth cookie, then sends the browser to /lock. */
-function SignOutButton() {
+function SignOutButton({ className = "" }: { className?: string }) {
   const [busy, setBusy] = useState(false);
   return (
     <button
@@ -83,7 +83,7 @@ function SignOutButton() {
       disabled={busy}
       title="Sign out"
       aria-label="Sign out"
-      className="flex h-7 w-7 items-center justify-center rounded-md text-mute transition-colors hover:bg-white/[0.06] hover:text-ink disabled:pointer-events-none"
+      className={`flex h-7 w-7 items-center justify-center rounded-md text-mute transition-colors hover:bg-white/[0.06] hover:text-ink disabled:pointer-events-none ${className}`}
     >
       <svg
         width="13"
@@ -320,12 +320,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               grieve
             </span>
           </Link>
-          <SignOutButton />
           {isDemo && (
-            <span className="ml-auto rounded-full border border-warn/30 bg-warn/10 px-2 py-0.5 text-[10px] font-medium text-warn">
+            <span className="rounded-full border border-warn/30 bg-warn/10 px-2 py-0.5 text-[10px] font-medium text-warn">
               Demo
             </span>
           )}
+          <SignOutButton className="ml-auto" />
         </div>
 
         <SidebarNav />
@@ -357,24 +357,24 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Mobile top bar */}
         <header className="lg:hidden sticky top-0 z-40 border-b border-edge bg-black/85 backdrop-blur-md">
           <div className="flex items-center justify-between px-4 py-3">
+            <Link href="/" className="flex items-center gap-2.5">
+              <Sigil size={22} />
+              <span className="text-[13px] font-medium text-ink">
+                grieve
+              </span>
+            </Link>
             <div className="flex items-center gap-1.5">
-              <Link href="/" className="flex items-center gap-2.5">
-                <Sigil size={22} />
-                <span className="text-[13px] font-medium text-ink">
-                  grieve
-                </span>
-              </Link>
+              {ready && portfolio && (
+                <>
+                  <RefreshButton refreshing={live.refreshing} onRefresh={refreshLive} />
+                  <LiveDot degraded={live.degraded || !live.quotesAt} />
+                  <span className="font-mono tnum text-[12px] text-mute">
+                    {fmtUSDCompact(portfolio.totalValue)}
+                  </span>
+                </>
+              )}
               <SignOutButton />
             </div>
-            {ready && portfolio && (
-              <div className="flex items-center gap-1.5">
-                <RefreshButton refreshing={live.refreshing} onRefresh={refreshLive} />
-                <LiveDot degraded={live.degraded || !live.quotesAt} />
-                <span className="font-mono tnum text-[12px] text-mute">
-                  {fmtUSDCompact(portfolio.totalValue)}
-                </span>
-              </div>
-            )}
           </div>
           <div className="flex gap-1 overflow-x-auto px-3 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {NAV.map((item) => {

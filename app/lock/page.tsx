@@ -117,22 +117,22 @@ export default function LockPage() {
           transition={{ delay: 0.2 }}
           className="font-display text-[22px] font-semibold tracking-[0.22em] text-ink"
         >
-          GRIEVE
+          grieve
         </motion.h1>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.35 }}
-          className="eyebrow mt-2"
-        >
-          {unlocked
-            ? "welcome back"
-            : locked
-              ? `too many tries — wait ${cooldown}s`
-              : error
-                ? "wrong pin"
-                : "enter pin"}
-        </motion.div>
+        {(unlocked || locked || error) && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.35 }}
+            className="eyebrow mt-2"
+          >
+            {unlocked
+              ? "welcome back"
+              : locked
+                ? `too many tries — wait ${cooldown}s`
+                : "wrong pin"}
+          </motion.div>
+        )}
       </div>
 
       {/* Hidden input drives the boxes; digits render censored. */}
