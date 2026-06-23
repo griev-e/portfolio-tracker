@@ -191,7 +191,7 @@ export default function LockPage() {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: "spring", stiffness: 500, damping: 22 }}
-                  className="font-mono text-[34px] leading-none"
+                  className="font-mono text-[34px] leading-none translate-y-[5px]"
                 >
                   *
                 </motion.span>
