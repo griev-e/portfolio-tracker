@@ -202,19 +202,6 @@ export default function LockPage() {
           );
         })}
       </motion.div>
-
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.8 }}
-        className="font-mono text-[10px] uppercase tracking-[0.18em] text-faint"
-      >
-        {checking
-          ? "verifying…"
-          : locked
-            ? "locked out — too many attempts"
-            : "private — authorized access only"}
-      </motion.p>
     </div>
   );
 }

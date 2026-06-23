@@ -66,6 +66,43 @@ export function Sigil({ size = 26 }: { size?: number }) {
   );
 }
 
+/** Signs out by clearing the auth cookie, then sends the browser to /lock. */
+function SignOutButton() {
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await fetch("/api/auth", { method: "DELETE" });
+        } finally {
+          // Full navigation so middleware re-evaluates with the cookie gone.
+          window.location.href = "/lock";
+        }
+      }}
+      disabled={busy}
+      title="Sign out"
+      aria-label="Sign out"
+      className="flex h-7 w-7 items-center justify-center rounded-md text-mute transition-colors hover:bg-white/[0.06] hover:text-ink disabled:pointer-events-none"
+    >
+      <svg
+        width="13"
+        height="13"
+        viewBox="0 0 20 20"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M8 3H4.5A1.5 1.5 0 0 0 3 4.5v11A1.5 1.5 0 0 0 4.5 17H8" />
+        <path d="M13 6l4 4-4 4" />
+        <path d="M17 10H7.5" />
+      </svg>
+    </button>
+  );
+}
+
 /** Manual refresh: punches through every cache layer for fresh quotes. */
 function RefreshButton({
   refreshing,
@@ -283,6 +320,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               grieve
             </span>
           </Link>
+          <SignOutButton />
           {isDemo && (
             <span className="ml-auto rounded-full border border-warn/30 bg-warn/10 px-2 py-0.5 text-[10px] font-medium text-warn">
               Demo
@@ -319,12 +357,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Mobile top bar */}
         <header className="lg:hidden sticky top-0 z-40 border-b border-edge bg-black/85 backdrop-blur-md">
           <div className="flex items-center justify-between px-4 py-3">
-            <Link href="/" className="flex items-center gap-2.5">
-              <Sigil size={22} />
-              <span className="text-[13px] font-medium text-ink">
-                grieve
-              </span>
-            </Link>
+            <div className="flex items-center gap-1.5">
+              <Link href="/" className="flex items-center gap-2.5">
+                <Sigil size={22} />
+                <span className="text-[13px] font-medium text-ink">
+                  grieve
+                </span>
+              </Link>
+              <SignOutButton />
+            </div>
             {ready && portfolio && (
               <div className="flex items-center gap-1.5">
                 <RefreshButton refreshing={live.refreshing} onRefresh={refreshLive} />

@@ -59,3 +59,10 @@ export async function POST(req: NextRequest) {
   });
   return res;
 }
+
+/** DELETE /api/auth — sign out by clearing the auth cookie. */
+export async function DELETE() {
+  const res = NextResponse.json({ ok: true });
+  res.cookies.delete(COOKIE);
+  return res;
+}
