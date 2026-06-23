@@ -179,9 +179,9 @@ export default function LockPage() {
                 error || locked
                   ? "border-neg/60 bg-neg/[0.06] text-neg"
                   : unlocked
-                    ? "border-mint/60 bg-mint/[0.08] text-mint"
+                    ? "border-ink/60 bg-ink/[0.08] text-ink"
                     : filled
-                      ? "border-mint/40 bg-mint/[0.05] text-mint"
+                      ? "border-ink/40 bg-ink/[0.05] text-ink"
                       : "border-edge bg-panel text-faint"
               }`}
               style={{ width: 52 }}
@@ -193,7 +193,7 @@ export default function LockPage() {
                   transition={{ type: "spring", stiffness: 500, damping: 22 }}
                   className="font-mono"
                 >
-                  ✱
+                  •
                 </motion.span>
               ) : (
                 <span className="font-mono opacity-40">·</span>
