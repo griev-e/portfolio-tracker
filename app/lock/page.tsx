@@ -65,25 +65,12 @@ export default function LockPage() {
             }
           }, 650);
         } else {
+          // Stays red/"wrong pin" until the user edits the input themselves
+          // (see the input's onChange) rather than auto-clearing on a timer.
           setError(true);
-          setTimeout(() => {
-            if (!cancelled) {
-              setError(false);
-              setPin("");
-              inputRef.current?.focus();
-            }
-          }, 5000);
         }
       } catch {
-        if (!cancelled) {
-          setError(true);
-          setTimeout(() => {
-            if (!cancelled) {
-              setError(false);
-              setPin("");
-            }
-          }, 5000);
-        }
+        if (!cancelled) setError(true);
       } finally {
         if (!cancelled) setChecking(false);
       }
@@ -152,7 +139,11 @@ export default function LockPage() {
         disabled={locked}
         onChange={(e) => {
           if (locked) return;
-          setPin(e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH));
+          const next = e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH);
+          // Wrong-pin state clears as soon as the user starts correcting it
+          // (deleting a digit), not on a timer.
+          if (error && next.length < pin.length) setError(false);
+          setPin(next);
         }}
         className="absolute h-0 w-0 opacity-0"
         aria-label="PIN"
