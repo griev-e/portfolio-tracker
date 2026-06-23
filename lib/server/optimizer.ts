@@ -68,7 +68,10 @@ export function optimizerErrorResponse(err: unknown): {
     return { status: 501, error: "optimizer not configured" };
   if (err instanceof Anthropic.RateLimitError)
     return { status: 429, error: "optimizer rate limited" };
-  if (err instanceof Anthropic.APIConnectionTimeoutError)
+  if (
+    err instanceof Anthropic.APIConnectionTimeoutError ||
+    err instanceof Anthropic.APIUserAbortError
+  )
     return { status: 504, error: "optimizer review timed out — try again" };
   return { status: 502, error: "optimizer unavailable" };
 }
@@ -230,51 +233,68 @@ function buildUserMessage(req: OptimizerRequest): string {
   ].join("\n");
 }
 
+// Hard wall-clock deadline for the whole call, comfortably inside the route's
+// maxDuration (60s) so a slow turn raises a catchable abort instead of the
+// platform killing the function outright and returning a bare 504. The SDK's
+// own `timeout` option resets on every streamed chunk (it's an idle timeout,
+// not a total one) — adaptive thinking streams deltas the whole time it's
+// "thinking", so that option alone never fires here and the request was
+// riding all the way to the platform's hard cutoff. This timer fires on
+// elapsed time regardless of stream activity.
+const DEADLINE_MS = 50_000;
+
 export async function generateOptimization(
   req: OptimizerRequest
 ): Promise<{ plan: OptimizerPlan; costUSD: number | null }> {
-  // reads ANTHROPIC_API_KEY; caller checks optimizerConfigured() first. Stream +
-  // finalMessage keeps the connection alive while the model thinks. The SDK
-  // timeout is kept well under the route's maxDuration (60s) so a slow turn
-  // throws a catchable APIConnectionTimeoutError instead of the platform
-  // killing the function and returning a bare 504; no retry budget, since a
-  // retry on a near-deadline request would blow through the ceiling anyway.
+  // reads ANTHROPIC_API_KEY; caller checks optimizerConfigured() first. No
+  // retry budget: a retry on a near-deadline request would blow through the
+  // ceiling anyway.
   const client = new Anthropic({ timeout: 45_000, maxRetries: 0 });
   genCount += 1;
-  const stream = client.messages.stream({
-    model: OPTIMIZER_MODEL,
-    // Thinking tokens count against max_tokens — too tight a cap truncates the
-    // run before the structured JSON gets written.
-    max_tokens: 8_000,
-    // Adaptive thinking lets the model reason through the tradeoffs; the schema
-    // constrains the final shape, so no reasoning leaks into the JSON.
-    thinking: { type: "adaptive" },
-    system: SYSTEM,
-    output_config: {
-      format: { type: "json_schema", schema: PLAN_SCHEMA },
-      effort: OPTIMIZER_EFFORT,
-    },
-    messages: [{ role: "user", content: buildUserMessage(req) }],
-  });
+  const controller = new AbortController();
+  const deadline = setTimeout(() => controller.abort(), DEADLINE_MS);
+  try {
+    const stream = client.messages.stream(
+      {
+        model: OPTIMIZER_MODEL,
+        // Thinking tokens count against max_tokens — too tight a cap truncates
+        // the run before the structured JSON gets written.
+        max_tokens: 8_000,
+        // Adaptive thinking lets the model reason through the tradeoffs; the
+        // schema constrains the final shape, so no reasoning leaks into the
+        // JSON.
+        thinking: { type: "adaptive" },
+        system: SYSTEM,
+        output_config: {
+          format: { type: "json_schema", schema: PLAN_SCHEMA },
+          effort: OPTIMIZER_EFFORT,
+        },
+        messages: [{ role: "user", content: buildUserMessage(req) }],
+      },
+      { signal: controller.signal }
+    );
 
-  const response = await stream.finalMessage();
-  if (response.stop_reason === "refusal") {
-    throw new Error("optimization review declined");
-  }
-  if (response.stop_reason === "max_tokens") {
-    throw new Error("optimization review truncated: hit max_tokens before completing");
-  }
-  for (const block of response.content) {
-    if (block.type === "text") {
-      try {
-        return {
-          plan: JSON.parse(block.text) as OptimizerPlan,
-          costUSD: usdCost(OPTIMIZER_MODEL, response.usage),
-        };
-      } catch {
-        throw new Error(`optimization review returned unparseable JSON: ${block.text.slice(0, 200)}`);
+    const response = await stream.finalMessage();
+    if (response.stop_reason === "refusal") {
+      throw new Error("optimization review declined");
+    }
+    if (response.stop_reason === "max_tokens") {
+      throw new Error("optimization review truncated: hit max_tokens before completing");
+    }
+    for (const block of response.content) {
+      if (block.type === "text") {
+        try {
+          return {
+            plan: JSON.parse(block.text) as OptimizerPlan,
+            costUSD: usdCost(OPTIMIZER_MODEL, response.usage),
+          };
+        } catch {
+          throw new Error(`optimization review returned unparseable JSON: ${block.text.slice(0, 200)}`);
+        }
       }
     }
+    throw new Error("empty optimization response");
+  } finally {
+    clearTimeout(deadline);
   }
-  throw new Error("empty optimization response");
 }
