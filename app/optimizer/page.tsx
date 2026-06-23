@@ -963,19 +963,20 @@ function useOptimizerReview(
         throw new Error(
           typeof body?.error === "string"
             ? `${body.error} (${res.status})`
-            : `status ${res.status}`
+            : `HTTP ${res.status}`
         );
       }
       setState({ kind: "ready", data: (await res.json()) as OptimizerResponse });
     } catch (err) {
-      console.error("optimizer review failed:", err);
-      setState({
-        kind: "error",
-        message:
-          err instanceof Error && err.message
-            ? `AI optimizer unavailable: ${err.message}`
-            : "AI optimizer unreachable.",
-      });
+      console.error("Optimizer review failed:", err);
+      let msg =
+        err instanceof Error && err.message
+          ? `AI optimizer unavailable: ${err.message}`
+          : "AI optimizer unreachable.";
+      if (err instanceof Error && err.message.includes("Failed to fetch")) {
+        msg = "Network error — make sure the app is deployed and reachable.";
+      }
+      setState({ kind: "error", message: msg });
     }
   }, []);
 
@@ -1053,8 +1054,8 @@ function ReviewCard({
       )}
 
       {state.kind === "error" && (
-        <div className="flex h-[140px] flex-col items-center justify-center gap-3 text-center">
-          <div className="text-[13px] text-mute">{state.message}</div>
+        <div className="flex h-[180px] flex-col items-center justify-center gap-3 text-center">
+          <div className="text-[13px] text-mute max-w-md">{state.message}</div>
           <button onClick={generate} className="btn-secondary">
             Retry
           </button>
