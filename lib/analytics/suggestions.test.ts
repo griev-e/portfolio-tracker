@@ -41,7 +41,7 @@ describe("suggestionReport", () => {
       expect(s.score).toBeGreaterThanOrEqual(0);
       expect(s.score).toBeLessThanOrEqual(100);
       expect(s.reasons.length).toBeGreaterThan(0);
-      expect(s.reasons.length).toBeLessThanOrEqual(3);
+      expect(s.reasons.length).toBeLessThanOrEqual(4);
     }
   });
 
@@ -99,5 +99,48 @@ describe("suggestionReport", () => {
     expect(sectors).toContain("Health Care");
     expect(sectors).toContain("Diversified");
     expect(sectors.length).toBeGreaterThan(3);
+  });
+
+  it("exposes baseline portfolio risk/return metrics", () => {
+    const { context } = suggestionReport(techHeavyBook());
+    const m = context.metrics;
+    expect(m.expectedReturn).toBeGreaterThan(0);
+    expect(m.volatility).toBeGreaterThan(0);
+    expect(Number.isFinite(m.sharpe)).toBe(true);
+    expect(m.beta).toBeGreaterThan(0);
+    expect(m.effectiveHoldings).toBeGreaterThan(1);
+    expect(m.effectiveHoldings).toBeLessThanOrEqual(3 + 1e-9); // 3 names
+    expect(m.diversificationRatio).toBeGreaterThanOrEqual(1);
+  });
+
+  it("computes a marginal impact for every suggestion, against the same baseline", () => {
+    const { context, suggestions } = suggestionReport(techHeavyBook());
+    for (const s of suggestions) {
+      expect(s.impact.addWeight).toBeCloseTo(0.05);
+      expect(s.impact.before.sharpe).toBeCloseTo(context.metrics.sharpe);
+      // deltas are internally consistent
+      expect(s.impact.dSharpe).toBeCloseTo(s.impact.after.sharpe - s.impact.before.sharpe);
+      expect(s.impact.dEffectiveHoldings).toBeCloseTo(
+        s.impact.after.effectiveHoldings - s.impact.before.effectiveHoldings
+      );
+    }
+  });
+
+  it("adding any name to a 3-name book raises effective holdings", () => {
+    const { suggestions } = suggestionReport(techHeavyBook());
+    // Every add dilutes a concentrated book, so effective N must rise.
+    for (const s of suggestions) {
+      expect(s.impact.dEffectiveHoldings).toBeGreaterThan(0);
+    }
+  });
+
+  it("a low-beta diversifier improves the book more than a high-beta tech name", () => {
+    const { suggestions } = suggestionReport(techHeavyBook());
+    const ko = find(suggestions, "KO"); // low beta, defensive
+    const amd = find(suggestions, "AMD"); // high beta, same tech cluster
+    expect(ko).toBeDefined();
+    expect(amd).toBeDefined();
+    // The defensive name should reduce concentration risk more (lower added vol).
+    expect(ko!.impact.dVolatility).toBeLessThan(amd!.impact.dVolatility);
   });
 });

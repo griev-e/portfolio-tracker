@@ -10,12 +10,12 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     version: "1.22",
     date: "2026-06-24",
-    title: "Discover — stock idea engine",
+    title: "Discover — risk-aware stock idea engine",
     changes: [
-      "New Discover tab (under Portfolio): ranked suggestions for stocks to add, screened across the bundled universe for names you don't already hold. Each idea gets a 0–100 conviction score and a plain-language read on why it fits.",
-      "Suggestions are portfolio-aware, not a generic screen: a fit score rewards names that fill the sectors your book is light in (vs the S&P 500) and surfaces broad-market funds when your holdings are concentrated — so the same universe ranks differently for different books.",
-      "Conviction blends six sub-scores — quality, growth, value, momentum, analyst posture and portfolio fit — each shown as a mini bar on the card. A sector dropdown filters the view; the default is the top additions across every sector.",
-      "When live quotes are available, each card overlays the implied upside to the mean analyst target (display only — the ranking stays fully deterministic and works offline). Cards deep-link into Research via a new ?symbol= parameter.",
+      "New Discover tab (under Portfolio): ranked suggestions for stocks to add, screened across the bundled universe for names you don't already hold. A browsable master–detail terminal — pick from the ranked list, study the full read on the right.",
+      "Genuinely portfolio-aware. Beyond standalone merit (quality, growth, value, momentum, analyst posture), the fit score models the marginal impact of actually adding each name: how a 5% position would move your book's Sharpe ratio, effective-holding count and diversification — reusing the Risk page's factor covariance and CAPM expected returns, so the numbers reconcile.",
+      "The detail panel shows a six-axis radar of the idea vs the market, the reasons it ranks where it does, a full fundamentals grid, and a Portfolio impact section with before → after for expected return, volatility, Sharpe, beta, effective holdings and diversification. A snapshot bar keeps your current book metrics in view.",
+      "A sector dropdown filters the view; the default is the top additions across every sector. When live quotes are available, the implied upside to the mean analyst target is overlaid (display only — the ranking stays deterministic and works offline). Cards deep-link into Research via a new ?symbol= parameter.",
     ],
   },
   {

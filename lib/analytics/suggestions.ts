@@ -1,6 +1,7 @@
-import { SPX } from "../data/benchmarks";
-import { getFundamentals, knownSymbols } from "../data/fundamentals";
+import { CMA, SPX } from "../data/benchmarks";
+import { getFundamentals, knownSymbols, UNKNOWN_DEFAULTS } from "../data/fundamentals";
 import type { AnalystRating, Fundamentals, Portfolio, Sector } from "../types";
+import { corrInputs, factorCovariance, type CorrInputs } from "./correlation";
 
 /**
  * Discover — stock-idea engine.
@@ -8,10 +9,13 @@ import type { AnalystRating, Fundamentals, Portfolio, Sector } from "../types";
  * Screens the bundled fundamentals universe for names you do NOT already hold
  * and ranks them as *additions to this specific portfolio*. Each candidate gets
  * six 0–100 sub-scores: five standalone (quality, growth, value, momentum,
- * analyst posture) and one portfolio-aware **fit** score that rewards filling
- * the sectors your book is light in and relieving concentration. The composite
- * is a fixed-weight blend, nudged by insider posture, and every suggestion
- * carries plain-language reasons drawn from the same numbers.
+ * analyst posture) and one portfolio-aware **fit** score.
+ *
+ * Fit is genuinely portfolio-level: it blends the sector gap vs the S&P 500 with
+ * the *marginal risk/return impact* of actually adding the name — how a 5%
+ * position would move the book's Sharpe ratio, effective-holding count and
+ * diversification. Those marginals reuse the same PSD factor covariance and
+ * CAPM expected returns the Risk page is built on, so the numbers reconcile.
  *
  * All pure and deterministic — same portfolio in, same ranking out. Live prices
  * never enter the score; the page may overlay an implied-upside figure for
@@ -30,8 +34,31 @@ export interface SubScores {
 export type SubScoreId = keyof SubScores;
 
 export interface SuggestionReason {
-  kind: SubScoreId | "income" | "insider";
+  kind: SubScoreId | "income" | "insider" | "risk";
   text: string;
+}
+
+/** Book-level risk/return snapshot (mirrors the Risk page definitions). */
+export interface PortfolioMetrics {
+  expectedReturn: number; // CAPM, decimal
+  volatility: number; // annualized, decimal
+  sharpe: number;
+  beta: number; // incl. cash drag
+  effectiveHoldings: number; // 1 / HHI on the invested book
+  diversificationRatio: number; // Σwσ / σ_p, invested
+}
+
+/** What adding a fixed-size position in a candidate would do to the book. */
+export interface MarginalImpact {
+  addWeight: number; // the notional add, as a fraction of the post-trade book
+  before: PortfolioMetrics;
+  after: PortfolioMetrics;
+  dExpectedReturn: number;
+  dVolatility: number;
+  dSharpe: number;
+  dBeta: number;
+  dEffectiveHoldings: number;
+  dDiversificationRatio: number;
 }
 
 export interface Suggestion {
@@ -48,29 +75,33 @@ export interface Suggestion {
   rating: AnalystRating;
   /** Mean 12m analyst target (snapshot). */
   priceTarget: number;
+  /** Marginal risk/return impact of a model-sized add. */
+  impact: MarginalImpact;
 }
 
 export interface SectorGap {
   sector: Sector;
-  held: number; // invested weight in your book
-  target: number; // S&P 500 weight
+  held: number;
+  target: number;
   gap: number; // target − held; positive = you're underweight
 }
 
 export interface SuggestionContext {
-  /** Invested (ex-cash) sector weights of the current book. */
   sectorWeights: Partial<Record<Sector, number>>;
-  /** Herfindahl concentration of invested weights (0–1; higher = tighter). */
-  concentration: number;
-  /** Sectors the book is most underweight vs the S&P 500, biggest gap first. */
+  concentration: number; // Herfindahl of invested weights
   gaps: SectorGap[];
   heldSymbols: string[];
+  /** Current book metrics, the baseline every marginal impact is measured against. */
+  metrics: PortfolioMetrics;
 }
 
 export interface SuggestionReport {
   context: SuggestionContext;
   suggestions: Suggestion[];
 }
+
+/** The notional position size used for the marginal-impact analysis. */
+export const MODEL_ADD_WEIGHT = 0.05;
 
 const SUB_SCORE_WEIGHTS: SubScores = {
   quality: 0.22,
@@ -90,14 +121,13 @@ export const SUB_SCORE_LABEL: Record<SubScoreId, string> = {
   fit: "Fit",
 };
 
-/** Short headline shown as the card's lead tag, keyed by dominant sub-score. */
 export const LEAD_TAG: Record<SubScoreId, string> = {
   quality: "Quality compounder",
   growth: "High growth",
   value: "Attractively priced",
   momentum: "Strong momentum",
   analyst: "Street favorite",
-  fit: "Fills a gap",
+  fit: "Strong portfolio fit",
 };
 
 const RATING_SCORE: Record<AnalystRating, number> = {
@@ -110,7 +140,6 @@ const RATING_SCORE: Record<AnalystRating, number> = {
 
 const clamp = (x: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, x));
 
-/** Logistic score vs a benchmark: 50 = in line, saturating toward 0/100. */
 function relScore(value: number, benchmark: number, lowerIsBetter = false): number {
   if (!Number.isFinite(value) || benchmark === 0) return 50;
   const ratio = value / benchmark;
@@ -118,11 +147,12 @@ function relScore(value: number, benchmark: number, lowerIsBetter = false): numb
   return clamp(100 / (1 + Math.exp(-(x - 1) * 2.6)));
 }
 
-/** Weighted average of (score, weight) pairs. */
 const blend = (parts: [number, number][]): number => {
   const w = parts.reduce((s, [, wt]) => s + wt, 0);
   return w > 0 ? parts.reduce((s, [v, wt]) => s + v * wt, 0) / w : 50;
 };
+
+/* --------------------------- standalone sub-scores --------------------------- */
 
 function qualityScore(f: Fundamentals): number {
   return blend([
@@ -142,10 +172,8 @@ function growthScore(f: Fundamentals): number {
 
 function valueScore(f: Fundamentals): number {
   const profitable = f.forwardPE != null && f.forwardPE > 0;
-  // Unprofitable names anchor low on multiples but still earn back via FCF yield.
   const peScore = profitable ? relScore(f.forwardPE!, SPX.forwardPE, true) : 22;
-  const peg =
-    profitable && f.epsGrowth > 0 ? f.forwardPE! / (f.epsGrowth * 100) : null;
+  const peg = profitable && f.epsGrowth > 0 ? f.forwardPE! / (f.epsGrowth * 100) : null;
   const pegBench = SPX.forwardPE / (SPX.epsGrowth * 100);
   const pegScore = peg != null ? relScore(peg, pegBench, true) : 40;
   const fcfScore = relScore(f.fcfYield, SPX.fcfYield);
@@ -157,8 +185,6 @@ function valueScore(f: Fundamentals): number {
 }
 
 function momentumScore(f: Fundamentals): number {
-  // Reward a healthy uptrend without chasing parabolas: scores taper past ~3×
-  // the market's trailing return.
   const r = f.return12m;
   if (r <= SPX.return12m) return relScore(r, Math.abs(SPX.return12m) || 0.1);
   const excess = Math.min(r - SPX.return12m, 0.9);
@@ -167,27 +193,160 @@ function momentumScore(f: Fundamentals): number {
 
 function analystScore(f: Fundamentals): number {
   const base = RATING_SCORE[f.analyst.rating] ?? 50;
-  // Deeper coverage firms up a bullish/bearish read a touch.
   const conviction = Math.min((f.analyst.count ?? 0) / 35, 1);
   return clamp(50 + (base - 50) * (0.7 + 0.3 * conviction));
 }
 
+/* ----------------------------- portfolio metrics ----------------------------- */
+
+/** Quadratic form wᵀΣw. */
+function quad(w: number[], cov: number[][]): number {
+  let v = 0;
+  for (let i = 0; i < w.length; i++) {
+    const row = cov[i];
+    for (let j = 0; j < w.length; j++) v += w[i] * w[j] * row[j];
+  }
+  return v;
+}
+
+function candInputs(f: Fundamentals): CorrInputs {
+  return {
+    symbol: f.symbol,
+    beta: f.beta,
+    vol: f.volatility,
+    sector: f.sector,
+    industry: f.industry,
+    isFund: !!f.fund,
+  };
+}
+
 /**
- * Portfolio-aware fit. Broad funds score on how concentrated your book is;
- * single names score on how underweight their sector is vs the S&P 500, with a
- * bonus for sectors you barely touch.
+ * Book metrics from CAPM + the PSD factor covariance.
+ * `wTot` are total weights (positions; cash held separately as `cashW`);
+ * `wEq` are invested (ex-cash) weights that sum to 1 over the positions.
  */
-function fitScore(sector: Sector, ctx: SuggestionContext): number {
+function portfolioMetrics(
+  inputs: CorrInputs[],
+  cov: number[][],
+  wTot: number[],
+  wEq: number[],
+  cashW: number
+): PortfolioMetrics {
+  const rf = CMA.riskFree;
+  const erp = CMA.equityRiskPremium;
+
+  let beta = 0;
+  let expectedReturn = cashW * rf;
+  for (let i = 0; i < inputs.length; i++) {
+    beta += wTot[i] * inputs[i].beta;
+    expectedReturn += wTot[i] * (rf + inputs[i].beta * erp);
+  }
+
+  const volatility = Math.sqrt(Math.max(quad(wTot, cov), 0));
+  const sharpe = volatility > 0 ? (expectedReturn - rf) / volatility : 0;
+
+  const hhi = wEq.reduce((s, w) => s + w * w, 0);
+  const effectiveHoldings = hhi > 0 ? 1 / hhi : 0;
+
+  const wAvgVol = wEq.reduce((s, w, i) => s + w * inputs[i].vol, 0);
+  const investedVol = Math.sqrt(Math.max(quad(wEq, cov), 0));
+  const diversificationRatio = investedVol > 0 ? wAvgVol / investedVol : 1;
+
+  return {
+    expectedReturn,
+    volatility,
+    sharpe,
+    beta,
+    effectiveHoldings,
+    diversificationRatio,
+  };
+}
+
+interface BaseState {
+  inputs: CorrInputs[];
+  wTot: number[];
+  wEq: number[];
+  cashW: number;
+  metrics: PortfolioMetrics;
+}
+
+function baseState(portfolio: Portfolio): BaseState {
+  const ps = portfolio.positions;
+  const inputs = ps.map(corrInputs);
+  const cov = factorCovariance(inputs);
+  const wTot = ps.map((p) => p.weight);
+  const wEq = ps.map((p) => p.equityWeight);
+  const cashW = portfolio.cashWeight;
+  return {
+    inputs,
+    wTot,
+    wEq,
+    cashW,
+    metrics: portfolioMetrics(inputs, cov, wTot, wEq, cashW),
+  };
+}
+
+/** Marginal impact of adding `f` at weight `t` of the post-trade book. */
+function marginalImpact(base: BaseState, f: Fundamentals, t = MODEL_ADD_WEIGHT): MarginalImpact {
+  const inputs2 = [...base.inputs, candInputs(f)];
+  const cov2 = factorCovariance(inputs2);
+
+  const wTot2 = [...base.wTot.map((w) => w * (1 - t)), t];
+  const cashW2 = base.cashW * (1 - t);
+
+  // Renormalize invested weights over the existing names + the new position.
+  const investedMass = (1 - t) * (1 - base.cashW) + t;
+  const wEq2 = [
+    ...base.wEq.map((w) => (w * (1 - t) * (1 - base.cashW)) / investedMass),
+    t / investedMass,
+  ];
+
+  const after = portfolioMetrics(inputs2, cov2, wTot2, wEq2, cashW2);
+  const before = base.metrics;
+  return {
+    addWeight: t,
+    before,
+    after,
+    dExpectedReturn: after.expectedReturn - before.expectedReturn,
+    dVolatility: after.volatility - before.volatility,
+    dSharpe: after.sharpe - before.sharpe,
+    dBeta: after.beta - before.beta,
+    dEffectiveHoldings: after.effectiveHoldings - before.effectiveHoldings,
+    dDiversificationRatio: after.diversificationRatio - before.diversificationRatio,
+  };
+}
+
+/* -------------------------------- fit score -------------------------------- */
+
+/** Sector/concentration component of fit. */
+function sectorFit(sector: Sector, ctx: SuggestionContext): number {
   if (sector === "Diversified") {
-    // A total-market fund is most valuable to a tightly concentrated book.
     return clamp(45 + (ctx.concentration - 0.06) * 260, 20, 100);
   }
   const held = ctx.sectorWeights[sector] ?? 0;
   const target = SPX.sectorWeights[sector] ?? 0.02;
   let s = 50 + (target - held) * 170;
-  if (held < 0.02) s += 14; // effectively new exposure
-  if (held > target * 1.6) s -= 6; // already crowded here
+  if (held < 0.02) s += 14;
+  if (held > target * 1.6) s -= 6;
   return clamp(s, 4, 100);
+}
+
+/**
+ * Portfolio fit = sector gap blended with the marginal risk/return impact of
+ * actually adding the name. Names that lift Sharpe and diversify the book are
+ * rewarded; ones that concentrate it are penalized.
+ */
+function fitScore(sector: Sector, ctx: SuggestionContext, m: MarginalImpact): number {
+  const sectorComp = sectorFit(sector, ctx);
+  const sharpeComp = clamp(50 + m.dSharpe * 700);
+  const diversComp = clamp(50 + m.dEffectiveHoldings * 45 + m.dDiversificationRatio * 120);
+  return clamp(
+    blend([
+      [sectorComp, 0.45],
+      [sharpeComp, 0.33],
+      [diversComp, 0.22],
+    ])
+  );
 }
 
 function compositeOf(sub: SubScores, f: Fundamentals): number {
@@ -200,13 +359,15 @@ function compositeOf(sub: SubScores, f: Fundamentals): number {
   return clamp(s);
 }
 
+/* --------------------------------- reasons --------------------------------- */
+
 const pct = (x: number, d = 0) => `${(x * 100).toFixed(d)}%`;
 
-/** Build ranked reasons; the strongest sub-scores surface first. */
 function buildReasons(
   f: Fundamentals,
   sub: SubScores,
-  ctx: SuggestionContext
+  ctx: SuggestionContext,
+  m: MarginalImpact
 ): SuggestionReason[] {
   const pool: { reason: SuggestionReason; strength: number }[] = [];
 
@@ -239,6 +400,37 @@ function buildReasons(
       });
     }
   }
+
+  // Risk/return marginals — the genuinely portfolio-level reasons.
+  if (m.dSharpe > 0.008)
+    pool.push({
+      reason: {
+        kind: "risk",
+        text: `Lifts the book's Sharpe ${m.before.sharpe.toFixed(2)} → ${m.after.sharpe.toFixed(2)}`,
+      },
+      strength: 60 + m.dSharpe * 400,
+    });
+  if (m.dEffectiveHoldings > 0.25)
+    pool.push({
+      reason: {
+        kind: "risk",
+        text: `Spreads risk wider — effective holdings ${m.before.effectiveHoldings.toFixed(1)} → ${m.after.effectiveHoldings.toFixed(1)}`,
+      },
+      strength: 55 + m.dEffectiveHoldings * 20,
+    });
+  if (m.dVolatility < -0.0015)
+    pool.push({
+      reason: { kind: "risk", text: `Lowers portfolio volatility by ${pct(-m.dVolatility, 1)}` },
+      strength: 54,
+    });
+  else if (m.dBeta < -0.015)
+    pool.push({
+      reason: {
+        kind: "risk",
+        text: `Pulls portfolio beta ${m.before.beta.toFixed(2)} → ${m.after.beta.toFixed(2)}`,
+      },
+      strength: 52,
+    });
 
   if (sub.quality >= 60)
     pool.push({
@@ -289,13 +481,8 @@ function buildReasons(
     });
 
   if (f.insider.signal === "Buying")
-    pool.push({
-      reason: { kind: "insider", text: `Insiders are net buyers` },
-      strength: 52,
-    });
+    pool.push({ reason: { kind: "insider", text: `Insiders are net buyers` }, strength: 52 });
 
-  // Baseline so every card says something, even a middling name in a crowded
-  // sector. Strength 1 keeps it last — it only shows when nothing stronger does.
   pool.push({
     reason: {
       kind: "fit",
@@ -308,7 +495,7 @@ function buildReasons(
   });
 
   pool.sort((a, b) => b.strength - a.strength);
-  return pool.slice(0, 3).map((p) => p.reason);
+  return pool.slice(0, 4).map((p) => p.reason);
 }
 
 function fmtTarget(f: Fundamentals): string {
@@ -317,12 +504,11 @@ function fmtTarget(f: Fundamentals): string {
 }
 
 function leadOf(sub: SubScores): SubScoreId {
-  return (Object.keys(sub) as SubScoreId[]).reduce((a, b) =>
-    sub[b] > sub[a] ? b : a
-  );
+  return (Object.keys(sub) as SubScoreId[]).reduce((a, b) => (sub[b] > sub[a] ? b : a));
 }
 
-/** Invested (ex-cash) sector weights + Herfindahl concentration of the book. */
+/* --------------------------------- context --------------------------------- */
+
 function analyzePortfolio(portfolio: Portfolio): {
   sectorWeights: Partial<Record<Sector, number>>;
   concentration: number;
@@ -332,8 +518,8 @@ function analyzePortfolio(portfolio: Portfolio): {
   for (const p of portfolio.positions) {
     const w = p.equityWeight;
     hhi += w * w;
-    const sec = p.fundamentals?.sector;
-    if (sec) sectorWeights[sec] = (sectorWeights[sec] ?? 0) + w;
+    const sec = p.fundamentals?.sector ?? UNKNOWN_DEFAULTS.sector;
+    sectorWeights[sec] = (sectorWeights[sec] ?? 0) + w;
   }
   return { sectorWeights, concentration: hhi };
 }
@@ -349,9 +535,7 @@ function gapsOf(sectorWeights: Partial<Record<Sector, number>>): SectorGap[] {
 }
 
 export interface SuggestionOptions {
-  /** Restrict to a single sector ("Diversified" = ETFs/funds). */
   sector?: Sector | "all";
-  /** Cap the returned list. */
   limit?: number;
 }
 
@@ -359,6 +543,7 @@ export function suggestionReport(
   portfolio: Portfolio,
   opts: SuggestionOptions = {}
 ): SuggestionReport {
+  const base = baseState(portfolio);
   const { sectorWeights, concentration } = analyzePortfolio(portfolio);
   const heldSymbols = portfolio.positions.map((p) => p.symbol.toUpperCase());
   const held = new Set(heldSymbols);
@@ -367,6 +552,7 @@ export function suggestionReport(
     concentration,
     gaps: gapsOf(sectorWeights),
     heldSymbols,
+    metrics: base.metrics,
   };
 
   const wantSector = opts.sector && opts.sector !== "all" ? opts.sector : null;
@@ -378,13 +564,14 @@ export function suggestionReport(
     if (!f) continue;
     if (wantSector && f.sector !== wantSector) continue;
 
+    const impact = marginalImpact(base, f);
     const sub: SubScores = {
       quality: qualityScore(f),
       growth: growthScore(f),
       value: valueScore(f),
       momentum: momentumScore(f),
       analyst: analystScore(f),
-      fit: fitScore(f.sector, context),
+      fit: fitScore(f.sector, context, impact),
     };
     const score = compositeOf(sub, f);
     suggestions.push({
@@ -395,9 +582,10 @@ export function suggestionReport(
       score,
       subScores: sub,
       lead: leadOf(sub),
-      reasons: buildReasons(f, sub, context),
+      reasons: buildReasons(f, sub, context, impact),
       rating: f.analyst.rating,
       priceTarget: f.analyst.priceTarget,
+      impact,
     });
   }
 
@@ -408,7 +596,6 @@ export function suggestionReport(
   };
 }
 
-/** Sectors present among candidates not already held, for the filter dropdown. */
 export function availableSectors(portfolio: Portfolio): Sector[] {
   const held = new Set(portfolio.positions.map((p) => p.symbol.toUpperCase()));
   const seen = new Set<Sector>();
