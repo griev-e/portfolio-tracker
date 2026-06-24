@@ -8,6 +8,17 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.22",
+    date: "2026-06-24",
+    title: "Discover — stock idea engine",
+    changes: [
+      "New Discover tab (under Portfolio): ranked suggestions for stocks to add, screened across the bundled universe for names you don't already hold. Each idea gets a 0–100 conviction score and a plain-language read on why it fits.",
+      "Suggestions are portfolio-aware, not a generic screen: a fit score rewards names that fill the sectors your book is light in (vs the S&P 500) and surfaces broad-market funds when your holdings are concentrated — so the same universe ranks differently for different books.",
+      "Conviction blends six sub-scores — quality, growth, value, momentum, analyst posture and portfolio fit — each shown as a mini bar on the card. A sector dropdown filters the view; the default is the top additions across every sector.",
+      "When live quotes are available, each card overlays the implied upside to the mean analyst target (display only — the ranking stays fully deterministic and works offline). Cards deep-link into Research via a new ?symbol= parameter.",
+    ],
+  },
+  {
     version: "1.21",
     date: "2026-06-24",
     title: "Analytics audit — math fixes",

@@ -44,6 +44,16 @@ export default function ResearchPage() {
   const [range, setRange] = useState<HistoryRange>("1y");
   const [touched, setTouched] = useState(false);
 
+  // A ?symbol= deep-link (e.g. from Discover) wins over the default and counts
+  // as a deliberate pick so the largest-holding default doesn't clobber it.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("symbol");
+    if (q) {
+      setTouched(true);
+      setSymbol(q.toUpperCase());
+    }
+  }, []);
+
   // Default to the largest holding once the portfolio loads, unless the user
   // has already picked a ticker themselves.
   const defaultSymbol = portfolio?.positions[0]?.symbol ?? null;

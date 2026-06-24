@@ -8,6 +8,7 @@ import { fmtUSDCompact } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import {
   IconBenchmark,
+  IconDiscover,
   IconDividend,
   IconImport,
   IconIntelligence,
@@ -32,6 +33,7 @@ const NAV = [
   { href: "/research", label: "Research", icon: IconResearch, group: "Portfolio" },
   { href: "/dividends", label: "Dividends", icon: IconDividend, group: "Portfolio" },
   { href: "/rebalance", label: "Rebalance", icon: IconRebalance, group: "Portfolio" },
+  { href: "/discover", label: "Discover", icon: IconDiscover, group: "Portfolio" },
   { href: "/optimizer", label: "Optimizer", icon: IconOptimizer, group: "Analysis" },
   { href: "/market", label: "Market Analysis", icon: IconMarket, group: "Analysis" },
   { href: "/quality", label: "Quality", icon: IconQuality, group: "Analysis" },

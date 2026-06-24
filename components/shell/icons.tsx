@@ -131,6 +131,14 @@ export const IconRebalance = () => (
   </svg>
 );
 
+export const IconDiscover = () => (
+  <svg {...base}>
+    <circle cx="10" cy="10" r="7.2" />
+    <path d="M12.9 7.1 L11.1 11.1 L7.1 12.9 L8.9 8.9 Z" />
+    <circle cx="10" cy="10" r="0.9" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 export const IconPatchNotes = () => (
   <svg {...base}>
     <path d="M5 3.4 H13.4 L16 6 V16.6 H5 Z" />
