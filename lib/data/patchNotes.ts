@@ -8,24 +8,13 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
-    version: "1.23",
+    version: "1.22",
     date: "2026-06-24",
     title: "Live fundamentals — volatility, ROIC, FCF growth, region mix",
     changes: [
       "The fields that used to come only from the hand-maintained snapshot are now pulled live. Realized volatility is computed from Yahoo price history; ROIC and FCF growth are derived from Yahoo's statement modules; all three overlay the snapshot field-by-field where available.",
       "Optional Financial Modeling Prep integration: set FMP_API_KEY and ROIC, FCF growth and a real revenue-by-region mix are sourced from FMP — the fields Yahoo's keyless feed can't cleanly provide. With no key, the app runs on Yahoo alone, unchanged. Kept to three calls per symbol and 12h-cached to respect the free tier.",
       "Groundwork for retiring the static snapshot: fundamentals now flow through a Yahoo + FMP orchestrator (lib/server/fundamentals.ts), with the snapshot demoted to a pure offline backstop.",
-    ],
-  },
-  {
-    version: "1.22",
-    date: "2026-06-24",
-    title: "Discover — risk-aware stock idea engine",
-    changes: [
-      "New Discover tab (under Portfolio): ranked suggestions for stocks to add, screened across the bundled universe for names you don't already hold. A browsable master–detail terminal — pick from the ranked list, study the full read on the right.",
-      "Genuinely portfolio-aware. Beyond standalone merit (quality, growth, value, momentum, analyst posture), the fit score models the marginal impact of actually adding each name: how a 5% position would move your book's Sharpe ratio, effective-holding count and diversification — reusing the Risk page's factor covariance and CAPM expected returns, so the numbers reconcile.",
-      "The detail panel shows a six-axis radar of the idea vs the market, the reasons it ranks where it does, a full fundamentals grid, and a Portfolio impact section with before → after for expected return, volatility, Sharpe, beta, effective holdings and diversification. A snapshot bar keeps your current book metrics in view.",
-      "A sector dropdown filters the view; the default is the top additions across every sector. When live quotes are available, the implied upside to the mean analyst target is overlaid (display only — the ranking stays deterministic and works offline). Cards deep-link into Research via a new ?symbol= parameter.",
     ],
   },
   {

@@ -44,8 +44,8 @@ export default function ResearchPage() {
   const [range, setRange] = useState<HistoryRange>("1y");
   const [touched, setTouched] = useState(false);
 
-  // A ?symbol= deep-link (e.g. from Discover) wins over the default and counts
-  // as a deliberate pick so the largest-holding default doesn't clobber it.
+  // A ?symbol= deep-link wins over the default and counts as a deliberate pick
+  // so the largest-holding default doesn't clobber it.
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("symbol");
     if (q) {
