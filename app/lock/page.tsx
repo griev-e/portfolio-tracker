@@ -123,7 +123,7 @@ export default function LockPage() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="text-center font-display text-[22px] font-semibold tracking-normal text-ink"
+          className="text-center font-display text-[22px] font-semibold tracking-[0.11em] text-ink"
         >
           alpha
         </motion.h1>
@@ -147,9 +147,9 @@ export default function LockPage() {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35 }}
-          className="eyebrow mt-1 pl-4 -indent-4"
+          className="eyebrow mt-1 pl-8 -indent-8"
         >
-          1.{"   "}a measure of risk-adjusted excess return
+          {"   "}1. a measure of risk-adjusted excess return
         </motion.p>
         {(unlocked || locked || error) && (
           <motion.div
