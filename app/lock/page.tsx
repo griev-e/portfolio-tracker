@@ -6,6 +6,12 @@ import { Sigil } from "@/components/shell/AppShell";
 
 const PIN_LENGTH = 4;
 
+// Sigil sizing for crisp scaling. We render the SVG at its largest (unlock)
+// pixel size and scale it DOWN at rest, so the composited layer is never
+// stretched beyond its native resolution. 64px at rest grows to 64 * 2.3.
+const SIGIL_FULL = Math.round(64 * 2.3); // 147 — the unlock size
+const SIGIL_REST = 64 / SIGIL_FULL; // resting scale that renders 64px
+
 export default function LockPage() {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
@@ -97,13 +103,18 @@ export default function LockPage() {
       className="flex min-h-screen flex-col items-center justify-center gap-8 px-6"
       onClick={() => inputRef.current?.focus()}
     >
+      {/* The sigil is rendered at its largest (unlock) size and scaled DOWN via
+          transform at rest. Scaling a GPU layer up rasterizes it at the base
+          size and stretches the texture (blurry); keeping every scale ≤ 1 means
+          the texture is always sampled down, so it stays crisp through the
+          grow-on-unlock. REST is the resting fraction of full size. */}
       <motion.div
         className="relative z-30"
         style={{ willChange: "transform, opacity" }}
-        initial={{ opacity: 0, scale: 0.7 }}
+        initial={{ opacity: 0, scale: 0.7 * SIGIL_REST }}
         animate={{
           opacity: 1,
-          scale: unlocked ? 2.3 : 1,
+          scale: unlocked ? 1 : SIGIL_REST,
           y: unlocked ? -4 : 0,
         }}
         transition={{
@@ -111,7 +122,7 @@ export default function LockPage() {
           ease: unlocked ? [0.16, 1, 0.3, 1] : [0.22, 1, 0.36, 1],
         }}
       >
-        <Sigil size={64} />
+        <Sigil size={SIGIL_FULL} />
       </motion.div>
 
       <motion.div
