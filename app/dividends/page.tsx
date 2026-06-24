@@ -226,17 +226,17 @@ export default function DividendsPage() {
             />
             <Stat
               label="Income growth"
-              value={r.portfolioCagr3 ?? r.portfolioGrowth1 ?? 0}
+              value={r.portfolioCagr5 ?? r.portfolioGrowth1 ?? 0}
               format={(v) => fmtPct(v, 1, true)}
               toneClass={
-                (r.portfolioCagr3 ?? 0) >= 0 ? "text-pos" : "text-neg"
+                (r.portfolioCagr5 ?? 0) >= 0 ? "text-pos" : "text-neg"
               }
               sub={
                 r.accelerating === null
-                  ? "3y CAGR, income-weighted"
+                  ? "5y CAGR, income-weighted"
                   : r.accelerating
-                    ? "3y CAGR · accelerating"
-                    : "3y CAGR · decelerating"
+                    ? "5y CAGR · accelerating"
+                    : "5y CAGR · decelerating"
               }
             />
             <Stat
