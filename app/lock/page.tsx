@@ -139,10 +139,17 @@ export default function LockPage() {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="eyebrow mt-1"
+          className="eyebrow mt-1 italic text-muted"
         >
-          <span className="italic text-muted">noun</span>{" "}
-          a measure of risk-adjusted excess return
+          noun
+        </motion.p>
+        <motion.p
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="eyebrow mt-1 pl-4 -indent-4"
+        >
+          1. a measure of risk-adjusted excess return
         </motion.p>
         {(unlocked || locked || error) && (
           <motion.div
