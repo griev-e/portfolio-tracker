@@ -115,7 +115,7 @@ export default function LockPage() {
       </motion.div>
 
       <motion.div
-        className="relative z-30 text-center"
+        className="relative z-30 text-left"
         animate={{ opacity: unlocked ? 0 : 1, y: unlocked ? -18 : 0 }}
         transition={{ duration: 0.7, ease: [0.4, 0, 1, 1] }}
       >
@@ -126,15 +126,20 @@ export default function LockPage() {
           className="font-display text-[22px] font-semibold tracking-[0.22em] text-ink"
         >
           alpha
-          <span className="ml-2 font-mono text-[15px] font-normal tracking-normal text-faint">
-            /ăl′fə/
-          </span>
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="mt-1 font-mono text-[15px] text-faint"
+        >
+          /ăl′fə/
+        </motion.p>
+        <motion.p
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="eyebrow mt-2"
+          className="eyebrow mt-1"
         >
           <span className="italic text-muted">noun</span>{" "}
           a measure of risk-adjusted excess return
