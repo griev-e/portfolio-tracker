@@ -123,8 +123,8 @@ export default function LockPage() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="text-center text-[22px] font-bold tracking-[0.11em] text-ink"
-          style={{ fontFamily: "Georgia, serif" }}
+          className="text-center text-[24px] font-bold tracking-[0.11em] text-ink"
+          style={{ fontFamily: '"Palatino Linotype", "Book Antiqua", Palatino, serif' }}
         >
           alpha
         </motion.h1>
