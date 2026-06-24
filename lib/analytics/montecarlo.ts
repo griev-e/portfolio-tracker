@@ -36,7 +36,7 @@ export interface MonteCarloResult {
   median: number;
   p5: number;
   p95: number;
-  /** Median CAGR on contributions-adjusted growth (money-weighted approximation). */
+  /** Median money-weighted (IRR) return on the contribution stream, annualized. */
   medianCagr: number;
   /** Terminal value histogram. */
   histogram: { x0: number; x1: number; count: number }[];
@@ -166,10 +166,16 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
   const totalContributed = initialValue + monthlyContribution * months;
   const terminalAt = sortedPct(terminal);
   const median = terminalAt(0.5);
-  const medianCagr =
-    totalContributed > 0 && years > 0
-      ? Math.pow(median / totalContributed, 1 / years) - 1
-      : 0;
+  // Money-weighted (IRR) return: each monthly contribution is invested for only
+  // the months that remain, so a simple (terminal / totalContributed) lump-sum
+  // CAGR understates the true rate. Solve for the rate that grows the actual
+  // cash-flow stream into the median terminal.
+  const medianCagr = moneyWeightedCagr(
+    initialValue,
+    monthlyContribution,
+    months,
+    median
+  );
 
   // Terminal distribution histogram (clipped at p99 so the tail doesn't flatten it).
   const lo = terminalAt(0.001);
@@ -198,4 +204,44 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
     totalContributed,
     samplePaths,
   };
+}
+
+/**
+ * Annualized money-weighted (IRR) return for the sim's cash-flow shape: an
+ * initial `v0`, then a contribution `c` at the end of each of `months` months
+ * (so contribution m compounds for `months − m` months), growing into `terminal`.
+ *
+ * The monthly rate i solves
+ *   v0·(1+i)^months + c·((1+i)^months − 1)/i = terminal
+ * whose left side is monotonically increasing in i, so a bisection pins it. The
+ * rate is then annualized as (1+i)^12 − 1. With c = 0 this reduces to the plain
+ * lump-sum CAGR (terminal / v0)^(1/years) − 1.
+ */
+function moneyWeightedCagr(
+  v0: number,
+  c: number,
+  months: number,
+  terminal: number
+): number {
+  if (months <= 0 || terminal <= 0 || (v0 <= 0 && c <= 0)) return 0;
+
+  // Future value of the cash-flow stream at a monthly rate i.
+  const fv = (i: number): number => {
+    if (Math.abs(i) < 1e-12) return v0 + c * months; // i → 0 limit of the annuity factor
+    const growth = Math.pow(1 + i, months);
+    return v0 * growth + c * ((growth - 1) / i);
+  };
+
+  // f(i) = fv(i) − terminal is increasing in i; bracket then bisect.
+  let lo = -0.9999; // ≈ total loss each month
+  let hi = 10; // 1000%/month — comfortably above any plausible IRR
+  if (fv(lo) > terminal) return Math.pow(1 + lo, 12) - 1;
+  if (fv(hi) < terminal) return Math.pow(1 + hi, 12) - 1;
+  for (let iter = 0; iter < 100; iter++) {
+    const mid = (lo + hi) / 2;
+    if (fv(mid) < terminal) lo = mid;
+    else hi = mid;
+  }
+  const monthly = (lo + hi) / 2;
+  return Math.pow(1 + monthly, 12) - 1;
 }

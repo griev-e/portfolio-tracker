@@ -4,22 +4,16 @@
  * Series are aligned to a master date axis; null = no data at that date.
  */
 
-export type Series = (number | null)[];
+import { clamp, mean } from "../mathUtils";
 
-export const clamp = (v: number, lo: number, hi: number): number =>
-  Math.min(hi, Math.max(lo, v));
+export { clamp, mean };
+
+export type Series = (number | null)[];
 
 export function at(s: Series, t: number): number | null {
   if (t < 0 || t >= s.length) return null;
   const v = s[t];
   return typeof v === "number" && Number.isFinite(v) ? v : null;
-}
-
-export function mean(xs: number[]): number | null {
-  if (xs.length === 0) return null;
-  let sum = 0;
-  for (const x of xs) sum += x;
-  return sum / xs.length;
 }
 
 export function stdev(xs: number[]): number | null {

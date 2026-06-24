@@ -89,7 +89,7 @@ function logistic(x: number, mid: number, spread: number): number {
 }
 
 /** Dominant style bucket for a holding, reusing the shared factor scores. */
-export function classifyStyle(f: Fundamentals | null): Style | "Unclassified" {
+function classifyStyle(f: Fundamentals | null): Style | "Unclassified" {
   if (!f) return "Unclassified";
   const fs = factorScores(f);
   const dividend = logistic(f.dividendYield, 0.022, 0.012);

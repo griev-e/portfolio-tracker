@@ -1,3 +1,4 @@
+import { clamp, mean } from "@/lib/analytics/mathUtils";
 import type { Portfolio, Position } from "@/lib/types";
 import type {
   DividendEvent,
@@ -18,11 +19,14 @@ import type {
  * that explain it.
  */
 
-const clamp = (v: number, lo: number, hi: number) =>
-  Math.min(hi, Math.max(lo, v));
-
-const mean = (xs: number[]): number | null =>
-  xs.length === 0 ? null : xs.reduce((a, b) => a + b, 0) / xs.length;
+/** Median of a numeric list (average of the two middle values when even). */
+const median = (xs: number[]): number => {
+  const sorted = [...xs].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
+};
 
 /** Long-run S&P 500 dividend growth, used only as a comparison anchor. */
 const SPX_DIV_GROWTH = 0.06;
@@ -57,11 +61,10 @@ function annualRates(events: DividendEvent[]): { year: number; rate: number }[] 
   }
   return [...byYear.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([year, amounts]) => {
-      const sorted = [...amounts].sort((a, b) => a - b);
-      const median = sorted[Math.floor(sorted.length / 2)];
-      return { year, rate: median * snapCount(amounts.length) };
-    });
+    .map(([year, amounts]) => ({
+      year,
+      rate: median(amounts) * snapCount(amounts.length),
+    }));
 }
 
 /** Trailing-12-month per-share sum. */

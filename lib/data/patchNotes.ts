@@ -8,6 +8,16 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.21",
+    date: "2026-06-24",
+    title: "Analytics audit — math fixes",
+    changes: [
+      "Monte Carlo: the median return shown under the fan (\"CAGR on money in\") is now a true money-weighted return (IRR). It previously divided the median outcome by every contributed dollar as if all of it had been invested on day one, which understated the rate for plans with monthly contributions; it now grows the actual contribution schedule into the median terminal, so the figure reads higher and is methodologically correct.",
+      "Dividends: a year's per-share rate now uses a true median of that year's payments (averaging the two middle payments in an even quarter count) instead of picking the upper-middle one — removing a small upward bias in year-over-year growth and CAGR for some payers.",
+      "Internal cleanup: de-duplicated shared math helpers and tightened a couple of module boundaries. No behavior change beyond the two items above.",
+    ],
+  },
+  {
     version: "1.20",
     date: "2026-06-23",
     title: "Holdings news tagging fix",

@@ -68,6 +68,20 @@ describe("runMonteCarlo", () => {
     );
   });
 
+  it("reports median CAGR as a lump-sum rate when there are no contributions", () => {
+    const r = runMonteCarlo({ ...baseInputs, monthlyContribution: 0 });
+    const lumpSum = Math.pow(r.median / baseInputs.initialValue, 1 / baseInputs.years) - 1;
+    expect(r.medianCagr).toBeCloseTo(lumpSum, 10);
+  });
+
+  it("money-weights the median CAGR above the naive lump-sum rate", () => {
+    const r = runMonteCarlo(baseInputs);
+    // The old method divided by every contributed dollar as if invested at t=0,
+    // understating the rate. A money-weighted (IRR) read sits strictly above it.
+    const naive = Math.pow(r.median / r.totalContributed, 1 / baseInputs.years) - 1;
+    expect(r.medianCagr).toBeGreaterThan(naive);
+  });
+
   it("reduces to deterministic compounding when volatility is zero", () => {
     const r = runMonteCarlo({
       ...baseInputs,
