@@ -163,20 +163,6 @@ export default function LockPage() {
         >
           {"   "}1. a measure of risk-adjusted excess return
         </motion.p>
-        {(unlocked || locked || error) && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.35 }}
-            className="eyebrow mt-2"
-          >
-            {unlocked
-              ? "welcome back"
-              : locked
-                ? `too many tries — wait ${cooldown}s`
-                : "wrong pin"}
-          </motion.div>
-        )}
       </motion.div>
 
       {/* Hidden input drives the boxes; digits render censored. */}
