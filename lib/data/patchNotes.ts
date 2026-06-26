@@ -8,6 +8,16 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.26",
+    date: "2026-06-26",
+    title: "Live benchmark volatility & a self-refreshing snapshot",
+    changes: [
+      "Benchmark volatility is now live: the S&P 500 and NASDAQ-100 figures used on the Risk, Benchmark and Report pages are computed from trailing-1y realized returns (^GSPC / ^NDX) instead of a static number, falling back to the bundled value when the feed is down.",
+      "Honest about the one input that can't be live: the equity risk premium has no observable market quote, so it stays a fixed forward-looking assumption — now said plainly in the expected-return explainer, next to the note that the risk-free rate and market volatility are fetched live.",
+      "The bundled fundamentals snapshot — the offline backstop — no longer drifts silently: a scheduled monthly job re-pulls live fundamentals for every covered name and opens a pull request with only the values that moved (curated names, sectors and ETF look-through are left alone), so the fallback stays current and every change is reviewed.",
+    ],
+  },
+  {
     version: "1.25",
     date: "2026-06-26",
     title: "Data provenance — live vs snapshot, made visible",

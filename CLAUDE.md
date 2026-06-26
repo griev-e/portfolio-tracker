@@ -24,6 +24,7 @@ npm run lint       # next lint (ESLint)
 npm run typecheck  # tsc --noEmit — strict type check, run this after edits
 npm test           # vitest run — the analytics unit suite
 npm run test:watch # vitest in watch mode
+npm run refresh:snapshot  # regenerate lib/data/fundamentals.ts from live providers
 ```
 
 After edits, verify with `npm run typecheck` and `npm run lint`; run `npm test`
@@ -68,13 +69,34 @@ this before touching anything in `lib/analytics` or `lib/live`:
    is the offline fallback and fills any field the providers didn't return.
    Historically the only source for ROIC, FCF growth, region mixes and per-name
    volatility; those are now fetched/derived live (tier 2) where available, with
-   the snapshot as backstop.
+   the snapshot as backstop. It's kept fresh by a scheduled job
+   (`scripts/refresh-snapshot.ts` → `.github/workflows/refresh-snapshot.yml`,
+   monthly) that re-pulls live values and opens a PR with the drift — see below.
 
-When the live feed fails, the app silently falls back down the tiers (amber
-status dot in the sidebar). Unknown tickers degrade gracefully: with live data
-they're promoted to full coverage via `mergeFundamentals`/`fromPatch` in
-`lib/live/merge.ts`; without it they keep allocation/P&L math on conservative
-defaults (β = 1.0, σ derived from beta).
+When the live feed fails, the app falls back down the tiers. **The fallback is
+never silent**: `mergeFundamentals` records per-field provenance (live vs
+fallback) and a `live/partial/fallback` coverage roll-up on each
+`Fundamentals`, which `buildPortfolio` combines with the live-price flag into
+`Position.dataSource`. The UI surfaces this (provenance dot per holding on
+Overview, a coverage summary, a coverage-accurate Research badge) so a stale
+snapshot value is never shown as if it were live. Unknown tickers degrade
+gracefully: with live data they're promoted to full coverage via
+`mergeFundamentals`/`fromPatch` in `lib/live/merge.ts`; without it they keep
+allocation/P&L math on conservative defaults (β = 1.0, σ derived from beta).
+
+**Capital-market assumptions** (`lib/data/benchmarks.ts` `CMA`) and benchmark
+volatility are live too: the risk-free rate (13-week T-bill `^IRX`) and realized
+S&P 500 / NASDAQ-100 volatility are fetched via `/api/cma` (`lib/server/cma.ts`,
+6h-cached) and overlaid in `lib/live/cma.ts` (`getCMA`,
+`liveBenchmarkVolatility`), with the static values as fallback. The equity risk
+premium has no observable market quote, so it stays a fixed forward assumption.
+
+**The snapshot refresh job** (`scripts/refresh-snapshot.ts`) pulls the live
+patch for every `knownSymbols()` entry and overlays drifted values onto the
+source via the pure, idempotent serializer in `scripts/snapshot/serialize.ts`
+(numeric compare, textual replace only on real change → minimal diffs; curated
+identity fields and missing keys are never touched). The workflow opens a PR for
+review; it never commits to the snapshot directly.
 
 ### Client state flow
 
