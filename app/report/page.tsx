@@ -13,6 +13,7 @@ import { qualityReport, type MetricFormat } from "@/lib/analytics/quality";
 import type { RegimeReport } from "@/lib/analytics/regime/types";
 import { riskReport } from "@/lib/analytics/risk";
 import { NDX, SPX } from "@/lib/data/benchmarks";
+import { liveBenchmarkVolatility } from "@/lib/live/cma";
 import {
   daysUntil,
   fmtMultiple,
@@ -538,8 +539,8 @@ export default function ReportPage() {
               <tr>
                 <td>Volatility (ann.)</td>
                 <td>{fmtPct(risk.volatility, 1)}</td>
-                <td>{fmtPct(SPX.volatility, 1)}</td>
-                <td>{fmtPct(NDX.volatility, 1)}</td>
+                <td>{fmtPct(liveBenchmarkVolatility(SPX), 1)}</td>
+                <td>{fmtPct(liveBenchmarkVolatility(NDX), 1)}</td>
               </tr>
               <tr>
                 <td>Beta</td>

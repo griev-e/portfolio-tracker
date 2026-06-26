@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
 import { riskReport } from "@/lib/analytics/risk";
 import { SPX } from "@/lib/data/benchmarks";
-import { getCMA } from "@/lib/live/cma";
+import { getCMA, liveBenchmarkVolatility } from "@/lib/live/cma";
 import { fmtNum, fmtPct } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 
@@ -24,6 +24,7 @@ const REGION_COLORS: Record<string, string> = {
 export default function RiskPage() {
   const { ready, portfolio } = usePortfolio();
   const CMA = getCMA();
+  const spxVol = liveBenchmarkVolatility(SPX);
   const risk = useMemo(
     () => (portfolio ? riskReport(portfolio, SPX.sectorWeights) : null),
     [portfolio]
@@ -63,7 +64,7 @@ export default function RiskPage() {
             value={risk.volatility}
             min={0}
             max={0.6}
-            marker={{ value: SPX.volatility, label: `S&P 500 ${fmtPct(SPX.volatility, 1)}` }}
+            marker={{ value: spxVol, label: `S&P 500 ${fmtPct(spxVol, 1)}` }}
             label="volatility (ann.)"
             format={(v) => fmtPct(v, 1)}
             color="var(--color-sky)"
@@ -74,7 +75,7 @@ export default function RiskPage() {
             min={0}
             max={1.2}
             marker={{
-              value: (SPX.beta * CMA.equityRiskPremium) / SPX.volatility,
+              value: (SPX.beta * CMA.equityRiskPremium) / spxVol,
               label: "S&P 500",
             }}
             label="est. sharpe"
@@ -88,7 +89,7 @@ export default function RiskPage() {
               value={risk.expectedReturn}
               format={(v) => fmtPct(v, 1)}
               sub="CAPM, long-run"
-              tip="A long-run annual return estimate from the Capital Asset Pricing Model (CAPM): the risk-free rate plus the portfolio's beta times the market's equity risk premium. It's a model-based expectation tied to how much market risk the book carries — not a forecast of any given year."
+              tip="A long-run annual return estimate from the Capital Asset Pricing Model (CAPM): the risk-free rate plus the portfolio's beta times the market's equity risk premium. The risk-free rate (13-week T-bill) and market volatility are fetched live; the equity risk premium is a fixed forward-looking assumption — it has no observable market quote — so this is a model-based expectation, not a forecast of any given year."
             />
             <Stat
               label="Diversification ratio"

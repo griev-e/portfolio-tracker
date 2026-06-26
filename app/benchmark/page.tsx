@@ -12,6 +12,7 @@ import { portfolioFactors } from "@/lib/analytics/factors";
 import { qualityReport } from "@/lib/analytics/quality";
 import { riskReport } from "@/lib/analytics/risk";
 import { NDX, SPX } from "@/lib/data/benchmarks";
+import { liveBenchmarkVolatility } from "@/lib/live/cma";
 import { fmtMultiple, fmtNum, fmtPct } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 
@@ -49,7 +50,7 @@ export default function BenchmarkPage() {
     { label: "Forward P/E", you: get("forwardPE"), spx: SPX.forwardPE, ndx: NDX.forwardPE, format: (v) => fmtMultiple(v), lowerIsBetter: true },
     { label: "FCF yield", you: get("fcfYield"), spx: SPX.fcfYield, ndx: NDX.fcfYield, format: (v) => fmtPct(v, 1) },
     { label: "Dividend yield", you: get("dividendYield"), spx: SPX.dividendYield, ndx: NDX.dividendYield, format: (v) => fmtPct(v, 2) },
-    { label: "Volatility (est.)", you: risk.volatility, spx: SPX.volatility, ndx: NDX.volatility, format: (v) => fmtPct(v, 1), lowerIsBetter: true },
+    { label: "Volatility (est.)", you: risk.volatility, spx: liveBenchmarkVolatility(SPX), ndx: liveBenchmarkVolatility(NDX), format: (v) => fmtPct(v, 1), lowerIsBetter: true },
     { label: "Beta", you: risk.beta, spx: SPX.beta, ndx: NDX.beta, format: (v) => fmtNum(v, 2) },
   ];
 
