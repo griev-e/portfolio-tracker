@@ -8,6 +8,16 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.28",
+    date: "2026-06-27",
+    title: "delta goes live — your own editable ledger + an AI money brief",
+    changes: [
+      "delta is no longer a static demo. Your ledger — accounts, transactions, budgets, goals and recurring charges — now persists in the browser's localStorage, exactly like alpha's portfolio. Every figure (net worth, spending mix, budget pacing, cash flow, savings rate) is derived live from that ledger, so a single edit ripples across every page at once.",
+      "Full editing throughout: add and delete transactions, set and add budget limits, create goals and contribute to them, mark recurring charges paid (which logs the transaction and rolls the next date), and edit or remove account balances. A forgiving CSV importer (any column order, $/comma/parenthesized-negative aware) on a new Import & Data page brings in your own transactions; Load sample and Clear are one click away.",
+      "New delta Intelligence tab: a Claude-written monthly money brief (Haiku 4.5) — headline, wins, watch-outs and grounded suggested moves — generated from a snapshot of your ledger and cached one per day per shape, with the estimated cost shown. Degrades gracefully to a locally-computed glance when ANTHROPIC_API_KEY is unset.",
+    ],
+  },
+  {
     version: "1.27",
     date: "2026-06-27",
     title: "delta — a sister personal-finance terminal, and a portal to both",

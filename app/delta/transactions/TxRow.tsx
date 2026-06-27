@@ -1,11 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import {
-  ACCOUNT_NAME,
-  CATEGORY_COLOR,
-  type Transaction,
-} from "@/lib/delta/data";
+import { IconButton, TrashIcon } from "@/components/delta/ui";
+import { CATEGORY_COLOR, type Transaction } from "@/lib/delta/data";
 import { fmtUSD } from "@/lib/format";
 
 function shortDate(iso: string): string {
@@ -15,7 +12,17 @@ function shortDate(iso: string): string {
 }
 
 /** One transaction row: merchant glyph + name, category, amount, date. */
-export function TxRow({ t, i }: { t: Transaction; i: number }) {
+export function TxRow({
+  t,
+  i,
+  accountName,
+  onDelete,
+}: {
+  t: Transaction;
+  i: number;
+  accountName?: string;
+  onDelete?: (id: string) => void;
+}) {
   const accent = CATEGORY_COLOR[t.category];
   const income = t.amount > 0;
   const transfer = t.category === "Transfer";
@@ -48,7 +55,7 @@ export function TxRow({ t, i }: { t: Transaction; i: number }) {
               )}
             </div>
             <div className="text-[11px] text-faint">
-              {ACCOUNT_NAME.get(t.account) ?? t.account}
+              {accountName ?? t.account}
             </div>
           </div>
         </div>
@@ -72,8 +79,17 @@ export function TxRow({ t, i }: { t: Transaction; i: number }) {
         </span>
       </td>
 
-      <td className="py-3 pl-3 pr-6 text-right font-mono tnum text-[12px] text-faint">
-        {shortDate(t.date)}
+      <td className="py-3 pl-3 pr-6 text-right">
+        <div className="flex items-center justify-end gap-1">
+          <span className="font-mono tnum text-[12px] text-faint">{shortDate(t.date)}</span>
+          {onDelete && (
+            <span className="opacity-0 transition-opacity group-hover:opacity-100">
+              <IconButton label="Delete transaction" danger onClick={() => onDelete(t.id)}>
+                <TrashIcon />
+              </IconButton>
+            </span>
+          )}
+        </div>
       </td>
     </motion.tr>
   );

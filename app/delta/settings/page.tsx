@@ -1,7 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { useState } from "react";
+import { useDelta } from "@/lib/delta/store";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 
@@ -46,6 +48,8 @@ function Row({
 }
 
 export default function SettingsPage() {
+  const { ledger, isSample } = useDelta();
+  const accountCount = ledger?.accounts.length ?? 0;
   const [toggles, setToggles] = useState({
     billReminders: true,
     weeklyDigest: true,
@@ -123,13 +127,19 @@ export default function SettingsPage() {
             <Row title="App lock" desc="Shared PIN gate with alpha at the portal">
               <span className="font-mono text-[11px] text-pos">Enabled</span>
             </Row>
-            <Row title="Linked institutions" desc="Read-only balances, never credentials">
-              <span className="font-mono text-[12px] text-mute">6 linked</span>
+            <Row title="Accounts" desc="Balances you track in delta">
+              <span className="font-mono text-[12px] text-mute">{accountCount} accounts</span>
+            </Row>
+            <Row title="Your data" desc="Import a CSV, load the sample, or clear it">
+              <Link href="/delta/import" className="font-mono text-[12px] text-vio/80 transition-colors hover:text-vio">
+                Manage →
+              </Link>
             </Row>
           </div>
           <p className="mt-4 rounded-lg border border-edge bg-white/[0.02] px-3 py-2.5 text-[11.5px] leading-relaxed text-faint">
-            delta is a design preview running on illustrative sample data — no
-            real accounts are connected and nothing is sent anywhere.
+            {isSample
+              ? "delta is showing illustrative sample data. Everything you change is saved to this browser only — nothing is sent anywhere."
+              : "Your delta ledger lives in this browser's local storage only — nothing is sent anywhere."}
           </p>
         </Card>
       </div>

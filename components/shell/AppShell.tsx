@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { fmtUSDCompact } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
+import { DeltaProvider } from "@/lib/delta/store";
 import { AppSwitcher, Sigil, SignOutButton } from "./brand";
 import { DeltaShell } from "./DeltaShell";
 import {
@@ -257,9 +258,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   // delta — the sister personal-finance app — carries its own shell (nav,
-  // branding, accent). Everything under /delta renders inside it.
+  // branding, accent) and its own localStorage-backed store. Everything under
+  // /delta renders inside both; the provider only mounts on these routes.
   if (pathname === "/delta" || pathname.startsWith("/delta/")) {
-    return <DeltaShell>{children}</DeltaShell>;
+    return (
+      <DeltaProvider>
+        <DeltaShell>{children}</DeltaShell>
+      </DeltaProvider>
+    );
   }
 
   const current = NAV.find((n) => n.href === pathname);

@@ -4,7 +4,9 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useDelta } from "@/lib/delta/store";
 import { AppSwitcher, Mark, SignOutButton } from "./brand";
+import { IconImport, IconIntelligence } from "./icons";
 import {
   IconAccounts,
   IconBudgets,
@@ -20,12 +22,14 @@ import {
 const NAV = [
   { href: "/delta", label: "Dashboard", icon: IconDashboard, group: "Overview" },
   { href: "/delta/networth", label: "Net Worth", icon: IconNetWorth, group: "Overview" },
+  { href: "/delta/intelligence", label: "Intelligence", icon: IconIntelligence, group: "Overview" },
   { href: "/delta/accounts", label: "Accounts", icon: IconAccounts, group: "Money" },
   { href: "/delta/transactions", label: "Transactions", icon: IconTransactions, group: "Money" },
   { href: "/delta/cashflow", label: "Cash Flow", icon: IconCashFlow, group: "Money" },
   { href: "/delta/budgets", label: "Budgets", icon: IconBudgets, group: "Planning" },
   { href: "/delta/goals", label: "Goals", icon: IconGoals, group: "Planning" },
   { href: "/delta/recurring", label: "Recurring", icon: IconRecurring, group: "Planning" },
+  { href: "/delta/import", label: "Import & Data", icon: IconImport, group: "System" },
   { href: "/delta/settings", label: "Settings", icon: IconSettings, group: "System" },
 ];
 
@@ -187,7 +191,9 @@ function DemoTag({ className = "" }: { className?: string }) {
 
 export function DeltaShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { isSample, ready } = useDelta();
   const current = NAV.find((n) => n.href === pathname);
+  const showSample = ready && isSample;
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
@@ -216,7 +222,7 @@ export function DeltaShell({ children }: { children: ReactNode }) {
           <span className="absolute left-1/2 -translate-x-1/2 text-[13px] font-medium text-mute">
             {current?.label ?? ""}
           </span>
-          <DemoTag className="ml-auto" />
+          {showSample && <DemoTag className="ml-auto" />}
         </header>
 
         {/* Mobile top bar */}
@@ -227,7 +233,7 @@ export function DeltaShell({ children }: { children: ReactNode }) {
               <span className="text-[13px] font-medium text-ink">delta</span>
             </Link>
             <div className="flex items-center gap-2.5">
-              <DemoTag />
+              {showSample && <DemoTag />}
               <SignOutButton />
             </div>
           </div>

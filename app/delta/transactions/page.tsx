@@ -1,14 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { AddTransactionButton } from "@/components/delta/modals";
+import { DeltaEmpty } from "@/components/delta/ui";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
-import { type Category, TRANSACTIONS } from "@/lib/delta/data";
+import { type Category } from "@/lib/delta/data";
+import { ledgerHasData, useDelta } from "@/lib/delta/store";
 import { fmtUSD } from "@/lib/format";
 import { TxRow } from "./TxRow";
 
-const CATEGORIES: (Category | "All")[] = [
+const FILTERS: (Category | "All")[] = [
   "All",
   "Food & Dining",
   "Shopping",
@@ -24,17 +27,24 @@ const CATEGORIES: (Category | "All")[] = [
 ];
 
 export default function TransactionsPage() {
+  const { ready, ledger, deleteTransaction } = useDelta();
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState<Category | "All">("All");
 
+  const transactions = ledger?.transactions ?? [];
+  const acctName = (id: string) => ledger?.accounts.find((a) => a.id === id)?.name ?? id;
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return TRANSACTIONS.filter((t) => {
+    return transactions.filter((t) => {
       if (cat !== "All" && t.category !== cat) return false;
       if (q && !t.merchant.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [query, cat]);
+  }, [transactions, query, cat]);
+
+  if (!ready) return null;
+  if (!ledger || !ledgerHasData(ledger)) return <DeltaEmpty page="Transactions" />;
 
   const moneyIn = filtered.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const moneyOut = filtered
@@ -46,7 +56,8 @@ export default function TransactionsPage() {
       <PageHeader
         eyebrow="Money"
         title="Transactions"
-        description="Every charge and deposit across your linked accounts, newest first."
+        description="Every charge and deposit across your accounts, newest first."
+        right={<AddTransactionButton />}
       />
 
       <div className="mb-5 grid grid-cols-3 gap-3">
@@ -64,16 +75,7 @@ export default function TransactionsPage() {
       <Card className="overflow-hidden" i={3}>
         <div className="flex flex-col gap-3 border-b border-edge px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="relative lg:w-72">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint"
-            >
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint">
               <circle cx="8.6" cy="8.6" r="5.4" />
               <path d="M12.6 12.6 L17 17" />
             </svg>
@@ -85,14 +87,12 @@ export default function TransactionsPage() {
             />
           </div>
           <div className="flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {CATEGORIES.map((c) => (
+            {FILTERS.map((c) => (
               <button
                 key={c}
                 onClick={() => setCat(c)}
                 className={`whitespace-nowrap rounded-full border px-3 py-1 text-[12px] transition-colors ${
-                  cat === c
-                    ? "border-edge2 bg-white/[0.08] text-ink"
-                    : "border-edge text-mute hover:text-ink"
+                  cat === c ? "border-edge2 bg-white/[0.08] text-ink" : "border-edge text-mute hover:text-ink"
                 }`}
               >
                 {c}
@@ -105,13 +105,11 @@ export default function TransactionsPage() {
           <table className="w-full min-w-[640px] text-[13px]">
             <tbody>
               {filtered.map((t, i) => (
-                <TxRow key={t.id} t={t} i={i} />
+                <TxRow key={t.id} t={t} i={i} accountName={acctName(t.account)} onDelete={deleteTransaction} />
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td className="px-6 py-10 text-center text-[13px] text-faint">
-                    No transactions match.
-                  </td>
+                  <td className="px-6 py-10 text-center text-[13px] text-faint">No transactions match.</td>
                 </tr>
               )}
             </tbody>
