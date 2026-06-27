@@ -212,22 +212,6 @@ export default function LockPage() {
                 from={32}
               />
             </div>
-
-            {/* caption that follows focus */}
-            <div className="mt-6 flex h-5 items-center justify-center">
-              <AnimatePresence mode="wait">
-                <motion.span
-                  key={hovered ?? "idle"}
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.22 }}
-                  className="eyebrow tracking-[0.18em] uppercase"
-                >
-                  {hovered ? APP_META[hovered].tagline : "two terminals · one key"}
-                </motion.span>
-              </AnimatePresence>
-            </div>
           </motion.div>
         ) : (
           <motion.div

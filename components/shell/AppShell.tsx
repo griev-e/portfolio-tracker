@@ -121,10 +121,15 @@ function NavRow({
         <motion.span
           layoutId="nav-active"
           className="absolute inset-0 rounded-md bg-white/[0.07]"
+          style={{ boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--color-mint) 16%, transparent)" }}
           transition={{ type: "spring", stiffness: 520, damping: 40 }}
         />
       )}
-      <span className="relative z-10 opacity-80 [&>svg]:h-4 [&>svg]:w-4">
+      <span
+        className={`relative z-10 opacity-80 [&>svg]:h-4 [&>svg]:w-4 ${
+          active ? "text-mint" : ""
+        }`}
+      >
         <Icon />
       </span>
       <span className="relative z-10">{item.label}</span>
