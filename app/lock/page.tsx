@@ -11,7 +11,7 @@ const SERIF = '"Palatino Linotype", "Book Antiqua", Palatino, serif';
 // Signature accent (raw RGB) per app — mint for alpha, iris for delta. Drives
 // the hover bloom, the field theming and the unlock choreography tint.
 const ACCENT_RGB: Record<AppKind, string> = {
-  alpha: "110,24,12",
+  alpha: "176,43,10",
   delta: "167,139,250",
 };
 

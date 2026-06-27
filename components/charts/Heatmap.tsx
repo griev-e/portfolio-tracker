@@ -90,7 +90,7 @@ export function Heatmap({
             className="h-2 w-36 rounded-full"
             style={{
               background:
-                "linear-gradient(90deg, rgba(96,140,200,0.25), rgba(167,139,250,0.55), rgba(110,24,12,0.9))",
+                "linear-gradient(90deg, rgba(96,140,200,0.25), rgba(167,139,250,0.55), rgba(176,43,10,0.9))",
             }}
           />
           <span>1.0</span>

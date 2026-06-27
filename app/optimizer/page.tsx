@@ -41,7 +41,7 @@ const PRESETS: Preset[] = [
     label: "Maximum Sharpe",
     tag: "Risk-adjusted return",
     blurb: "The highest return per unit of risk — the tangency portfolio.",
-    accent: "#6e180c",
+    accent: "#b02b0a",
   },
   {
     id: "min-vol",

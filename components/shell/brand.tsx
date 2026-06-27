@@ -18,13 +18,13 @@ import { useAuth } from "@/components/auth/AuthProvider";
 export type AppKind = "alpha" | "delta";
 
 export const APP_ACCENT: Record<AppKind, string> = {
-  alpha: "var(--color-mint)", // #6e180c
+  alpha: "var(--color-mint)", // #b02b0a
   delta: "var(--color-vio)", // #a78bfa
 };
 
 /** Raw hex of each accent, for places that can't take a CSS var (canvas, etc). */
 export const APP_ACCENT_HEX: Record<AppKind, string> = {
-  alpha: "#6e180c",
+  alpha: "#b02b0a",
   delta: "#a78bfa",
 };
 
