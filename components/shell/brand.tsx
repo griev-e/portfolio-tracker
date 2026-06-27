@@ -1,8 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { useState } from "react";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 /**
  * Shared brand primitives for the two-app portal.
@@ -126,17 +128,24 @@ export function AppSwitcher({ active }: { active: AppKind }) {
   );
 }
 
-/** Signs out by clearing the auth cookie, then sends the browser to /lock. */
+/**
+ * Sign out of the current account and return to the portal. Only shown when
+ * accounts are enabled (AUTH_SECRET set) — in open mode there's no session to
+ * end, so it renders nothing.
+ */
 export function SignOutButton({ className = "" }: { className?: string }) {
+  const { enabled } = useAuth();
   const [busy, setBusy] = useState(false);
+  if (!enabled) return null;
   return (
     <button
       onClick={async () => {
         setBusy(true);
         try {
-          await fetch("/api/auth", { method: "DELETE" });
+          // Clear the session without NextAuth's own redirect; we navigate
+          // ourselves so middleware re-evaluates from a clean slate.
+          await signOut({ redirect: false });
         } finally {
-          // Full navigation so middleware re-evaluates with the cookie gone.
           window.location.href = "/lock";
         }
       }}
@@ -160,5 +169,36 @@ export function SignOutButton({ className = "" }: { className?: string }) {
         <path d="M17 10H7.5" />
       </svg>
     </button>
+  );
+}
+
+/**
+ * The signed-in account, shown in the sidebar footer above the app switcher.
+ * Renders nothing in open mode or before the session resolves.
+ */
+export function AccountChip({ className = "" }: { className?: string }) {
+  const { enabled, status, name } = useAuth();
+  if (!enabled || status !== "authenticated" || !name) return null;
+  return (
+    <div
+      className={`flex items-center gap-1.5 text-[11px] text-faint ${className}`}
+      title={`Signed in as ${name}`}
+    >
+      <svg
+        width="11"
+        height="11"
+        viewBox="0 0 20 20"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="shrink-0"
+      >
+        <circle cx="10" cy="6.5" r="3.2" />
+        <path d="M4 16.5a6 6 0 0 1 12 0" />
+      </svg>
+      <span className="truncate">{name}</span>
+    </div>
   );
 }

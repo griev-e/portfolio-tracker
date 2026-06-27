@@ -3,6 +3,7 @@ import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
 import { PortfolioProvider } from "@/lib/store";
 import { AppShell } from "@/components/shell/AppShell";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
@@ -32,9 +33,13 @@ export default function RootLayout({
           }}
         />
         <div id="alpha-entrance" aria-hidden="true" />
-        <PortfolioProvider>
-          <AppShell>{children}</AppShell>
-        </PortfolioProvider>
+        <AuthProvider
+          authEnabled={!!process.env.AUTH_SECRET && !!process.env.DATABASE_URL}
+        >
+          <PortfolioProvider>
+            <AppShell>{children}</AppShell>
+          </PortfolioProvider>
+        </AuthProvider>
         <SpeedInsights />
         <Analytics />
       </body>

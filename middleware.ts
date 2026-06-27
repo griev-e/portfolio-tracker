@@ -1,46 +1,58 @@
-import { NextRequest, NextResponse } from "next/server";
+import NextAuth from "next-auth";
+import {
+  NextResponse,
+  type NextFetchEvent,
+  type NextRequest,
+} from "next/server";
+import { authConfig } from "@/auth.config";
 
 /**
- * PIN gate. Enabled by setting ACCESS_PIN (e.g. in Vercel project env vars);
- * when unset the app is open — so local dev and first deploys never lock you
- * out. The auth cookie stores a SHA-256 hash of the PIN with a fixed
- * application prefix (SHA-256("alpha:" + pin)), never the PIN itself. This
- * keeps casual visitors out; it is not hardened auth.
+ * Auth gate. Real username/password sessions (NextAuth) replace the old PIN.
+ *
+ * Gated only when AUTH_SECRET is set. When it's unset the app is fully open
+ * (single-user, localStorage), exactly as before — so local dev and first
+ * deploys never lock anyone out, honoring the app's graceful-degradation rule.
+ * We short-circuit to `next()` *before* touching NextAuth, which would throw
+ * without a secret.
+ *
+ * Uses the edge-safe `auth.config.ts` (no bcrypt / DB) so it stays edge-fast;
+ * the session is a JWT decoded here with AUTH_SECRET.
  */
-const COOKIE = "alpha_auth";
+const { auth } = NextAuth(authConfig);
 
-async function sha256Hex(input: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(input)
-  );
-  return [...new Uint8Array(digest)]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-export async function middleware(req: NextRequest) {
-  const pin = process.env.ACCESS_PIN;
-  if (!pin) return NextResponse.next();
-
+// `auth(handler)` is callable as Next middleware at runtime; its public type is
+// the route-handler overload, so we narrow it to the middleware signature.
+const gate = auth((req) => {
   const { pathname } = req.nextUrl;
-  if (pathname.startsWith("/api/auth")) return NextResponse.next();
+  const isAuthed = !!req.auth?.user;
 
-  const expected = await sha256Hex(`alpha:${pin}`);
-  const authed = req.cookies.get(COOKIE)?.value === expected;
-
-  if (pathname === "/lock") {
-    return authed
-      ? NextResponse.redirect(new URL("/", req.url))
-      : NextResponse.next();
+  // NextAuth's own endpoints and the portal are always reachable.
+  if (pathname.startsWith("/api/auth") || pathname === "/lock") {
+    if (isAuthed && pathname === "/lock") {
+      return NextResponse.redirect(new URL("/", req.nextUrl));
+    }
+    return NextResponse.next();
   }
-  if (authed) return NextResponse.next();
 
-  // APIs answer 401 instead of redirecting so client fetches fail cleanly.
+  if (isAuthed) return NextResponse.next();
+
+  // APIs answer 401 so client fetches fail cleanly; pages go to the portal.
   if (pathname.startsWith("/api/")) {
-    return NextResponse.json({ error: "locked" }, { status: 401 });
+    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
-  return NextResponse.redirect(new URL("/lock", req.url));
+  return NextResponse.redirect(new URL("/lock", req.nextUrl));
+}) as unknown as (
+  req: NextRequest,
+  ev: NextFetchEvent
+) => Promise<Response> | Response;
+
+export default function middleware(req: NextRequest, ev: NextFetchEvent) {
+  // Open mode unless accounts are fully configured (a half-configured deploy
+  // would gate the app but be unable to authenticate anyone).
+  if (!process.env.AUTH_SECRET || !process.env.DATABASE_URL) {
+    return NextResponse.next();
+  }
+  return gate(req, ev);
 }
 
 export const config = {

@@ -8,6 +8,16 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.29",
+    date: "2026-06-27",
+    title: "Accounts — sign in, and your data follows you",
+    changes: [
+      "alpha and delta now support real accounts. When a database is configured, the portal takes a username and password instead of a PIN, and each person gets their own saved portfolio and delta ledger stored server-side — so your data follows you across devices instead of living in a single browser. Sign-in is themed to whichever terminal you pick, with the same unlock choreography, and the signed-in name shows in the sidebar.",
+      "Your data stays private. Holdings and ledgers are stored as a per-user blob in your own Postgres database and are never sent anywhere else; signing in reads only the server, so two people sharing one computer never see each other's data. There's no public sign-up — logins are provisioned by hand.",
+      "Entirely optional and backward-compatible: with no database configured, both apps run exactly as before — open, single-user, in the browser's localStorage — so nothing breaks and local dev never locks you out. (This replaces the old 4-digit PIN gate.)",
+    ],
+  },
+  {
     version: "1.28",
     date: "2026-06-27",
     title: "delta goes live — your own editable ledger + an AI money brief",

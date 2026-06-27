@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { fmtUSDCompact } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import { DeltaProvider } from "@/lib/delta/store";
-import { AppSwitcher, Sigil, SignOutButton } from "./brand";
+import { AccountChip, AppSwitcher, Sigil, SignOutButton } from "./brand";
 import { DeltaShell } from "./DeltaShell";
 import {
   IconBenchmark,
@@ -297,7 +297,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
             <SignOutButton className="ml-auto" />
           </div>
-          <div className="mt-3">
+          <div className="mt-3 flex flex-col gap-2">
+            <AccountChip className="px-0.5" />
             <AppSwitcher active="alpha" />
           </div>
         </div>

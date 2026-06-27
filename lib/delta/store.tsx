@@ -6,9 +6,12 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { getServerState, putLedger } from "@/lib/persist";
 import { advanceRecurring, deriveDelta, type DeltaView } from "./compute";
 import {
   type Account,
@@ -71,34 +74,28 @@ function uid(prefix: string): string {
 const today = () => new Date().toISOString().slice(0, 10);
 
 export function DeltaProvider({ children }: { children: ReactNode }) {
+  const { enabled, status } = useAuth();
+  // Server-backed when real auth is on and a user is signed in; otherwise the
+  // original localStorage model (open mode / not signed in).
+  const serverMode = enabled && status === "authenticated";
+
   const [ledger, setLedger] = useState<Ledger | null>(null);
   const [isSample, setIsSample] = useState(false);
   const [ready, setReady] = useState(false);
 
-  // First load: read storage, or auto-seed the sample so delta feels alive.
+  // Keep the active backend readable from inside the stable write callbacks.
+  const serverModeRef = useRef(serverMode);
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        setLedger(JSON.parse(raw) as Ledger);
-        setIsSample(localStorage.getItem(SAMPLE_FLAG) === "1");
-      } else {
-        setLedger(SAMPLE_LEDGER);
-        setIsSample(true);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(SAMPLE_LEDGER));
-        localStorage.setItem(SAMPLE_FLAG, "1");
-      }
-    } catch {
-      // storage unavailable / corrupt — fall back to the sample in memory
-      setLedger(SAMPLE_LEDGER);
-      setIsSample(true);
-    }
-    setReady(true);
-  }, []);
+    serverModeRef.current = serverMode;
+  }, [serverMode]);
 
-  const persist = useCallback((next: Ledger | null, sample: boolean) => {
-    setLedger(next);
-    setIsSample(sample);
+  // Persist the ledger to the active backend: server mode pushes the blob to
+  // the user's row; open mode writes localStorage (with the sample flag).
+  const writeThrough = useCallback((next: Ledger | null, sample: boolean) => {
+    if (serverModeRef.current) {
+      void putLedger(next);
+      return;
+    }
     try {
       if (next === null) localStorage.removeItem(STORAGE_KEY);
       else localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -108,23 +105,77 @@ export function DeltaProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Hydrate from the right backend. In server mode we read ONLY from the server
+  // (never the shared-browser localStorage), so one person's ledger can't leak
+  // to the next who signs in on the same machine. A brand-new signed-in user
+  // starts empty (the Import / Load-sample prompt); the lively auto-seeded
+  // sample stays in the open/anonymous mode only.
+  useEffect(() => {
+    if (!enabled) {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          setLedger(JSON.parse(raw) as Ledger);
+          setIsSample(localStorage.getItem(SAMPLE_FLAG) === "1");
+        } else {
+          setLedger(SAMPLE_LEDGER);
+          setIsSample(true);
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(SAMPLE_LEDGER));
+            localStorage.setItem(SAMPLE_FLAG, "1");
+          } catch {
+            /* keep in memory */
+          }
+        }
+      } catch {
+        setLedger(SAMPLE_LEDGER);
+        setIsSample(true);
+      }
+      setReady(true);
+      return;
+    }
+    if (status === "loading") {
+      setReady(false);
+      return;
+    }
+    if (status === "authenticated") {
+      let alive = true;
+      setReady(false);
+      getServerState().then((s) => {
+        if (!alive) return;
+        setLedger((s?.ledger as Ledger | null) ?? EMPTY_LEDGER);
+        setIsSample(false);
+        setReady(true);
+      });
+      return () => {
+        alive = false;
+      };
+    }
+    setLedger(EMPTY_LEDGER);
+    setIsSample(false);
+    setReady(true);
+  }, [enabled, status]);
+
+  const persist = useCallback(
+    (next: Ledger | null, sample: boolean) => {
+      setLedger(next);
+      setIsSample(sample);
+      writeThrough(next, sample);
+    },
+    [writeThrough]
+  );
+
   /** Apply a pure update to the ledger; any edit drops the "sample" badge. */
   const mutate = useCallback(
     (fn: (l: Ledger) => Ledger) => {
       setLedger((cur) => {
-        const base = cur ?? EMPTY_LEDGER;
-        const next = fn(base);
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-          localStorage.setItem(SAMPLE_FLAG, "0");
-        } catch {
-          /* keep in memory */
-        }
+        const next = fn(cur ?? EMPTY_LEDGER);
+        writeThrough(next, false);
         return next;
       });
       setIsSample(false);
     },
-    []
+    [writeThrough]
   );
 
   const addTransaction = useCallback(

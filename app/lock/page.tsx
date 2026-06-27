@@ -1,14 +1,15 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import { signIn } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { APP_HOME, APP_META, type AppKind, Mark } from "@/components/shell/brand";
 
-const PIN_LENGTH = 4;
 const SERIF = '"Palatino Linotype", "Book Antiqua", Palatino, serif';
 
 // Signature accent (raw RGB) per app — mint for alpha, iris for delta. Drives
-// the hover bloom, the PIN-box theming and the unlock choreography tint.
+// the hover bloom, the field theming and the unlock choreography tint.
 const ACCENT_RGB: Record<AppKind, string> = {
   alpha: "94,234,212",
   delta: "167,139,250",
@@ -17,65 +18,28 @@ const ACCENT_RGB: Record<AppKind, string> = {
 /**
  * The portal. Both alpha (portfolio analytics) and delta (personal finance)
  * live behind one door; this screen lets you pick which to enter — α | Δ —
- * then, if the deploy is PIN-gated, takes the code. When no PIN is set,
- * choosing a side walks straight in.
+ * then, when the deploy has accounts enabled (AUTH_SECRET set), takes your
+ * username and password. With auth disabled, choosing a side walks straight in.
  */
 export default function LockPage() {
+  const { enabled } = useAuth();
   const [mode, setMode] = useState<"portal" | "auth">("portal");
   const [selected, setSelected] = useState<AppKind>("alpha");
   const [hovered, setHovered] = useState<AppKind | null>(null);
 
-  const [pin, setPin] = useState("");
-  const [error, setError] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  // null until the GET resolves; cached so a click never waits twice.
-  const pinRequired = useRef<boolean | null>(null);
-  const locked = cooldown > 0;
-
-  // Learn up front whether this deploy needs a code, so the first click is
-  // instant either way.
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/auth")
-      .then((r) => r.json())
-      .then((d) => {
-        if (alive) pinRequired.current = !!d.required;
-      })
-      .catch(() => {
-        if (alive) pinRequired.current = true; // fail safe → ask for the PIN
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
+  const userRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (mode === "auth") {
-      const id = setTimeout(() => inputRef.current?.focus(), 60);
+      const id = setTimeout(() => userRef.current?.focus(), 80);
       return () => clearTimeout(id);
     }
   }, [mode]);
-
-  // Lockout countdown after too many wrong PINs.
-  useEffect(() => {
-    if (cooldown <= 0) return;
-    const id = setInterval(
-      () =>
-        setCooldown((c) => {
-          if (c <= 1) {
-            setPin("");
-            inputRef.current?.focus();
-            return 0;
-          }
-          return c - 1;
-        }),
-      1000
-    );
-    return () => clearInterval(id);
-  }, [cooldown]);
 
   // Sets the cross-reload entrance flag and washes to the chosen app.
   function triggerUnlock(kind: AppKind) {
@@ -90,65 +54,43 @@ export default function LockPage() {
     setTimeout(() => window.location.replace(APP_HOME[kind]), 1450);
   }
 
-  async function ensureRequired(): Promise<boolean> {
-    if (pinRequired.current !== null) return pinRequired.current;
-    try {
-      const d = await (await fetch("/api/auth")).json();
-      pinRequired.current = !!d.required;
-    } catch {
-      pinRequired.current = true;
-    }
-    return pinRequired.current;
-  }
-
-  async function choose(kind: AppKind) {
+  function choose(kind: AppKind) {
     if (unlocked) return;
     setSelected(kind);
-    const required = await ensureRequired();
-    if (required) setMode("auth");
-    else triggerUnlock(kind);
+    if (enabled) {
+      setMode("auth");
+    } else {
+      triggerUnlock(kind); // accounts disabled — open access
+    }
   }
 
-  // Validate the PIN once four digits are in.
-  useEffect(() => {
-    if (mode !== "auth") return;
-    if (pin.length !== PIN_LENGTH || checking || locked || unlocked) return;
-    let cancelled = false;
-    (async () => {
-      setChecking(true);
-      try {
-        const res = await fetch("/api/auth", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pin }),
-        });
-        if (cancelled) return;
-        if (res.ok) {
-          triggerUnlock(selected);
-        } else if (res.status === 429) {
-          const retryAfter = Number(res.headers.get("Retry-After")) || 900;
-          setError(true);
-          setCooldown(retryAfter);
-          setTimeout(() => {
-            if (!cancelled) {
-              setError(false);
-              setPin("");
-            }
-          }, 650);
-        } else {
-          setError(true);
-        }
-      } catch {
-        if (!cancelled) setError(true);
-      } finally {
-        if (!cancelled) setChecking(false);
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (checking || unlocked) return;
+    if (!username.trim() || !password) {
+      setError("Enter your username and password");
+      return;
+    }
+    setChecking(true);
+    setError("");
+    try {
+      const res = await signIn("credentials", {
+        username: username.trim(),
+        password,
+        redirect: false,
+      });
+      if (res?.error) {
+        setError("Incorrect username or password");
+        setPassword("");
+      } else {
+        triggerUnlock(selected);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pin, mode]);
+    } catch {
+      setError("Something went wrong — try again");
+    } finally {
+      setChecking(false);
+    }
+  }
 
   const accent = ACCENT_RGB[selected];
 
@@ -221,15 +163,13 @@ export default function LockPage() {
             animate={{ opacity: unlocked ? 0 : 1, y: 0 }}
             exit={{ opacity: 0, y: -14 }}
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-            onClick={() => inputRef.current?.focus()}
           >
             {/* back to the portal */}
             <button
-              onClick={(e) => {
-                e.stopPropagation();
+              onClick={() => {
                 setMode("portal");
-                setPin("");
-                setError(false);
+                setPassword("");
+                setError("");
               }}
               className="absolute -top-2 left-0 flex items-center gap-1.5 text-[12px] text-faint transition-colors hover:text-ink"
               aria-label="Back to portal"
@@ -264,93 +204,60 @@ export default function LockPage() {
               {APP_META[selected].phonetic}
             </motion.p>
 
-            <input
-              ref={inputRef}
-              type="text"
-              inputMode="numeric"
-              autoComplete="off"
-              name="delta-code"
-              data-1p-ignore="true"
-              data-lpignore="true"
-              data-bwignore="true"
-              data-form-type="other"
-              value={pin}
-              disabled={locked || unlocked}
-              onChange={(e) => {
-                if (locked) return;
-                const next = e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH);
-                if (error && next.length < pin.length) setError(false);
-                setPin(next);
-              }}
-              className="absolute h-0 w-0 opacity-0"
-              aria-label="PIN"
-            />
-
-            <motion.div
-              animate={
-                unlocked
-                  ? { opacity: 0, y: -10, scale: 0.5 }
-                  : error
-                    ? { x: [0, -10, 10, -7, 7, -3, 0] }
-                    : { x: 0 }
-              }
-              transition={{ duration: unlocked ? 0.6 : 0.45 }}
-              className="mt-7 flex gap-3"
+            <motion.form
+              onSubmit={submit}
+              animate={{ opacity: unlocked ? 0 : 1, y: unlocked ? -10 : 0 }}
+              transition={{ duration: 0.5 }}
+              className="mt-7 flex w-full flex-col gap-2.5"
+              style={{ ["--accent" as string]: `rgba(${accent},0.6)` }}
             >
-              {Array.from({ length: PIN_LENGTH }).map((_, i) => {
-                const filled = i < pin.length;
-                const danger = error || locked;
-                const lit = filled || unlocked;
-                return (
-                  <div
-                    key={i}
-                    className="flex h-16 items-center justify-center rounded-xl border text-[22px] transition-colors duration-150"
-                    style={{
-                      width: 52,
-                      borderColor: danger
-                        ? "rgba(251,113,133,0.6)"
-                        : lit
-                          ? `rgba(${accent},0.55)`
-                          : "var(--color-edge)",
-                      background: danger
-                        ? "rgba(251,113,133,0.06)"
-                        : lit
-                          ? `rgba(${accent},0.07)`
-                          : "var(--color-panel)",
-                      color: danger
-                        ? "var(--color-neg)"
-                        : lit
-                          ? `rgb(${accent})`
-                          : "var(--color-faint)",
-                    }}
-                  >
-                    {filled ? (
-                      <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: "spring", stiffness: 500, damping: 22 }}
-                        className="font-mono text-[34px] leading-none translate-y-[5px]"
-                      >
-                        *
-                      </motion.span>
-                    ) : (
-                      <span className="font-mono opacity-40">·</span>
-                    )}
-                  </div>
-                );
-              })}
-            </motion.div>
+              <input
+                ref={userRef}
+                type="text"
+                autoComplete="username"
+                placeholder="username"
+                value={username}
+                disabled={unlocked}
+                onChange={(e) => {
+                  if (error) setError("");
+                  setUsername(e.target.value);
+                }}
+                className="h-12 w-full rounded-xl border border-edge bg-[var(--color-panel)] px-4 text-[15px] text-ink outline-none transition-colors placeholder:text-faint focus:border-[var(--accent)]"
+                aria-label="Username"
+              />
+              <input
+                type="password"
+                autoComplete="current-password"
+                placeholder="password"
+                value={password}
+                disabled={unlocked}
+                onChange={(e) => {
+                  if (error) setError("");
+                  setPassword(e.target.value);
+                }}
+                className="h-12 w-full rounded-xl border border-edge bg-[var(--color-panel)] px-4 text-[15px] text-ink outline-none transition-colors placeholder:text-faint focus:border-[var(--accent)]"
+                aria-label="Password"
+              />
+              <button
+                type="submit"
+                disabled={checking || unlocked}
+                className="mt-1 flex h-12 items-center justify-center rounded-xl text-[14px] font-medium transition-opacity disabled:opacity-50"
+                style={{
+                  background: `rgba(${accent},0.12)`,
+                  color: `rgb(${accent})`,
+                  boxShadow: `inset 0 0 0 1px rgba(${accent},0.4)`,
+                }}
+              >
+                {checking ? "Verifying…" : `Enter ${APP_META[selected].name}`}
+              </button>
+            </motion.form>
 
             <motion.p
               animate={{ opacity: unlocked ? 0 : 1 }}
-              className="mt-5 h-4 font-mono text-[12px]"
-              style={{ color: error || locked ? "var(--color-neg)" : "var(--color-faint)" }}
+              className="mt-4 h-4 font-mono text-[12px]"
+              style={{ color: error ? "var(--color-neg)" : "var(--color-faint)" }}
             >
-              {locked
-                ? `Too many attempts · retry in ${cooldown}s`
-                : error
-                  ? "Incorrect code"
-                  : "Enter your 4-digit code"}
+              {error || "Sign in to your account"}
             </motion.p>
           </motion.div>
         )}

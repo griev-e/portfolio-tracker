@@ -7,9 +7,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 alpha is a dark, institutional-grade personal portfolio
 analytics terminal. You import holdings as CSV and it computes allocation,
 risk, research, quality, factor, scenario, correlation, and Monte Carlo
-analysis. There are no accounts and no database: the portfolio lives in the
-browser's `localStorage`, almost all analytics run client-side, and the only
-server code is a thin set of caching proxies to external data providers.
+analysis. By default there are no accounts and no database: the portfolio lives
+in the browser's `localStorage`, almost all analytics run client-side, and the
+only server code is a thin set of caching proxies to external data providers.
+Accounts are an **optional** layer (see "Accounts & persistence" below): set
+`AUTH_SECRET` + `DATABASE_URL` and each person signs in to their own saved
+portfolio and delta ledger; leave them unset and the app behaves exactly as the
+single-user, localStorage tool it has always been.
 
 Stack: Next.js 15 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS 4
 · Framer Motion. All charts are hand-built SVG — **no chart library**.
@@ -34,13 +38,14 @@ Tests live next to the code as `*.test.ts` (Vitest, `node` environment — see
 suite covers the pure analytics (risk, correlation, quality, scenarios, Monte
 Carlo, the regime engine and its `mathx` helpers, CSV parsing, fundamentals).
 
-### Environment variables (both optional, see `.env.example`)
+### Environment variables (all optional, see `.env.example`)
 
-- `ACCESS_PIN` — a 4-digit code that gates the whole app via `middleware.ts`.
-  When unset, the app is open (so local dev never locks you out). The auth
-  cookie stores a SHA-256 hash of the PIN with a fixed application prefix
-  (`SHA-256("alpha:" + pin)`), never the PIN itself. The gate is meant to keep
-  casual visitors out, not to be hardened auth.
+- `AUTH_SECRET` + `DATABASE_URL` — turn on **accounts** (see "Accounts &
+  persistence" below). Both must be set; when either is unset the app is open
+  and single-user (localStorage), so local dev never locks you out. `AUTH_SECRET`
+  signs the NextAuth JWT session; `DATABASE_URL` is the Neon/Postgres connection
+  string. There is no public sign-up — provision logins with
+  `npm run create-user`. (This replaces the old `ACCESS_PIN` PIN gate.)
 - `ANTHROPIC_API_KEY` — enables the AI daily brief on the Intelligence page.
   When unset, the brief section degrades gracefully and everything else works.
 - `FMP_API_KEY` — optional Financial Modeling Prep key. When set, fundamentals
@@ -119,6 +124,33 @@ review; it never commits to the snapshot directly.
   and merges them onto the bundled snapshot via `lib/live/merge.ts` — the same
   three-tier fallback as the main portfolio, scoped to one ticker.
 
+### Accounts & persistence (optional)
+
+Off by default. Set `AUTH_SECRET` + `DATABASE_URL` and the app gains real
+username/password logins (NextAuth, Credentials provider, bcrypt) with each
+user's data saved server-side. Unset either and everything below is bypassed —
+the stores fall back to localStorage and the app is the open single-user tool it
+has always been. **Preserve both paths when editing the stores, middleware, or
+auth.**
+
+- **One gate, both apps.** `middleware.ts` (edge, via the slim `auth.config.ts`)
+  protects every route; `components/auth/AuthProvider.tsx` exposes `useAuth()`
+  (`enabled` / `status` / `userId` / `name`) and only mounts NextAuth's
+  `SessionProvider` when accounts are on. `auth.ts` (Node — bcrypt + DB) holds
+  the full config; never import it from middleware or client code.
+- **JSONB blob per user, not normalized tables.** The client owns all mutation
+  and derivation (`buildPortfolio`, `deriveDelta`), so the DB just stores each
+  app's existing shape opaquely: two tables (`users`, `user_state`) in
+  `lib/db/schema.ts`, the lazy Neon client in `lib/db/index.ts`. Saving an alpha
+  change never touches the delta blob (separate `PUT` endpoints).
+- **The stores choose their backend.** `lib/store.tsx` and `lib/delta/store.tsx`
+  branch on `useAuth()`: signed in → hydrate from `/api/state` and push edits
+  back through `lib/persist.ts`; otherwise → localStorage as before. In server
+  mode they read **only** the server (never the shared-browser cache), so one
+  person's data can't leak to the next who signs in on the same machine.
+- **No public sign-up.** Provision logins with `npm run create-user -- <user>
+  <pass>`; create/update tables with `npm run db:push` (Drizzle Kit).
+
 ### Server routes (`app/api/*`) — all thin cached proxies
 
 Each route handler sanitizes input, calls a `lib/server/*` module, and sets
@@ -138,10 +170,13 @@ Maps as a warm-lambda cache. Provider code (`yahoo-finance2`, Anthropic SDK) is
 | `/api/brief` | `lib/server/brief.ts` | AI daily brief (Anthropic). POSTs the in-browser portfolio snapshot since holdings never persist server-side. Caches one brief per day per portfolio shape. |
 | `/api/allocate` | `lib/server/allocator.ts` | AI dry-powder allocator for the Rebalance page (Anthropic). POSTs a fundamentals-enriched snapshot; returns a structured cash-deployment plan. Caches one plan per day per portfolio shape. |
 | `/api/optimize` | `lib/server/optimizer.ts` | AI optimizer review for the Optimizer page (Anthropic, Sonnet 4.6). The optimal weights are solved client-side; this POSTs the before/after metrics + largest shifts and returns a structured construction read. Caches one review per day per objective + portfolio shape. |
-| `/api/auth` | `lib/server/rateLimit.ts` | Validates the PIN, sets the auth cookie. A fixed-window limiter throttles brute force (locks a client after a handful of wrong PINs). |
+| `/api/auth/*` | `auth.ts` (NextAuth) | Session, sign-in/out, CSRF. The Credentials provider (username + password, bcrypt) authenticates against the `users` table; the fixed-window limiter in `lib/server/rateLimit.ts` throttles login brute force. Only meaningful when accounts are enabled. |
+| `/api/state` | `lib/db/state.ts` | `GET` returns both saved blobs (alpha portfolio + delta ledger) for the signed-in user; `PUT /api/state/portfolio` and `/api/state/ledger` upsert each. 404 when accounts are off, 401 when signed out. |
 
-`middleware.ts` enforces the PIN gate: pages redirect to `/lock`, APIs return
-401, and `/api/auth` is always allowed through.
+`middleware.ts` enforces the auth gate **when accounts are on**: pages redirect
+to `/lock`, APIs return 401, and `/api/auth/*` + `/lock` are always allowed.
+When accounts are off (no `AUTH_SECRET`/`DATABASE_URL`) it short-circuits to a
+no-op and the app is fully open — the graceful-degradation default.
 
 `lib/server/cost.ts` has the per-model $/Mtok pricing table and `usdCost()`,
 which turns an Anthropic `usage` object into a USD estimate (cache writes at
@@ -239,5 +274,6 @@ confidence, and UI all adapt automatically.
 ## Deployment
 
 Zero-config for Vercel (Next.js preset auto-detected). Push to GitHub → import
-at vercel.com/new, or `npx vercel`. Set `ACCESS_PIN` and `ANTHROPIC_API_KEY` in
-project env vars as desired.
+at vercel.com/new, or `npx vercel`. Set `ANTHROPIC_API_KEY` as desired; to enable
+accounts set `AUTH_SECRET` + `DATABASE_URL` (a Neon/Vercel Postgres database),
+then run `npm run db:push` and `npm run create-user` against that database.

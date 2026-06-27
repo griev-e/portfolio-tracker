@@ -1,0 +1,31 @@
+/**
+ * Lazy Drizzle client over Neon's serverless HTTP driver.
+ *
+ * The connection is created on first use, not at import — so modules that
+ * transitively import this (auth.ts, the /api/state routes) don't throw at load
+ * time when DATABASE_URL is unset (open mode). `isDbConfigured()` lets callers
+ * degrade gracefully instead of hitting a missing connection string.
+ *
+ * Server-only: never import from client components.
+ */
+import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-http";
+import * as schema from "./schema";
+
+type Db = ReturnType<typeof drizzle<typeof schema>>;
+
+let cached: Db | null = null;
+
+export function isDbConfigured(): boolean {
+  return !!process.env.DATABASE_URL;
+}
+
+export function getDb(): Db {
+  if (cached) return cached;
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error("DATABASE_URL is not set — the database layer is disabled.");
+  }
+  cached = drizzle(neon(url), { schema });
+  return cached;
+}

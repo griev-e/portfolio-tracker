@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useDelta } from "@/lib/delta/store";
-import { AppSwitcher, Mark, SignOutButton } from "./brand";
+import { AccountChip, AppSwitcher, Mark, SignOutButton } from "./brand";
 import { IconImport, IconIntelligence } from "./icons";
 import {
   IconAccounts,
@@ -207,7 +207,8 @@ export function DeltaShell({ children }: { children: ReactNode }) {
             </Link>
             <SignOutButton className="ml-auto" />
           </div>
-          <div className="mt-3">
+          <div className="mt-3 flex flex-col gap-2">
+            <AccountChip className="px-0.5" />
             <AppSwitcher active="delta" />
           </div>
         </div>

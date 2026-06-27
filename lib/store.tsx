@@ -9,10 +9,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { buildPortfolio } from "./analytics/build";
 import { parsePortfolioCSV } from "./csv";
 import { primeLiveCMA } from "./live/cma";
 import { useLiveData } from "./live/useLiveData";
+import { getServerState, putPortfolio } from "./persist";
 import { SAMPLE_CASH, SAMPLE_CSV } from "./sample";
 import type { Portfolio, RawHolding } from "./types";
 
@@ -62,6 +64,11 @@ interface PortfolioStore {
 const Ctx = createContext<PortfolioStore | null>(null);
 
 export function PortfolioProvider({ children }: { children: ReactNode }) {
+  const { enabled, status } = useAuth();
+  // Server-backed when real auth is on and a user is signed in; otherwise the
+  // original localStorage model (open mode / not signed in).
+  const serverMode = enabled && status === "authenticated";
+
   const [stored, setStored] = useState<Stored | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -69,35 +76,67 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     primeLiveCMA();
   }, []);
 
+  // Hydrate from the right backend. In server mode we read ONLY from the server
+  // (never the shared-browser localStorage), so one user's portfolio can't leak
+  // to the next person who signs in on the same machine.
   useEffect(() => {
-    try {
-      let raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) {
-        for (const legacy of LEGACY_STORAGE_KEYS) {
-          const old = localStorage.getItem(legacy);
-          if (old && !raw) {
-            raw = old;
-            localStorage.setItem(STORAGE_KEY, old);
+    if (!enabled) {
+      try {
+        let raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          for (const legacy of LEGACY_STORAGE_KEYS) {
+            const old = localStorage.getItem(legacy);
+            if (old && !raw) {
+              raw = old;
+              localStorage.setItem(STORAGE_KEY, old);
+            }
+            localStorage.removeItem(legacy);
           }
-          localStorage.removeItem(legacy);
         }
+        setStored(raw ? (JSON.parse(raw) as Stored) : null);
+      } catch {
+        setStored(null); // corrupted state — start fresh
       }
-      if (raw) setStored(JSON.parse(raw) as Stored);
-    } catch {
-      // corrupted state — start fresh
+      setReady(true);
+      return;
     }
+    if (status === "loading") {
+      setReady(false);
+      return;
+    }
+    if (status === "authenticated") {
+      let alive = true;
+      setReady(false);
+      getServerState().then((s) => {
+        if (!alive) return;
+        setStored((s?.portfolio as Stored | null) ?? null);
+        setReady(true);
+      });
+      return () => {
+        alive = false;
+      };
+    }
+    // enabled but unauthenticated (middleware normally prevents reaching here)
+    setStored(null);
     setReady(true);
-  }, []);
+  }, [enabled, status]);
 
-  const persist = useCallback((next: Stored | null) => {
-    setStored(next);
-    try {
-      if (next === null) localStorage.removeItem(STORAGE_KEY);
-      else localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // storage unavailable (private mode) — keep in memory
-    }
-  }, []);
+  const persist = useCallback(
+    (next: Stored | null) => {
+      setStored(next);
+      if (serverMode) {
+        void putPortfolio(next);
+        return;
+      }
+      try {
+        if (next === null) localStorage.removeItem(STORAGE_KEY);
+        else localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // storage unavailable (private mode) — keep in memory
+      }
+    },
+    [serverMode]
+  );
 
   const importHoldings = useCallback(
     (holdings: RawHolding[], cash: number | null) => {
