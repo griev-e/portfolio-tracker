@@ -7,9 +7,9 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { fmtUSDCompact } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
-import { DeltaProvider } from "@/lib/delta/store";
+import { ThetaProvider } from "@/lib/theta/store";
 import { AccountChip, AppTitle, Sigil, SignOutButton } from "./brand";
-import { DeltaShell } from "./DeltaShell";
+import { ThetaShell } from "./ThetaShell";
 import {
   IconBenchmark,
   IconDiscover,
@@ -259,14 +259,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     return <main className="min-h-screen">{children}</main>;
   }
 
-  // delta — the sister personal-finance app — carries its own shell (nav,
+  // theta — the sister personal-finance app — carries its own shell (nav,
   // branding, accent) and its own localStorage-backed store. Everything under
-  // /delta renders inside both; the provider only mounts on these routes.
-  if (pathname === "/delta" || pathname.startsWith("/delta/")) {
+  // /theta renders inside both; the provider only mounts on these routes.
+  if (pathname === "/theta" || pathname.startsWith("/theta/")) {
     return (
-      <DeltaProvider>
-        <DeltaShell>{children}</DeltaShell>
-      </DeltaProvider>
+      <ThetaProvider>
+        <ThetaShell>{children}</ThetaShell>
+      </ThetaProvider>
     );
   }
 

@@ -1,6 +1,6 @@
 /**
  * Per-user state queries (server-only): load both app blobs, and upsert each
- * independently so saving an alpha change never clobbers the delta ledger (and
+ * independently so saving an alpha change never clobbers the theta ledger (and
  * vice-versa). Blobs are stored opaquely — shape validation happens at the
  * route boundary; the client owns their meaning.
  */
