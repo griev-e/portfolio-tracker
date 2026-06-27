@@ -8,6 +8,16 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.27",
+    date: "2026-06-27",
+    title: "delta — a sister personal-finance terminal, and a portal to both",
+    changes: [
+      "The lock screen is now a portal: α | Δ. alpha (portfolio analytics) and delta (personal finance) share one door and one PIN — pick a side with a fluid, animated chooser, then enter the code (or walk straight in when no PIN is set). The unlock choreography tints to whichever terminal you chose.",
+      "Introduced delta, a new personal-finance app that shares alpha's dark, institutional aesthetic and its own shell, nav and iris accent. Tabs: Dashboard, Net Worth, Accounts, Transactions, Cash Flow, Budgets, Goals, Recurring and Settings — net worth, balances, spending mix, budget pacing and savings goals, all hand-built in the same SVG/Framer style.",
+      "An always-available α ⇄ Δ switcher in both sidebars (and the mobile bars) lets you hop between the two terminals at any time. delta currently runs on illustrative sample data — clearly labelled — with no real accounts connected.",
+    ],
+  },
+  {
     version: "1.26",
     date: "2026-06-26",
     title: "Live benchmark volatility & a self-refreshing snapshot",

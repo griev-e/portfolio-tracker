@@ -1,29 +1,63 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import { Sigil } from "@/components/shell/AppShell";
+import { APP_HOME, APP_META, type AppKind, Mark } from "@/components/shell/brand";
 
 const PIN_LENGTH = 4;
+const SERIF = '"Palatino Linotype", "Book Antiqua", Palatino, serif';
 
-// Sigil sizing for crisp scaling. We render the SVG at its largest (unlock)
-// pixel size and scale it DOWN at rest, so the composited layer is never
-// stretched beyond its native resolution. 64px at rest grows to 64 * 2.3.
-const SIGIL_FULL = Math.round(64 * 2.3); // 147 — the unlock size
-const SIGIL_REST = 64 / SIGIL_FULL; // resting scale that renders 64px
+// Signature accent (raw RGB) per app — mint for alpha, iris for delta. Drives
+// the hover bloom, the PIN-box theming and the unlock choreography tint.
+const ACCENT_RGB: Record<AppKind, string> = {
+  alpha: "94,234,212",
+  delta: "167,139,250",
+};
 
+/**
+ * The portal. Both alpha (portfolio analytics) and delta (personal finance)
+ * live behind one door; this screen lets you pick which to enter — α | Δ —
+ * then, if the deploy is PIN-gated, takes the code. When no PIN is set,
+ * choosing a side walks straight in.
+ */
 export default function LockPage() {
+  const [mode, setMode] = useState<"portal" | "auth">("portal");
+  const [selected, setSelected] = useState<AppKind>("alpha");
+  const [hovered, setHovered] = useState<AppKind | null>(null);
+
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
   const [checking, setChecking] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  // null until the GET resolves; cached so a click never waits twice.
+  const pinRequired = useRef<boolean | null>(null);
   const locked = cooldown > 0;
 
+  // Learn up front whether this deploy needs a code, so the first click is
+  // instant either way.
   useEffect(() => {
-    inputRef.current?.focus();
+    let alive = true;
+    fetch("/api/auth")
+      .then((r) => r.json())
+      .then((d) => {
+        if (alive) pinRequired.current = !!d.required;
+      })
+      .catch(() => {
+        if (alive) pinRequired.current = true; // fail safe → ask for the PIN
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
+
+  useEffect(() => {
+    if (mode === "auth") {
+      const id = setTimeout(() => inputRef.current?.focus(), 60);
+      return () => clearTimeout(id);
+    }
+  }, [mode]);
 
   // Lockout countdown after too many wrong PINs.
   useEffect(() => {
@@ -43,8 +77,42 @@ export default function LockPage() {
     return () => clearInterval(id);
   }, [cooldown]);
 
+  // Sets the cross-reload entrance flag and washes to the chosen app.
+  function triggerUnlock(kind: AppKind) {
+    setUnlocked(true);
+    try {
+      // The app shell reads this and plays a matching reveal out of black so
+      // the two screens feel like one continuous motion (see AppShell/layout).
+      sessionStorage.setItem("alpha.entrance", "1");
+    } catch {
+      /* private mode — entrance just no-ops */
+    }
+    setTimeout(() => window.location.replace(APP_HOME[kind]), 1450);
+  }
+
+  async function ensureRequired(): Promise<boolean> {
+    if (pinRequired.current !== null) return pinRequired.current;
+    try {
+      const d = await (await fetch("/api/auth")).json();
+      pinRequired.current = !!d.required;
+    } catch {
+      pinRequired.current = true;
+    }
+    return pinRequired.current;
+  }
+
+  async function choose(kind: AppKind) {
+    if (unlocked) return;
+    setSelected(kind);
+    const required = await ensureRequired();
+    if (required) setMode("auth");
+    else triggerUnlock(kind);
+  }
+
+  // Validate the PIN once four digits are in.
   useEffect(() => {
-    if (pin.length !== PIN_LENGTH || checking || locked) return;
+    if (mode !== "auth") return;
+    if (pin.length !== PIN_LENGTH || checking || locked || unlocked) return;
     let cancelled = false;
     (async () => {
       setChecking(true);
@@ -56,22 +124,8 @@ export default function LockPage() {
         });
         if (cancelled) return;
         if (res.ok) {
-          setUnlocked(true);
-          // Hand the entrance off to the app shell across the reload: it reads
-          // this flag and plays a matching reveal so the two screens feel like
-          // one continuous motion (see AppShell). sessionStorage survives the
-          // navigation but is scoped to this tab and one-shot.
-          try {
-            sessionStorage.setItem("alpha.entrance", "1");
-          } catch {
-            /* private mode / disabled storage — entrance just no-ops */
-          }
-          // Full reload so the middleware re-evaluates every route. Timed to
-          // land after the unlock veil has fully covered the screen, so the
-          // swap to the app is invisible.
-          setTimeout(() => window.location.replace("/"), 1450);
+          triggerUnlock(selected);
         } else if (res.status === 429) {
-          // Brute-force lockout — surface the cooldown and stop accepting input.
           const retryAfter = Number(res.headers.get("Retry-After")) || 900;
           setError(true);
           setCooldown(retryAfter);
@@ -82,8 +136,6 @@ export default function LockPage() {
             }
           }, 650);
         } else {
-          // Stays red/"wrong pin" until the user edits the input themselves
-          // (see the input's onChange) rather than auto-clearing on a timer.
           setError(true);
         }
       } catch {
@@ -96,195 +148,261 @@ export default function LockPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pin]);
+  }, [pin, mode]);
+
+  const accent = ACCENT_RGB[selected];
 
   return (
-    <div
-      className="flex min-h-screen flex-col items-center justify-center gap-8 px-6"
-      onClick={() => inputRef.current?.focus()}
-    >
-      {/* The sigil is rendered at its largest (unlock) size and scaled DOWN via
-          transform at rest. Scaling a GPU layer up rasterizes it at the base
-          size and stretches the texture (blurry); keeping every scale ≤ 1 means
-          the texture is always sampled down, so it stays crisp through the
-          grow-on-unlock. REST is the resting fraction of full size. */}
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6">
+      {/* Ambient wash that leans toward whichever side is in focus. */}
       <motion.div
-        className="relative z-30"
-        style={{ willChange: "transform, opacity" }}
-        initial={{ opacity: 0, scale: 0.7 * SIGIL_REST }}
+        aria-hidden
+        className="pointer-events-none fixed inset-0"
         animate={{
-          opacity: 1,
-          scale: unlocked ? 1 : SIGIL_REST,
-          y: unlocked ? -4 : 0,
+          background:
+            mode === "auth"
+              ? `radial-gradient(circle at 50% 42%, rgba(${accent},0.07), transparent 60%)`
+              : hovered
+                ? `radial-gradient(circle at ${hovered === "alpha" ? "32%" : "68%"} 45%, rgba(${ACCENT_RGB[hovered]},0.07), transparent 55%)`
+                : "radial-gradient(circle at 50% 45%, rgba(255,255,255,0.02), transparent 60%)",
         }}
-        transition={{
-          duration: unlocked ? 1.2 : 0.9,
-          ease: unlocked ? [0.16, 1, 0.3, 1] : [0.22, 1, 0.36, 1],
-        }}
-      >
-        <Sigil size={SIGIL_FULL} />
-      </motion.div>
-
-      <motion.div
-        className="relative z-30 text-left"
-        animate={{ opacity: unlocked ? 0 : 1, y: unlocked ? -18 : 0 }}
-        transition={{ duration: 0.7, ease: [0.4, 0, 1, 1] }}
-      >
-        <motion.h1
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="text-center text-[26px] font-bold tracking-[0.11em] text-ink"
-          style={{ fontFamily: '"Palatino Linotype", "Book Antiqua", Palatino, serif' }}
-        >
-          alpha
-        </motion.h1>
-        <motion.p
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="mt-1 font-mono text-[15px] text-faint"
-        >
-          /ăl′fə/
-        </motion.p>
-        <motion.p
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="eyebrow mt-1 italic text-muted"
-        >
-          noun
-        </motion.p>
-        <motion.p
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className="eyebrow mt-1 pl-8 -indent-8"
-        >
-          {"   "}1. a measure of risk-adjusted excess return
-        </motion.p>
-      </motion.div>
-
-      {/* Hidden input drives the boxes; digits render censored. */}
-      {/* type="text" (not "password") so browsers and password managers
-          don't offer to autofill/save — the visible boxes mask the digits. */}
-      <input
-        ref={inputRef}
-        type="text"
-        inputMode="numeric"
-        autoComplete="off"
-        name="alpha-code"
-        data-1p-ignore="true"
-        data-lpignore="true"
-        data-bwignore="true"
-        data-form-type="other"
-        value={pin}
-        disabled={locked}
-        onChange={(e) => {
-          if (locked) return;
-          const next = e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH);
-          // Wrong-pin state clears as soon as the user starts correcting it
-          // (deleting a digit), not on a timer.
-          if (error && next.length < pin.length) setError(false);
-          setPin(next);
-        }}
-        className="absolute h-0 w-0 opacity-0"
-        aria-label="PIN"
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
       />
 
-      <motion.div
-        animate={
-          unlocked
-            ? { opacity: 0, y: -10, scale: 0.4 }
-            : error
-              ? { x: [0, -10, 10, -7, 7, -3, 0] }
-              : { x: 0 }
-        }
-        transition={{ duration: unlocked ? 0.7 : 0.45, ease: [0.5, 0, 0.75, 0] }}
-        className="relative z-30 mt-2 flex gap-3"
-      >
-        {Array.from({ length: PIN_LENGTH }).map((_, i) => {
-          const filled = i < pin.length;
-          return (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.45 + i * 0.07 }}
-              className={`flex h-16 items-center justify-center rounded-xl border text-[22px] transition-colors duration-150 ${
-                error || locked
-                  ? "border-neg/60 bg-neg/[0.06] text-neg"
-                  : unlocked
-                    ? "border-ink/60 bg-ink/[0.08] text-ink"
-                    : filled
-                      ? "border-ink/40 bg-ink/[0.05] text-ink"
-                      : "border-edge bg-panel text-faint"
-              }`}
-              style={{ width: 52 }}
-            >
-              {filled ? (
-                <motion.span
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", stiffness: 500, damping: 22 }}
-                  className="font-mono text-[34px] leading-none translate-y-[5px]"
-                >
-                  *
-                </motion.span>
-              ) : (
-                <span className="font-mono opacity-40">·</span>
-              )}
-            </motion.div>
-          );
-        })}
-      </motion.div>
+      <AnimatePresence mode="wait">
+        {mode === "portal" ? (
+          <motion.div
+            key="portal"
+            className="relative z-30 w-full max-w-3xl"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: unlocked ? 0 : 1 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="flex flex-col items-stretch md:flex-row md:items-center">
+              <PortalChoice
+                kind="alpha"
+                hovered={hovered}
+                onHover={setHovered}
+                onChoose={choose}
+                from={-32}
+              />
 
-      {/* Unlock choreography. All overlays mount only on success and play once.
-          A soft white bloom swells from the sigil while two thin light rings
-          ripple outward; the veil then washes the whole screen to pure black
-          just after, so the hard navigation to the app is hidden inside the
-          dark. The app shell fades back out of that same black on the other
-          side, with the sigil dissolving from where it left off. */}
+              {/* the divider — the " | " in α | Δ */}
+              <motion.div
+                aria-hidden
+                initial={{ opacity: 0, scaleY: 0.3 }}
+                animate={{ opacity: 1, scaleY: 1 }}
+                transition={{ delay: 0.25, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                className="mx-auto my-2 hidden h-48 w-px bg-gradient-to-b from-transparent via-edge2 to-transparent md:block"
+              />
+              <motion.div
+                aria-hidden
+                initial={{ opacity: 0, scaleX: 0.3 }}
+                animate={{ opacity: 1, scaleX: 1 }}
+                transition={{ delay: 0.25, duration: 0.6 }}
+                className="mx-auto my-2 h-px w-32 bg-gradient-to-r from-transparent via-edge2 to-transparent md:hidden"
+              />
+
+              <PortalChoice
+                kind="delta"
+                hovered={hovered}
+                onHover={setHovered}
+                onChoose={choose}
+                from={32}
+              />
+            </div>
+
+            {/* caption that follows focus */}
+            <div className="mt-6 flex h-5 items-center justify-center">
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={hovered ?? "idle"}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.22 }}
+                  className="eyebrow tracking-[0.18em] uppercase"
+                >
+                  {hovered ? APP_META[hovered].tagline : "two terminals · one key"}
+                </motion.span>
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="auth"
+            className="relative z-30 flex w-full max-w-sm flex-col items-center"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: unlocked ? 0 : 1, y: 0 }}
+            exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            onClick={() => inputRef.current?.focus()}
+          >
+            {/* back to the portal */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setMode("portal");
+                setPin("");
+                setError(false);
+              }}
+              className="absolute -top-2 left-0 flex items-center gap-1.5 text-[12px] text-faint transition-colors hover:text-ink"
+              aria-label="Back to portal"
+            >
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 4l-5 6 5 6" />
+              </svg>
+              portal
+            </button>
+
+            <motion.div
+              className="relative"
+              initial={{ scale: 0.85, opacity: 0 }}
+              animate={{ scale: unlocked ? 1.12 : 1, opacity: 1, y: unlocked ? -4 : 0 }}
+              transition={{ duration: unlocked ? 1.2 : 0.6, ease: [0.16, 1, 0.3, 1] }}
+              style={{ filter: `drop-shadow(0 0 26px rgba(${accent},0.4))` }}
+            >
+              <Mark kind={selected} size={96} />
+            </motion.div>
+
+            <motion.h1
+              animate={{ opacity: unlocked ? 0 : 1 }}
+              className="mt-5 text-[24px] font-bold tracking-[0.11em] text-ink"
+              style={{ fontFamily: SERIF }}
+            >
+              {APP_META[selected].name}
+            </motion.h1>
+            <motion.p
+              animate={{ opacity: unlocked ? 0 : 1 }}
+              className="mt-1 font-mono text-[13px] text-faint"
+            >
+              {APP_META[selected].phonetic}
+            </motion.p>
+
+            <input
+              ref={inputRef}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              name="delta-code"
+              data-1p-ignore="true"
+              data-lpignore="true"
+              data-bwignore="true"
+              data-form-type="other"
+              value={pin}
+              disabled={locked || unlocked}
+              onChange={(e) => {
+                if (locked) return;
+                const next = e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH);
+                if (error && next.length < pin.length) setError(false);
+                setPin(next);
+              }}
+              className="absolute h-0 w-0 opacity-0"
+              aria-label="PIN"
+            />
+
+            <motion.div
+              animate={
+                unlocked
+                  ? { opacity: 0, y: -10, scale: 0.5 }
+                  : error
+                    ? { x: [0, -10, 10, -7, 7, -3, 0] }
+                    : { x: 0 }
+              }
+              transition={{ duration: unlocked ? 0.6 : 0.45 }}
+              className="mt-7 flex gap-3"
+            >
+              {Array.from({ length: PIN_LENGTH }).map((_, i) => {
+                const filled = i < pin.length;
+                const danger = error || locked;
+                const lit = filled || unlocked;
+                return (
+                  <div
+                    key={i}
+                    className="flex h-16 items-center justify-center rounded-xl border text-[22px] transition-colors duration-150"
+                    style={{
+                      width: 52,
+                      borderColor: danger
+                        ? "rgba(251,113,133,0.6)"
+                        : lit
+                          ? `rgba(${accent},0.55)`
+                          : "var(--color-edge)",
+                      background: danger
+                        ? "rgba(251,113,133,0.06)"
+                        : lit
+                          ? `rgba(${accent},0.07)`
+                          : "var(--color-panel)",
+                      color: danger
+                        ? "var(--color-neg)"
+                        : lit
+                          ? `rgb(${accent})`
+                          : "var(--color-faint)",
+                    }}
+                  >
+                    {filled ? (
+                      <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 22 }}
+                        className="font-mono text-[34px] leading-none translate-y-[5px]"
+                      >
+                        *
+                      </motion.span>
+                    ) : (
+                      <span className="font-mono opacity-40">·</span>
+                    )}
+                  </div>
+                );
+              })}
+            </motion.div>
+
+            <motion.p
+              animate={{ opacity: unlocked ? 0 : 1 }}
+              className="mt-5 h-4 font-mono text-[12px]"
+              style={{ color: error || locked ? "var(--color-neg)" : "var(--color-faint)" }}
+            >
+              {locked
+                ? `Too many attempts · retry in ${cooldown}s`
+                : error
+                  ? "Incorrect code"
+                  : "Enter your 4-digit code"}
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Unlock choreography — a bloom + light rings swelling from the mark,
+          tinted to the chosen app, then a wash to pure black that hides the
+          hard navigation. The app shell fades back out of that same black. */}
       {unlocked && (
         <>
           <div className="pointer-events-none fixed inset-0 z-10 flex items-center justify-center">
-            {/* Core bloom — a white glow expanding from behind the sigil. Only
-                transform + opacity animate, so it composites on the GPU. */}
             <motion.div
               initial={{ scale: 0.12, opacity: 0 }}
-              animate={{ scale: 3.6, opacity: [0, 0.55, 0] }}
+              animate={{ scale: 3.6, opacity: [0, 0.5, 0] }}
               transition={{ duration: 1.25, ease: "easeOut", times: [0, 0.38, 1] }}
               className="absolute h-[540px] w-[540px] rounded-full"
               style={{
                 willChange: "transform, opacity",
-                background:
-                  "radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.14) 36%, rgba(255,255,255,0) 64%)",
+                background: `radial-gradient(circle, rgba(255,255,255,0.5) 0%, rgba(${accent},0.18) 38%, rgba(255,255,255,0) 66%)`,
               }}
             />
-            {/* Two light rings rippling outward at different speeds for depth. */}
             <motion.div
               initial={{ scale: 0.3, opacity: 0 }}
               animate={{ scale: 6, opacity: [0, 0.6, 0] }}
               transition={{ duration: 1.15, ease: [0.16, 1, 0.3, 1], times: [0, 0.2, 1] }}
-              className="absolute h-[160px] w-[160px] rounded-full border border-white/70"
-              style={{ willChange: "transform, opacity" }}
+              className="absolute h-[160px] w-[160px] rounded-full border"
+              style={{ willChange: "transform, opacity", borderColor: `rgba(${accent},0.7)` }}
             />
             <motion.div
               initial={{ scale: 0.3, opacity: 0 }}
               animate={{ scale: 8.5, opacity: [0, 0.4, 0] }}
-              transition={{
-                duration: 1.25,
-                ease: [0.16, 1, 0.3, 1],
-                times: [0, 0.22, 1],
-                delay: 0.16,
-              }}
-              className="absolute h-[160px] w-[160px] rounded-full border border-white/40"
-              style={{ willChange: "transform, opacity" }}
+              transition={{ duration: 1.25, ease: [0.16, 1, 0.3, 1], times: [0, 0.22, 1], delay: 0.16 }}
+              className="absolute h-[160px] w-[160px] rounded-full border"
+              style={{ willChange: "transform, opacity", borderColor: `rgba(${accent},0.4)` }}
             />
           </div>
-
-          {/* Final wash to black — sits above everything so it covers the
-              glowing sigil too, leaving a clean black frame for the reload. */}
           <motion.div
             className="pointer-events-none fixed inset-0 z-40"
             style={{ background: "var(--color-void)", willChange: "opacity" }}
@@ -295,5 +413,84 @@ export default function LockPage() {
         </>
       )}
     </div>
+  );
+}
+
+/** One half of the portal: the giant glyph, its name, and a hover bloom. */
+function PortalChoice({
+  kind,
+  hovered,
+  onHover,
+  onChoose,
+  from,
+}: {
+  kind: AppKind;
+  hovered: AppKind | null;
+  onHover: (k: AppKind | null) => void;
+  onChoose: (k: AppKind) => void;
+  from: number;
+}) {
+  const meta = APP_META[kind];
+  const rgb = ACCENT_RGB[kind];
+  const isHot = hovered === kind;
+  const dimmed = hovered !== null && !isHot;
+
+  return (
+    <motion.button
+      type="button"
+      onMouseEnter={() => onHover(kind)}
+      onMouseLeave={() => onHover(null)}
+      onFocus={() => onHover(kind)}
+      onBlur={() => onHover(null)}
+      onClick={() => onChoose(kind)}
+      aria-label={`Enter ${meta.name} — ${meta.tagline}`}
+      initial={{ opacity: 0, x: from }}
+      animate={{ opacity: dimmed ? 0.4 : 1, x: 0 }}
+      transition={{
+        opacity: { duration: 0.4 },
+        x: { type: "spring", stiffness: 120, damping: 18, delay: 0.05 },
+      }}
+      className="group relative flex flex-1 flex-col items-center justify-center gap-5 rounded-2xl px-8 py-12 outline-none"
+    >
+      {/* hover bloom */}
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute top-[28%] h-56 w-56 rounded-full blur-[70px]"
+        style={{ background: `radial-gradient(circle, rgba(${rgb},0.22), transparent 70%)` }}
+        animate={{ opacity: isHot ? 1 : 0, scale: isHot ? 1 : 0.6 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      />
+
+      <motion.div
+        className="relative"
+        animate={{ scale: isHot ? 1.08 : 1, y: isHot ? -4 : 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 22 }}
+        style={{ filter: isHot ? `drop-shadow(0 0 28px rgba(${rgb},0.45))` : "none" }}
+      >
+        <Mark kind={kind} size={128} />
+      </motion.div>
+
+      <div className="relative text-center">
+        <div
+          className="text-[22px] font-bold lowercase tracking-[0.14em] text-ink"
+          style={{ fontFamily: SERIF }}
+        >
+          {meta.name}
+        </div>
+        <div className="eyebrow mt-1">{meta.tagline}</div>
+      </div>
+
+      <motion.div
+        className="relative flex items-center gap-1.5 font-mono text-[12px]"
+        style={{ color: `rgb(${rgb})` }}
+        animate={{ opacity: isHot ? 1 : 0, y: isHot ? 0 : 6 }}
+        transition={{ duration: 0.25 }}
+      >
+        Enter
+        <motion.span animate={{ x: isHot ? 3 : 0 }} transition={{ repeat: Infinity, repeatType: "mirror", duration: 0.8 }}>
+          →
+        </motion.span>
+      </motion.div>
+    </motion.button>
   );
 }
