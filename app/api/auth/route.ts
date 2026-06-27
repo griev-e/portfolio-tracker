@@ -18,6 +18,13 @@ const lockedResponse = (retryAfter: number) =>
     { status: 429, headers: { "Retry-After": String(retryAfter) } }
   );
 
+/** GET /api/auth — does this deploy require a PIN? The portal uses this to
+    decide whether to show the keypad or send you straight in. Never reveals
+    the PIN itself. */
+export function GET() {
+  return NextResponse.json({ required: !!process.env.ACCESS_PIN });
+}
+
 /** POST /api/auth { pin } — validates against ACCESS_PIN and sets the cookie. */
 export async function POST(req: NextRequest) {
   const pin = process.env.ACCESS_PIN;

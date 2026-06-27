@@ -8,6 +8,26 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.28",
+    date: "2026-06-27",
+    title: "delta goes live — your own editable ledger + an AI money brief",
+    changes: [
+      "delta is no longer a static demo. Your ledger — accounts, transactions, budgets, goals and recurring charges — now persists in the browser's localStorage, exactly like alpha's portfolio. Every figure (net worth, spending mix, budget pacing, cash flow, savings rate) is derived live from that ledger, so a single edit ripples across every page at once.",
+      "Full editing throughout: add and delete transactions, set and add budget limits, create goals and contribute to them, mark recurring charges paid (which logs the transaction and rolls the next date), and edit or remove account balances. A forgiving CSV importer (any column order, $/comma/parenthesized-negative aware) on a new Import & Data page brings in your own transactions; Load sample and Clear are one click away.",
+      "New delta Intelligence tab: a Claude-written monthly money brief (Haiku 4.5) — headline, wins, watch-outs and grounded suggested moves — generated from a snapshot of your ledger and cached one per day per shape, with the estimated cost shown. Degrades gracefully to a locally-computed glance when ANTHROPIC_API_KEY is unset.",
+    ],
+  },
+  {
+    version: "1.27",
+    date: "2026-06-27",
+    title: "delta — a sister personal-finance terminal, and a portal to both",
+    changes: [
+      "The lock screen is now a portal: α | Δ. alpha (portfolio analytics) and delta (personal finance) share one door and one PIN — pick a side with a fluid, animated chooser, then enter the code (or walk straight in when no PIN is set). The unlock choreography tints to whichever terminal you chose.",
+      "Introduced delta, a new personal-finance app that shares alpha's dark, institutional aesthetic and its own shell, nav and iris accent. Tabs: Dashboard, Net Worth, Accounts, Transactions, Cash Flow, Budgets, Goals, Recurring and Settings — net worth, balances, spending mix, budget pacing and savings goals, all hand-built in the same SVG/Framer style.",
+      "An always-available α ⇄ Δ switcher in both sidebars (and the mobile bars) lets you hop between the two terminals at any time. delta currently runs on illustrative sample data — clearly labelled — with no real accounts connected.",
+    ],
+  },
+  {
     version: "1.26",
     date: "2026-06-26",
     title: "Live benchmark volatility & a self-refreshing snapshot",

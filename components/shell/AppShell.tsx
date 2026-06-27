@@ -6,6 +6,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { fmtUSDCompact } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
+import { DeltaProvider } from "@/lib/delta/store";
+import { AppSwitcher, Sigil, SignOutButton } from "./brand";
+import { DeltaShell } from "./DeltaShell";
 import {
   IconBenchmark,
   IconDiscover,
@@ -47,63 +50,6 @@ const NAV = [
 ];
 
 const GROUPS = ["Portfolio", "Analysis", "Simulation", "Data"];
-
-/** Big cursive alpha — the thing the whole app is chasing. */
-export function Sigil({ size = 26 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 32 32">
-      <text
-        x="16"
-        y="12.8"
-        textAnchor="middle"
-        dominantBaseline="central"
-        fill="white"
-        fontFamily="Georgia, 'Times New Roman', serif"
-        fontStyle="italic"
-        fontSize="30"
-      >
-        α
-      </text>
-    </svg>
-  );
-}
-
-/** Signs out by clearing the auth cookie, then sends the browser to /lock. */
-function SignOutButton({ className = "" }: { className?: string }) {
-  const [busy, setBusy] = useState(false);
-  return (
-    <button
-      onClick={async () => {
-        setBusy(true);
-        try {
-          await fetch("/api/auth", { method: "DELETE" });
-        } finally {
-          // Full navigation so middleware re-evaluates with the cookie gone.
-          window.location.href = "/lock";
-        }
-      }}
-      disabled={busy}
-      title="Sign out"
-      aria-label="Sign out"
-      className={`flex h-7 w-7 items-center justify-center rounded-md text-mute transition-colors hover:bg-white/[0.06] hover:text-ink disabled:pointer-events-none ${className}`}
-    >
-      <svg
-        width="13"
-        height="13"
-        viewBox="0 0 20 20"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M8 3H4.5A1.5 1.5 0 0 0 3 4.5v11A1.5 1.5 0 0 0 4.5 17H8" />
-        <path d="M13 6l4 4-4 4" />
-        <path d="M17 10H7.5" />
-      </svg>
-    </button>
-  );
-}
 
 /** Manual refresh: punches through every cache layer for fresh quotes. */
 function RefreshButton({
@@ -176,10 +122,15 @@ function NavRow({
         <motion.span
           layoutId="nav-active"
           className="absolute inset-0 rounded-md bg-white/[0.07]"
+          style={{ boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--color-mint) 16%, transparent)" }}
           transition={{ type: "spring", stiffness: 520, damping: 40 }}
         />
       )}
-      <span className="relative z-10 opacity-80 [&>svg]:h-4 [&>svg]:w-4">
+      <span
+        className={`relative z-10 opacity-80 [&>svg]:h-4 [&>svg]:w-4 ${
+          active ? "text-mint" : ""
+        }`}
+      >
         <Icon />
       </span>
       <span className="relative z-10">{item.label}</span>
@@ -306,6 +257,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     return <main className="min-h-screen">{children}</main>;
   }
 
+  // delta — the sister personal-finance app — carries its own shell (nav,
+  // branding, accent) and its own localStorage-backed store. Everything under
+  // /delta renders inside both; the provider only mounts on these routes.
+  if (pathname === "/delta" || pathname.startsWith("/delta/")) {
+    return (
+      <DeltaProvider>
+        <DeltaShell>{children}</DeltaShell>
+      </DeltaProvider>
+    );
+  }
+
   const current = NAV.find((n) => n.href === pathname);
 
   const liveLabel = live.degraded
@@ -320,19 +282,24 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
         {/* Desktop sidebar */}
       <aside className="hidden lg:flex sticky top-0 h-screen flex-col border-r border-edge bg-[#050505]">
-        <div className="flex items-center gap-2.5 px-4 pb-3 pt-4">
-          <Link href="/" className="flex items-center gap-2.5">
-            <Sigil size={24} />
-            <span className="text-[14px] font-medium text-ink">
-              alpha
-            </span>
-          </Link>
-          {isDemo && (
-            <span className="rounded-full border border-warn/30 bg-warn/10 px-2 py-0.5 text-[10px] font-medium text-warn">
-              Demo
-            </span>
-          )}
-          <SignOutButton className="ml-auto" />
+        <div className="px-3 pb-3 pt-4">
+          <div className="flex items-center gap-2.5 px-1">
+            <Link href="/" className="flex items-center gap-2.5">
+              <Sigil size={24} />
+              <span className="text-[14px] font-medium text-ink">
+                alpha
+              </span>
+            </Link>
+            {isDemo && (
+              <span className="rounded-full border border-warn/30 bg-warn/10 px-2 py-0.5 text-[10px] font-medium text-warn">
+                Demo
+              </span>
+            )}
+            <SignOutButton className="ml-auto" />
+          </div>
+          <div className="mt-3">
+            <AppSwitcher active="alpha" />
+          </div>
         </div>
 
         <SidebarNav />
@@ -382,6 +349,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
               <SignOutButton />
             </div>
+          </div>
+          <div className="px-3 pb-2">
+            <AppSwitcher active="alpha" />
           </div>
           <div className="flex gap-1 overflow-x-auto px-3 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {NAV.map((item) => {

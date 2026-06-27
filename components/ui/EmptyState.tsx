@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Sigil } from "@/components/shell/AppShell";
+import { Sigil } from "@/components/shell/brand";
 import { usePortfolio } from "@/lib/store";
 
 /** Shown on analytics pages before any portfolio exists. */
