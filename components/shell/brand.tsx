@@ -8,29 +8,29 @@ import { useAuth } from "@/components/auth/AuthProvider";
 /**
  * Shared brand primitives for the two-app portal.
  *
- * `alpha` (portfolio analytics) and `delta` (personal finance) are sister
+ * `alpha` (portfolio analytics) and `theta` (personal finance) are sister
  * surfaces that share one dark, institutional aesthetic. Their wordmarks are
  * the Greek letters set in the same serif so they read as a family; each app
- * carries a single signature accent — mint for alpha, iris for delta — used
+ * carries a single signature accent — mint for alpha, iris for theta — used
  * sparingly the way the rest of the UI uses color.
  */
 
-export type AppKind = "alpha" | "delta";
+export type AppKind = "alpha" | "theta";
 
 export const APP_ACCENT: Record<AppKind, string> = {
   alpha: "var(--color-mint)", // #b02b0a
-  delta: "var(--color-vio)", // #a78bfa
+  theta: "var(--color-vio)", // #a78bfa
 };
 
 /** Raw hex of each accent, for places that can't take a CSS var (canvas, etc). */
 export const APP_ACCENT_HEX: Record<AppKind, string> = {
   alpha: "#b02b0a",
-  delta: "#a78bfa",
+  theta: "#a78bfa",
 };
 
 export const APP_HOME: Record<AppKind, string> = {
   alpha: "/",
-  delta: "/delta",
+  theta: "/theta",
 };
 
 export const APP_META: Record<
@@ -50,31 +50,31 @@ export const APP_META: Record<
     tagline: "portfolio analytics",
     definition: "a measure of risk-adjusted excess return",
   },
-  delta: {
-    glyph: "Δ",
-    name: "delta",
-    phonetic: "/dĕl′tə/",
+  theta: {
+    glyph: "θ",
+    name: "theta",
+    phonetic: "/THĀ′tə/",
     tagline: "personal finance",
-    definition: "the measurable change in net worth over time",
+    definition: "a measure of time's impact on value",
   },
 };
 
 /** The cursive serif glyph that anchors each app. */
 export function Mark({ kind, size = 26 }: { kind: AppKind; size?: number }) {
-  // α sits a touch high; Δ (uppercase) is heavier, so it's nudged down and
-  // sized a hair smaller to balance against α at the same box.
+  // α sits a touch high; θ is a round lowercase form, so it's nudged down
+  // and sized a hair smaller to balance against α at the same box.
   const isAlpha = kind === "alpha";
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
       <text
         x="16"
-        y={isAlpha ? 12.8 : 13.4}
+        y={isAlpha ? 12.8 : 13.6}
         textAnchor="middle"
         dominantBaseline="central"
         fill="white"
         fontFamily="Georgia, 'Times New Roman', serif"
         fontStyle="italic"
-        fontSize={isAlpha ? 30 : 25}
+        fontSize={isAlpha ? 30 : 26}
       >
         {APP_META[kind].glyph}
       </text>
@@ -96,7 +96,7 @@ export function Sigil({ size = 26 }: { size?: number }) {
 export function AppTitle({ active }: { active: AppKind }) {
   return (
     <div className="flex items-center gap-1.5 text-[14px] font-medium leading-none">
-      {(["alpha", "delta"] as const).map((kind, i) => {
+      {(["alpha", "theta"] as const).map((kind, i) => {
         const on = kind === active;
         return (
           <span key={kind} className="flex items-center gap-1.5">

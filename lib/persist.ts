@@ -3,7 +3,7 @@
 /**
  * Client persistence helpers for the authenticated (server-backed) mode.
  *
- * The alpha and delta stores keep all of their logic; in server mode they
+ * The alpha and theta stores keep all of their logic; in server mode they
  * hydrate from `/api/state` and push changes back through here. In open mode
  * (no auth) the stores ignore this module and use localStorage as before.
  */
@@ -13,7 +13,7 @@ export type ServerState = { portfolio: unknown | null; ledger: unknown | null };
 let inflight: Promise<ServerState | null> | null = null;
 
 /**
- * GET both blobs. The alpha and delta providers both call this on mount; while
+ * GET both blobs. The alpha and theta providers both call this on mount; while
  * a request is in flight they share it, so we fetch once per load. The cache
  * clears as soon as it settles, so a later reload fetches fresh.
  */
@@ -49,7 +49,7 @@ async function put(path: string, value: unknown): Promise<void> {
   }
 }
 
-// Saves fire immediately on each mutation — every delta/alpha edit is a single
+// Saves fire immediately on each mutation — every theta/alpha edit is a single
 // discrete commit (button click or input blur), never a per-keystroke burst, so
 // there's nothing to coalesce and no debounce window in which to lose a change.
 export const putPortfolio = (value: unknown): Promise<void> =>

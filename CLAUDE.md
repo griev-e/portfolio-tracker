@@ -12,7 +12,7 @@ in the browser's `localStorage`, almost all analytics run client-side, and the
 only server code is a thin set of caching proxies to external data providers.
 Accounts are an **optional** layer (see "Accounts & persistence" below): set
 `AUTH_SECRET` + `DATABASE_URL` and each person signs in to their own saved
-portfolio and delta ledger; leave them unset and the app behaves exactly as the
+portfolio and theta ledger; leave them unset and the app behaves exactly as the
 single-user, localStorage tool it has always been.
 
 Stack: Next.js 15 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS 4
@@ -140,12 +140,12 @@ auth.**
   `SessionProvider` when accounts are on. `auth.ts` (Node — bcrypt + DB) holds
   the full config; never import it from middleware or client code.
 - **JSONB blob per user, not normalized tables.** The client owns all mutation
-  and derivation (`buildPortfolio`, `deriveDelta`), so the DB just stores each
+  and derivation (`buildPortfolio`, `deriveTheta`), so the DB just stores each
   app's existing shape opaquely: two tables (`users`, `user_state`) in
   `lib/db/schema.ts`, the lazy provider-agnostic Postgres client (via
   `postgres-js`) in `lib/db/index.ts`. Saving an alpha
-  change never touches the delta blob (separate `PUT` endpoints).
-- **The stores choose their backend.** `lib/store.tsx` and `lib/delta/store.tsx`
+  change never touches the theta blob (separate `PUT` endpoints).
+- **The stores choose their backend.** `lib/store.tsx` and `lib/theta/store.tsx`
   branch on `useAuth()`: signed in → hydrate from `/api/state` and push edits
   back through `lib/persist.ts`; otherwise → localStorage as before. In server
   mode they read **only** the server (never the shared-browser cache), so one
@@ -173,9 +173,9 @@ Maps as a warm-lambda cache. Provider code (`yahoo-finance2`, Anthropic SDK) is
 | `/api/allocate` | `lib/server/allocator.ts` | AI dry-powder allocator for the Rebalance page (Anthropic). POSTs a fundamentals-enriched snapshot; returns a structured cash-deployment plan. Caches one plan per day per portfolio shape. |
 | `/api/optimize` | `lib/server/optimizer.ts` | AI optimizer review for the Optimizer page (Anthropic, Haiku 4.5). The optimal weights are solved client-side; this POSTs the before/after metrics + largest shifts and returns a structured construction read. Caches one review per day per objective + portfolio shape. |
 | `/api/discover` | `lib/server/discover.ts` | AI stock-idea generator for the Discover page (Anthropic, Sonnet 4.6). POSTs the portfolio shape + chosen research lens; returns structured candidate ideas. |
-| `/api/delta-brief` | `lib/server/deltaBrief.ts` | delta's AI daily brief, parallel to `/api/brief` but over the ledger snapshot instead of the portfolio. |
+| `/api/theta-brief` | `lib/server/thetaBrief.ts` | theta's AI daily brief, parallel to `/api/brief` but over the ledger snapshot instead of the portfolio. |
 | `/api/auth/*` | `auth.ts` (NextAuth) | Session, sign-in/out, CSRF. The Credentials provider (username + password, bcrypt) authenticates against the `users` table; the fixed-window limiter in `lib/server/rateLimit.ts` throttles login brute force. Only meaningful when accounts are enabled. |
-| `/api/state` | `lib/db/state.ts` (`lib/server/authState.ts` reads the session) | `GET` returns both saved blobs (alpha portfolio + delta ledger) for the signed-in user; `PUT /api/state/portfolio` and `PUT /api/state/ledger` upsert each independently. 404 when accounts are off, 401 when signed out. |
+| `/api/state` | `lib/db/state.ts` (`lib/server/authState.ts` reads the session) | `GET` returns both saved blobs (alpha portfolio + theta ledger) for the signed-in user; `PUT /api/state/portfolio` and `PUT /api/state/ledger` upsert each independently. 404 when accounts are off, 401 when signed out. |
 
 `middleware.ts` enforces the auth gate **when accounts are on**: pages redirect
 to `/lock`, APIs return 401, and `/api/auth/*` + `/lock` are always allowed.
@@ -250,39 +250,39 @@ confidence, and UI all adapt automatically.
   (`montecarlo.worker.ts`) to keep the main thread free, falling back to
   synchronous compute when Workers are unavailable.
 
-### delta — the sister personal-finance app (`app/delta/*`)
+### theta — the sister personal-finance app (`app/theta/*`)
 
-delta is a separate personal-finance terminal living in the same Next.js app,
-behind its own routes (`/delta`, `/delta/networth`, `/delta/intelligence`,
-`/delta/accounts`, `/delta/transactions`, `/delta/cashflow`, `/delta/budgets`,
-`/delta/goals`, `/delta/recurring`, `/delta/import`, `/delta/settings`). It
+theta is a separate personal-finance terminal living in the same Next.js app,
+behind its own routes (`/theta`, `/theta/networth`, `/theta/intelligence`,
+`/theta/accounts`, `/theta/transactions`, `/theta/cashflow`, `/theta/budgets`,
+`/theta/goals`, `/theta/recurring`, `/theta/import`, `/theta/settings`). It
 shares the project, the optional accounts/auth layer, and `components/ui/*`
 with alpha, but otherwise has its own state, shell, and analytics:
 
-- **State** — `lib/delta/store.tsx` (`DeltaProvider`/`useDelta`) mirrors
-  `lib/store.tsx`'s pattern exactly: localStorage (key `delta.ledger.v1`,
-  plus a `delta.isSample.v1` flag for the bundled sample ledger) by default,
+- **State** — `lib/theta/store.tsx` (`ThetaProvider`/`useTheta`) mirrors
+  `lib/store.tsx`'s pattern exactly: localStorage (key `theta.ledger.v1`,
+  plus a `theta.isSample.v1` flag for the bundled sample ledger) by default,
   or server-backed via `lib/persist.ts` when accounts are enabled.
-- **Domain types & derivation** — `lib/delta/data.ts` defines `Account`,
+- **Domain types & derivation** — `lib/theta/data.ts` defines `Account`,
   `Transaction`, `Budget`, `Category`, `Goal`, `Recurring`, `Ledger`, plus
-  `EMPTY_LEDGER`/`SAMPLE_LEDGER`. `lib/delta/compute.ts` (`deriveDelta`,
-  `advanceRecurring`) is delta's analogue to `buildPortfolio` — the pure
-  derivation layer most pages consume. `lib/delta/csv.ts` handles transaction
-  CSV import. `lib/delta/intelligence.ts` builds the `DeltaSnapshot`/
-  `DeltaBrief` consumed by `/api/delta-brief`.
-- **Shell & nav** — `components/shell/DeltaShell.tsx` (own icon set in
-  `components/shell/deltaIcons.tsx`) replaces `AppShell` entirely for
-  `/delta/*` routes: `AppShell.tsx` detects the `/delta` path prefix, wraps
-  the tree in `DeltaProvider`, and renders `DeltaShell` instead of its own
-  chrome. delta's nav groups Overview (Dashboard, Net Worth, Intelligence),
+  `EMPTY_LEDGER`/`SAMPLE_LEDGER`. `lib/theta/compute.ts` (`deriveTheta`,
+  `advanceRecurring`) is theta's analogue to `buildPortfolio` — the pure
+  derivation layer most pages consume. `lib/theta/csv.ts` handles transaction
+  CSV import. `lib/theta/intelligence.ts` builds the `ThetaSnapshot`/
+  `ThetaBrief` consumed by `/api/theta-brief`.
+- **Shell & nav** — `components/shell/ThetaShell.tsx` (own icon set in
+  `components/shell/thetaIcons.tsx`) replaces `AppShell` entirely for
+  `/theta/*` routes: `AppShell.tsx` detects the `/theta` path prefix, wraps
+  the tree in `ThetaProvider`, and renders `ThetaShell` instead of its own
+  chrome. theta's nav groups Overview (Dashboard, Net Worth, Intelligence),
   Money (Accounts, Transactions, Cash Flow), Planning (Budgets, Goals,
-  Recurring), System (Import & Data, Settings) — add new delta routes there,
+  Recurring), System (Import & Data, Settings) — add new theta routes there,
   not to alpha's `NAV` array.
-- **Components** — delta-only UI lives in `components/delta/*`
+- **Components** — theta-only UI lives in `components/theta/*`
   (`EditableMoney.tsx`, `modals.tsx`, `bits.tsx`, `ui.tsx`); shared primitives
   still come from `components/ui/*`.
-- `app/delta/layout.tsx` overrides the root metadata (title "delta", its own
-  favicon at `app/delta/icon.svg`) so the two apps feel distinct even though
+- `app/theta/layout.tsx` overrides the root metadata (title "theta", its own
+  favicon at `app/theta/icon.svg`) so the two apps feel distinct even though
   they're one deployment.
 
 ## Conventions

@@ -8,7 +8,7 @@ const DEFAULT_WIDTH = 240;
 
 /**
  * Persisted, drag-to-resize sidebar width. Reads/writes localStorage under
- * `storageKey` so each app (alpha/delta) remembers its own width across
+ * `storageKey` so each app (alpha/theta) remembers its own width across
  * reloads. `onMouseDown` goes on a thin handle at the sidebar's right edge.
  */
 export function useSidebarWidth(storageKey: string) {

@@ -4,7 +4,7 @@ import { readStateBody, requireUser } from "@/lib/server/authState";
 
 export const dynamic = "force-dynamic";
 
-/** PUT /api/state/ledger — upsert the signed-in user's delta blob. */
+/** PUT /api/state/ledger — upsert the signed-in user's theta blob. */
 export async function PUT(req: Request) {
   const guard = await requireUser();
   if (!guard.ok) {

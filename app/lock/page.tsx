@@ -8,16 +8,16 @@ import { APP_HOME, APP_META, type AppKind, Mark } from "@/components/shell/brand
 
 const SERIF = '"Palatino Linotype", "Book Antiqua", Palatino, serif';
 
-// Signature accent (raw RGB) per app — mint for alpha, iris for delta. Drives
+// Signature accent (raw RGB) per app — mint for alpha, iris for theta. Drives
 // the hover bloom, the field theming and the unlock choreography tint.
 const ACCENT_RGB: Record<AppKind, string> = {
   alpha: "176,43,10",
-  delta: "167,139,250",
+  theta: "167,139,250",
 };
 
 /**
- * The portal. Both alpha (portfolio analytics) and delta (personal finance)
- * live behind one door; this screen lets you pick which to enter — α | Δ —
+ * The portal. Both alpha (portfolio analytics) and theta (personal finance)
+ * live behind one door; this screen lets you pick which to enter — α | θ —
  * then, when the deploy has accounts enabled (AUTH_SECRET set), takes your
  * username and password. With auth disabled, choosing a side walks straight in.
  */
@@ -130,7 +130,7 @@ export default function LockPage() {
                 from={-32}
               />
 
-              {/* the divider — the " | " in α | Δ */}
+              {/* the divider — the " | " in α | θ */}
               <motion.div
                 aria-hidden
                 initial={{ opacity: 0, scaleY: 0.3 }}
@@ -147,7 +147,7 @@ export default function LockPage() {
               />
 
               <PortalChoice
-                kind="delta"
+                kind="theta"
                 hovered={hovered}
                 onHover={setHovered}
                 onChoose={choose}
@@ -267,7 +267,7 @@ export default function LockPage() {
               <button
                 type="submit"
                 disabled={checking || unlocked}
-                className="mt-1 flex h-9 w-[100px] items-center justify-center rounded-lg text-[13px] font-medium lowercase transition-opacity disabled:opacity-50"
+                className="mt-1 flex h-9 items-center justify-center rounded-lg px-5 text-[13px] font-medium lowercase transition-opacity disabled:opacity-50"
                 style={{
                   background: `rgba(${accent},0.12)`,
                   color: `rgb(${accent})`,
@@ -387,7 +387,7 @@ function PortalChoice({
         transition={{ type: "spring", stiffness: 300, damping: 22 }}
         style={{ filter: isHot ? `drop-shadow(0 0 28px rgba(${rgb},0.45))` : "none" }}
       >
-        <Mark kind={kind} size={128} />
+        <Mark kind={kind} size={kind === "theta" ? 112 : 128} />
       </motion.div>
 
       <div className="relative text-center">
@@ -406,7 +406,7 @@ function PortalChoice({
         animate={{ opacity: isHot ? 1 : 0, y: isHot ? 0 : 6 }}
         transition={{ duration: 0.25 }}
       >
-        Enter
+        enter
         <motion.span animate={{ x: isHot ? 3 : 0 }} transition={{ repeat: Infinity, repeatType: "mirror", duration: 0.8 }}>
           →
         </motion.span>
