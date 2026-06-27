@@ -43,8 +43,9 @@ Carlo, the regime engine and its `mathx` helpers, CSV parsing, fundamentals).
 - `AUTH_SECRET` + `DATABASE_URL` — turn on **accounts** (see "Accounts &
   persistence" below). Both must be set; when either is unset the app is open
   and single-user (localStorage), so local dev never locks you out. `AUTH_SECRET`
-  signs the NextAuth JWT session; `DATABASE_URL` is the Neon/Postgres connection
-  string. There is no public sign-up — provision logins with
+  signs the NextAuth JWT session; `DATABASE_URL` is a standard Postgres
+  connection string (Neon, Supabase, Vercel Postgres — any provider works, via
+  the `postgres-js` driver). There is no public sign-up — provision logins with
   `npm run create-user`. (This replaces the old `ACCESS_PIN` PIN gate.)
 - `ANTHROPIC_API_KEY` — enables the AI daily brief on the Intelligence page.
   When unset, the brief section degrades gracefully and everything else works.
@@ -141,7 +142,8 @@ auth.**
 - **JSONB blob per user, not normalized tables.** The client owns all mutation
   and derivation (`buildPortfolio`, `deriveDelta`), so the DB just stores each
   app's existing shape opaquely: two tables (`users`, `user_state`) in
-  `lib/db/schema.ts`, the lazy Neon client in `lib/db/index.ts`. Saving an alpha
+  `lib/db/schema.ts`, the lazy provider-agnostic Postgres client (via
+  `postgres-js`) in `lib/db/index.ts`. Saving an alpha
   change never touches the delta blob (separate `PUT` endpoints).
 - **The stores choose their backend.** `lib/store.tsx` and `lib/delta/store.tsx`
   branch on `useAuth()`: signed in → hydrate from `/api/state` and push edits
@@ -275,5 +277,6 @@ confidence, and UI all adapt automatically.
 
 Zero-config for Vercel (Next.js preset auto-detected). Push to GitHub → import
 at vercel.com/new, or `npx vercel`. Set `ANTHROPIC_API_KEY` as desired; to enable
-accounts set `AUTH_SECRET` + `DATABASE_URL` (a Neon/Vercel Postgres database),
-then run `npm run db:push` and `npm run create-user` against that database.
+accounts set `AUTH_SECRET` + `DATABASE_URL` (any Postgres database — Neon,
+Supabase, Vercel Postgres), then run `npm run db:push` and `npm run create-user`
+against that database.

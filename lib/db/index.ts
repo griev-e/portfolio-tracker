@@ -1,15 +1,18 @@
 /**
- * Lazy Drizzle client over Neon's serverless HTTP driver.
+ * Lazy Drizzle client over a standard Postgres connection (postgres-js).
  *
- * The connection is created on first use, not at import — so modules that
- * transitively import this (auth.ts, the /api/state routes) don't throw at load
- * time when DATABASE_URL is unset (open mode). `isDbConfigured()` lets callers
- * degrade gracefully instead of hitting a missing connection string.
+ * Deliberately provider-agnostic — works against Neon, Supabase, or any
+ * Postgres reachable by connection string, rather than a vendor-specific
+ * HTTP driver. The connection is created on first use, not at import — so
+ * modules that transitively import this (auth.ts, the /api/state routes)
+ * don't throw at load time when DATABASE_URL is unset (open mode).
+ * `isDbConfigured()` lets callers degrade gracefully instead of hitting a
+ * missing connection string.
  *
  * Server-only: never import from client components.
  */
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
 import * as schema from "./schema";
 
 type Db = ReturnType<typeof drizzle<typeof schema>>;
@@ -26,6 +29,6 @@ export function getDb(): Db {
   if (!url) {
     throw new Error("DATABASE_URL is not set — the database layer is disabled.");
   }
-  cached = drizzle(neon(url), { schema });
+  cached = drizzle(postgres(url, { max: 1 }), { schema });
   return cached;
 }
