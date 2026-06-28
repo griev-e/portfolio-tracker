@@ -10,7 +10,7 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "alpha | theta",
+  title: "alpha",
 };
 
 export default function RootLayout({
