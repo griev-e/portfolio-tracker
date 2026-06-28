@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import type { ReactNode } from "react";
 
 /** Circular score ring (0–100) with center content. */
@@ -39,7 +39,7 @@ export function Ring({
           stroke="rgba(148,163,184,0.1)"
           strokeWidth={stroke}
         />
-        <motion.circle
+        <m.circle
           cx={size / 2}
           cy={size / 2}
           r={r}

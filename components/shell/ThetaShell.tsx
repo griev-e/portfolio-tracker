@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -55,7 +55,7 @@ function NavRow({
       }`}
     >
       {active && (
-        <motion.span
+        <m.span
           layoutId="theta-nav-active"
           className="absolute inset-0 rounded-md bg-white/[0.07]"
           style={{ boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--color-vio) 16%, transparent)" }}
@@ -269,14 +269,14 @@ export function ThetaShell({ children }: { children: ReactNode }) {
         </header>
 
         <main className="mx-auto w-full max-w-[1380px] min-w-0 px-4 py-6 sm:px-8 sm:py-8">
-          <motion.div
+          <m.div
             key={pathname}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           >
             {children}
-          </motion.div>
+          </m.div>
         </main>
       </div>
     </div>

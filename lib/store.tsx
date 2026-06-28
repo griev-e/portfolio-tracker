@@ -46,13 +46,23 @@ export interface LiveStatus {
   refreshing: boolean;
 }
 
-interface PortfolioStore {
+/**
+ * Portfolio data — changes only when the book itself moves (import, cash edit,
+ * or a real price tick that rebuilds the portfolio). Deliberately split from
+ * `LiveStatus`: the live status carries a `quotesAt` timestamp that updates on
+ * every 60s poll even when no price moved, so folding it in here would re-render
+ * every analytics page once a minute for nothing.
+ */
+interface PortfolioData {
   /** null until localStorage has been read (avoids hydration flicker). */
   ready: boolean;
   hasData: boolean;
   isDemo: boolean;
   portfolio: Portfolio | null;
-  live: LiveStatus;
+}
+
+/** Stable action handles — identity survives price ticks. */
+interface PortfolioActions {
   importHoldings: (holdings: RawHolding[], cash: number | null) => void;
   loadDemo: () => void;
   setCash: (cash: number) => void;
@@ -61,7 +71,9 @@ interface PortfolioStore {
   refreshLive: () => Promise<void>;
 }
 
-const Ctx = createContext<PortfolioStore | null>(null);
+const DataCtx = createContext<PortfolioData | null>(null);
+const LiveCtx = createContext<LiveStatus | null>(null);
+const ActionsCtx = createContext<PortfolioActions | null>(null);
 
 export function PortfolioProvider({ children }: { children: ReactNode }) {
   const { enabled, status } = useAuth();
@@ -213,37 +225,54 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     ]
   );
 
-  const value = useMemo<PortfolioStore>(
+  const data = useMemo<PortfolioData>(
     () => ({
       ready,
       hasData: !!portfolio,
       isDemo: !!stored?.isDemo,
       portfolio,
-      live,
+    }),
+    [ready, portfolio, stored?.isDemo]
+  );
+
+  const actions = useMemo<PortfolioActions>(
+    () => ({
       importHoldings,
       loadDemo,
       setCash,
       clear,
       refreshLive: liveData.refresh,
     }),
-    [
-      ready,
-      portfolio,
-      stored?.isDemo,
-      live,
-      importHoldings,
-      loadDemo,
-      setCash,
-      clear,
-      liveData.refresh,
-    ]
+    [importHoldings, loadDemo, setCash, clear, liveData.refresh]
   );
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  // Three nested providers, narrowest churn innermost: `live` ticks every poll,
+  // `data` only on a real book change, `actions` ~never. Consumers subscribe to
+  // just the slice they need (usePortfolio / useLiveStatus / usePortfolioActions).
+  return (
+    <ActionsCtx.Provider value={actions}>
+      <DataCtx.Provider value={data}>
+        <LiveCtx.Provider value={live}>{children}</LiveCtx.Provider>
+      </DataCtx.Provider>
+    </ActionsCtx.Provider>
+  );
 }
 
-export function usePortfolio(): PortfolioStore {
-  const ctx = useContext(Ctx);
+export function usePortfolio(): PortfolioData {
+  const ctx = useContext(DataCtx);
   if (!ctx) throw new Error("usePortfolio must be used inside PortfolioProvider");
+  return ctx;
+}
+
+export function useLiveStatus(): LiveStatus {
+  const ctx = useContext(LiveCtx);
+  if (!ctx) throw new Error("useLiveStatus must be used inside PortfolioProvider");
+  return ctx;
+}
+
+export function usePortfolioActions(): PortfolioActions {
+  const ctx = useContext(ActionsCtx);
+  if (!ctx)
+    throw new Error("usePortfolioActions must be used inside PortfolioProvider");
   return ctx;
 }

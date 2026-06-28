@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 
 /** Overlay shown while a simulation crunches. Parent needs `relative`. */
 export function Computing({
@@ -13,7 +13,7 @@ export function Computing({
   return (
     <AnimatePresence>
       {active && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -49,7 +49,7 @@ export function Computing({
           <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-mute">
             {label}
           </div>
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

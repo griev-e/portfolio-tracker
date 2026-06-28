@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import Link from "next/link";
 import { useEffect, type ReactNode } from "react";
 import { Mark } from "@/components/shell/brand";
@@ -30,7 +30,7 @@ export function Modal({
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
+        <m.div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -41,7 +41,7 @@ export function Modal({
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={onClose}
           />
-          <motion.div
+          <m.div
             role="dialog"
             aria-modal="true"
             initial={{ opacity: 0, y: 14, scale: 0.97 }}
@@ -63,8 +63,8 @@ export function Modal({
               </button>
             </div>
             {children}
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   );
@@ -187,7 +187,7 @@ export function ActionButton({
 export function ThetaEmpty({ page }: { page: string }) {
   const { loadSample } = useTheta();
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, scale: 0.985 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.4 }}
@@ -209,6 +209,6 @@ export function ThetaEmpty({ page }: { page: string }) {
           Import
         </Link>
       </div>
-    </motion.div>
+    </m.div>
   );
 }

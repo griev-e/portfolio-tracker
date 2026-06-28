@@ -23,7 +23,7 @@ import {
   fmtUSD,
   fmtUSDCompact,
 } from "@/lib/format";
-import { usePortfolio } from "@/lib/store";
+import { usePortfolio, useLiveStatus } from "@/lib/store";
 import type { Portfolio } from "@/lib/types";
 
 const MONTHS = [
@@ -138,7 +138,8 @@ function useReportOverlays(portfolio: Portfolio | null): Overlays {
 /* ── page ───────────────────────────────────────────────────────────────── */
 
 export default function ReportPage() {
-  const { ready, portfolio, isDemo, live } = usePortfolio();
+  const { ready, portfolio, isDemo } = usePortfolio();
+  const live = useLiveStatus();
   const overlays = useReportOverlays(portfolio);
 
   const analytics = useMemo(() => {

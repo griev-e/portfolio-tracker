@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { signIn } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -97,7 +97,7 @@ export default function LockPage() {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6">
       {/* Ambient wash that leans toward whichever side is in focus. */}
-      <motion.div
+      <m.div
         aria-hidden
         className="pointer-events-none fixed inset-0"
         animate={{
@@ -113,7 +113,7 @@ export default function LockPage() {
 
       <AnimatePresence mode="wait">
         {mode === "portal" ? (
-          <motion.div
+          <m.div
             key="portal"
             className="relative z-30 w-full max-w-3xl"
             initial={{ opacity: 0 }}
@@ -131,14 +131,14 @@ export default function LockPage() {
               />
 
               {/* the divider — the " | " in α | θ */}
-              <motion.div
+              <m.div
                 aria-hidden
                 initial={{ opacity: 0, scaleY: 0.3 }}
                 animate={{ opacity: 1, scaleY: 1 }}
                 transition={{ delay: 0.25, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                 className="mx-auto my-2 hidden h-48 w-px bg-gradient-to-b from-transparent via-edge2 to-transparent md:block"
               />
-              <motion.div
+              <m.div
                 aria-hidden
                 initial={{ opacity: 0, scaleX: 0.3 }}
                 animate={{ opacity: 1, scaleX: 1 }}
@@ -154,9 +154,9 @@ export default function LockPage() {
                 from={32}
               />
             </div>
-          </motion.div>
+          </m.div>
         ) : (
-          <motion.div
+          <m.div
             key="auth"
             className="relative z-30 flex w-full max-w-sm flex-col items-center"
             initial={{ opacity: 0, y: 14 }}
@@ -180,7 +180,7 @@ export default function LockPage() {
               portal
             </button>
 
-            <motion.div
+            <m.div
               className="relative"
               initial={{ scale: 0.85, opacity: 0 }}
               animate={{ scale: unlocked ? 1.12 : 1, opacity: 1, y: unlocked ? -4 : 0 }}
@@ -188,35 +188,35 @@ export default function LockPage() {
               style={{ filter: `drop-shadow(0 0 26px rgba(${accent},0.4))` }}
             >
               <Mark kind={selected} size={96} />
-            </motion.div>
+            </m.div>
 
-            <motion.h1
+            <m.h1
               animate={{ opacity: unlocked ? 0 : 1 }}
               className="mt-5 text-[24px] font-bold tracking-[0.11em] text-ink"
               style={{ fontFamily: SERIF }}
             >
               {APP_META[selected].name}
-            </motion.h1>
-            <motion.p
+            </m.h1>
+            <m.p
               animate={{ opacity: unlocked ? 0 : 1 }}
               className="mt-1 font-mono text-[13px] text-faint"
             >
               {APP_META[selected].phonetic}
-            </motion.p>
-            <motion.p
+            </m.p>
+            <m.p
               animate={{ opacity: unlocked ? 0 : 1 }}
               className="eyebrow mt-2 italic text-mute"
             >
               noun
-            </motion.p>
-            <motion.p
+            </m.p>
+            <m.p
               animate={{ opacity: unlocked ? 0 : 1 }}
               className="eyebrow mt-1 max-w-[280px] pl-8 -indent-8 text-center"
             >
               {"   "}1. {APP_META[selected].definition}
-            </motion.p>
+            </m.p>
 
-            <motion.form
+            <m.form
               onSubmit={submit}
               animate={{ opacity: unlocked ? 0 : 1, y: unlocked ? -10 : 0 }}
               transition={{ duration: 0.5 }}
@@ -276,19 +276,19 @@ export default function LockPage() {
               >
                 {checking ? "verifying…" : "enter"}
               </button>
-            </motion.form>
+            </m.form>
 
             {error && (
-              <motion.p
+              <m.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: unlocked ? 0 : 1 }}
                 className="mt-4 h-4 font-mono text-[12px]"
                 style={{ color: "var(--color-neg)" }}
               >
                 {error}
-              </motion.p>
+              </m.p>
             )}
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
@@ -298,7 +298,7 @@ export default function LockPage() {
       {unlocked && (
         <>
           <div className="pointer-events-none fixed inset-0 z-10 flex items-center justify-center">
-            <motion.div
+            <m.div
               initial={{ scale: 0.12, opacity: 0 }}
               animate={{ scale: 3.6, opacity: [0, 0.5, 0] }}
               transition={{ duration: 1.25, ease: "easeOut", times: [0, 0.38, 1] }}
@@ -308,14 +308,14 @@ export default function LockPage() {
                 background: `radial-gradient(circle, rgba(255,255,255,0.5) 0%, rgba(${accent},0.18) 38%, rgba(255,255,255,0) 66%)`,
               }}
             />
-            <motion.div
+            <m.div
               initial={{ scale: 0.3, opacity: 0 }}
               animate={{ scale: 6, opacity: [0, 0.6, 0] }}
               transition={{ duration: 1.15, ease: [0.16, 1, 0.3, 1], times: [0, 0.2, 1] }}
               className="absolute h-[160px] w-[160px] rounded-full border"
               style={{ willChange: "transform, opacity", borderColor: `rgba(${accent},0.7)` }}
             />
-            <motion.div
+            <m.div
               initial={{ scale: 0.3, opacity: 0 }}
               animate={{ scale: 8.5, opacity: [0, 0.4, 0] }}
               transition={{ duration: 1.25, ease: [0.16, 1, 0.3, 1], times: [0, 0.22, 1], delay: 0.16 }}
@@ -323,7 +323,7 @@ export default function LockPage() {
               style={{ willChange: "transform, opacity", borderColor: `rgba(${accent},0.4)` }}
             />
           </div>
-          <motion.div
+          <m.div
             className="pointer-events-none fixed inset-0 z-40"
             style={{ background: "var(--color-void)", willChange: "opacity" }}
             initial={{ opacity: 0 }}
@@ -356,7 +356,7 @@ function PortalChoice({
   const dimmed = hovered !== null && !isHot;
 
   return (
-    <motion.button
+    <m.button
       type="button"
       onMouseEnter={() => onHover(kind)}
       onMouseLeave={() => onHover(null)}
@@ -373,7 +373,7 @@ function PortalChoice({
       className="group relative flex flex-1 flex-col items-center justify-center gap-5 rounded-2xl px-8 py-12 outline-none"
     >
       {/* hover bloom */}
-      <motion.div
+      <m.div
         aria-hidden
         className="pointer-events-none absolute top-[28%] h-56 w-56 rounded-full blur-[70px]"
         style={{ background: `radial-gradient(circle, rgba(${rgb},0.22), transparent 70%)` }}
@@ -381,14 +381,14 @@ function PortalChoice({
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       />
 
-      <motion.div
+      <m.div
         className="relative"
         animate={{ scale: isHot ? 1.08 : 1, y: isHot ? -4 : 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 22 }}
         style={{ filter: isHot ? `drop-shadow(0 0 28px rgba(${rgb},0.45))` : "none" }}
       >
         <Mark kind={kind} size={kind === "theta" ? 112 : 128} />
-      </motion.div>
+      </m.div>
 
       <div className="relative text-center">
         <div
@@ -400,17 +400,17 @@ function PortalChoice({
         <div className="eyebrow mt-1">{meta.tagline}</div>
       </div>
 
-      <motion.div
+      <m.div
         className="relative flex items-center gap-1.5 font-mono text-[12px]"
         style={{ color: `rgb(${rgb})` }}
         animate={{ opacity: isHot ? 1 : 0, y: isHot ? 0 : 6 }}
         transition={{ duration: 0.25 }}
       >
         enter
-        <motion.span animate={{ x: isHot ? 3 : 0 }} transition={{ repeat: Infinity, repeatType: "mirror", duration: 0.8 }}>
+        <m.span animate={{ x: isHot ? 3 : 0 }} transition={{ repeat: Infinity, repeatType: "mirror", duration: 0.8 }}>
           →
-        </motion.span>
-      </motion.div>
-    </motion.button>
+        </m.span>
+      </m.div>
+    </m.button>
   );
 }

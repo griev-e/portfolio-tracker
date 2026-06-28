@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import type { ReactNode } from "react";
 import { Tooltip } from "./Tooltip";
 
@@ -73,7 +73,7 @@ export function Gauge({
           fill="none"
           strokeLinecap="round"
         />
-        <motion.path
+        <m.path
           d={arcPath(startAngle, endAngle)}
           stroke={color}
           strokeWidth={7}
@@ -87,7 +87,7 @@ export function Gauge({
           transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
         />
         {markerAngle !== null && (
-          <motion.line
+          <m.line
             x1={polar(markerAngle, r - 8).x}
             y1={polar(markerAngle, r - 8).y}
             x2={polar(markerAngle, r + 8).x}

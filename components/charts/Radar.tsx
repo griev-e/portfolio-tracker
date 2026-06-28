@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 
 export interface RadarSeries {
   id: string;
@@ -74,8 +74,8 @@ export function Radar({
           );
         })}
         {series.map((s, si) => (
-          <motion.g key={s.id}>
-            <motion.polygon
+          <m.g key={s.id}>
+            <m.polygon
               points={polygon(s.values)}
               fill={s.color}
               fillOpacity={s.fillOpacity ?? 0.13}
@@ -94,7 +94,7 @@ export function Radar({
             {s.values.map((v, i) => {
               const p = point(i, v);
               return (
-                <motion.circle
+                <m.circle
                   key={i}
                   cx={p.x}
                   cy={p.y}
@@ -108,7 +108,7 @@ export function Radar({
                 />
               );
             })}
-          </motion.g>
+          </m.g>
         ))}
         {axes.map((axis, i) => {
           const p = point(i, 122);

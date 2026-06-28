@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useCallback, useRef, useState } from "react";
 import { ThetaEmpty } from "@/components/theta/ui";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -158,7 +158,7 @@ export default function ThetaIntelligencePage() {
 
 function BriefView({ brief, cached, costUSD }: { brief: ThetaBrief; cached: boolean; costUSD: number | null }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+    <m.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
       <Card className="relative mb-5 overflow-hidden px-6 py-6 sm:px-8" i={4}>
         <div aria-hidden className="pointer-events-none absolute -right-24 -top-28 h-64 w-64 rounded-full blur-[90px]" style={{ background: "rgba(167,139,250,0.12)" }} />
         <div className="relative">
@@ -220,6 +220,6 @@ function BriefView({ brief, cached, costUSD }: { brief: ThetaBrief; cached: bool
       <p className="mt-3 px-1 text-[11px] leading-relaxed text-faint">
         General financial information generated from your numbers — not personalized investment advice.
       </p>
-    </motion.div>
+    </m.div>
   );
 }

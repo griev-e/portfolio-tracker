@@ -1,8 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FanChart } from "@/components/charts/FanChart";
-import { Histogram } from "@/components/charts/Histogram";
+import dynamic from "next/dynamic";
+
+// The fan + histogram only render once the worker sim resolves (ResultsView is
+// gated on `result`), so their SVG/animation code is loaded on demand rather
+// than in the route's initial JS.
+const FanChart = dynamic(
+  () => import("@/components/charts/FanChart").then((m) => m.FanChart),
+  { ssr: false }
+);
+const Histogram = dynamic(
+  () => import("@/components/charts/Histogram").then((m) => m.Histogram),
+  { ssr: false }
+);
 import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";

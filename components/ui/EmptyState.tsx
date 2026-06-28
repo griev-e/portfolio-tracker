@@ -1,16 +1,17 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import Link from "next/link";
 import { Sigil } from "@/components/shell/brand";
-import { usePortfolio } from "@/lib/store";
+import { usePortfolio, usePortfolioActions } from "@/lib/store";
 
 /** Shown on analytics pages before any portfolio exists. */
 export function EmptyState({ page }: { page: string }) {
-  const { loadDemo, ready } = usePortfolio();
+  const { ready } = usePortfolio();
+  const { loadDemo } = usePortfolioActions();
   if (!ready) return null;
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, scale: 0.985 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.4 }}
@@ -34,6 +35,6 @@ export function EmptyState({ page }: { page: string }) {
           Load demo
         </button>
       </div>
-    </motion.div>
+    </m.div>
   );
 }

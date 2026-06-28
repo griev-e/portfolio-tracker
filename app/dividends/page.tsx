@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { m as Motion } from "framer-motion";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Computing } from "@/components/ui/Computing";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -93,7 +93,7 @@ function ScorePill({ label, score }: { label: string; score: number }) {
         </span>
       </div>
       <div className="mt-1.5 h-[5px] overflow-hidden rounded-full bg-white/[0.05]">
-        <motion.div
+        <Motion.div
           className="h-full rounded-full"
           style={{
             background: `color-mix(in srgb, ${barColor} 80%, transparent)`,
@@ -276,7 +276,7 @@ export default function DividendsPage() {
                 <span className="font-mono tnum text-[9px] text-faint opacity-0 transition-opacity group-hover:opacity-100">
                   {fmtUSDCompact(m.income)}
                 </span>
-                <motion.div
+                <Motion.div
                   className="w-full rounded-t-[3px]"
                   style={{
                     background:
@@ -405,7 +405,7 @@ export default function DividendsPage() {
             </thead>
             <tbody>
               {r.holdings.map((h, i) => (
-                <motion.tr
+                <Motion.tr
                   key={h.symbol}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -490,7 +490,7 @@ export default function DividendsPage() {
                       {h.safety}
                     </span>
                   </td>
-                </motion.tr>
+                </Motion.tr>
               ))}
             </tbody>
           </table>
@@ -522,7 +522,7 @@ export default function DividendsPage() {
                   {s.sector}
                 </span>
                 <div className="relative h-[14px] flex-1 overflow-hidden rounded-[3px] bg-white/[0.04]">
-                  <motion.div
+                  <Motion.div
                     className="h-full rounded-[3px]"
                     style={{
                       background:
@@ -565,7 +565,7 @@ export default function DividendsPage() {
           ) : (
             <ul className="space-y-2.5">
               {r.riskFlags.slice(0, 10).map((f, i) => (
-                <motion.li
+                <Motion.li
                   key={`${f.symbol}-${f.flag}`}
                   initial={{ opacity: 0, x: -6 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -579,7 +579,7 @@ export default function DividendsPage() {
                     </span>{" "}
                     — {f.flag}
                   </span>
-                </motion.li>
+                </Motion.li>
               ))}
               {r.riskFlags.length > 10 && (
                 <li className="text-[11px] text-faint">

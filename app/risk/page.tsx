@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Gauge } from "@/components/ui/Gauge";
@@ -274,7 +274,7 @@ export default function RiskPage() {
             {risk.regions
               .filter((r) => r.weight > 0.001)
               .map((r, i) => (
-                <motion.div
+                <m.div
                   key={r.region}
                   className="relative h-full"
                   style={{ background: `${REGION_COLORS[r.region]}2e` }}
@@ -286,7 +286,7 @@ export default function RiskPage() {
                     className="absolute inset-y-0 left-0 w-[3px]"
                     style={{ background: REGION_COLORS[r.region] }}
                   />
-                </motion.div>
+                </m.div>
               ))}
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -312,7 +312,7 @@ export default function RiskPage() {
                 const regions = p.fundamentals?.regions ?? { US: 1 };
                 const intl = 1 - (regions.US ?? 0);
                 return (
-                  <motion.div
+                  <m.div
                     key={p.symbol}
                     initial={{ opacity: 0, x: -6 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -347,7 +347,7 @@ export default function RiskPage() {
                     <span className="w-12 shrink-0 text-right font-mono tnum text-[11px] text-mute">
                       {fmtPct(p.equityWeight, 1)}
                     </span>
-                  </motion.div>
+                  </m.div>
                 );
               })}
             </div>

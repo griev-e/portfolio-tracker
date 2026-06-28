@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m as Motion } from "framer-motion";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -255,7 +255,7 @@ function ModeGrid({
         const accent = MODE_ACCENT[m.id];
         const isActive = active === m.id;
         return (
-          <motion.button
+          <Motion.button
             key={m.id}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -283,7 +283,7 @@ function ModeGrid({
             </span>
             <div className="relative mt-2.5 text-[13px] font-medium text-ink">{m.label}</div>
             <div className="relative mt-0.5 text-[10.5px] leading-snug text-faint">{m.tagline}</div>
-          </motion.button>
+          </Motion.button>
         );
       })}
     </div>
@@ -294,14 +294,14 @@ function ModeGrid({
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <motion.div
+    <Motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
-    </motion.div>
+    </Motion.div>
   );
 }
 
@@ -388,7 +388,7 @@ function DotPulse() {
   return (
     <span className="ml-0.5 flex gap-1">
       {[0, 1, 2].map((i) => (
-        <motion.span
+        <Motion.span
           key={i}
           className="h-1 w-1 rounded-full bg-mute"
           animate={{ opacity: [0.2, 1, 0.2] }}
@@ -420,7 +420,7 @@ function ShimmerCard({ delay }: { delay: number }) {
 
 function Bar({ w, delay }: { w: string; delay: number }) {
   return (
-    <motion.div
+    <Motion.div
       className="h-2 rounded-full bg-white/[0.05]"
       style={{ width: w }}
       animate={{ opacity: [0.35, 0.75, 0.35] }}
@@ -477,7 +477,7 @@ function Results({ data }: { data: DiscoverResponse }) {
         {plan.gaps.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
             {plan.gaps.map((g, i) => (
-              <motion.span
+              <Motion.span
                 key={i}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -486,7 +486,7 @@ function Results({ data }: { data: DiscoverResponse }) {
                 className="rounded-full border border-edge bg-white/[0.02] px-3 py-1 text-[11px] text-mute"
               >
                 <span className="text-faint">gap ·</span> {g.title}
-              </motion.span>
+              </Motion.span>
             ))}
           </div>
         )}
@@ -512,7 +512,7 @@ function Results({ data }: { data: DiscoverResponse }) {
 function IdeaCard({ idea, i, price }: { idea: DiscoverIdea; i: number; price?: number }) {
   const conv = CONVICTION_COLOR[idea.conviction];
   return (
-    <motion.div
+    <Motion.div
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.08 + i * 0.07, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
@@ -583,7 +583,7 @@ function IdeaCard({ idea, i, price }: { idea: DiscoverIdea; i: number; price?: n
           Research →
         </Link>
       </div>
-    </motion.div>
+    </Motion.div>
   );
 }
 

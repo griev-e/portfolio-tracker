@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 
 /**
  * Animated horizontal bar with an optional benchmark tick. `value` and
@@ -29,7 +29,7 @@ export function Meter({
       className="relative w-full overflow-visible rounded-full bg-white/[0.05]"
       style={{ height }}
     >
-      <motion.div
+      <m.div
         className="h-full rounded-full"
         style={{
           // color-mix keeps the alpha ramp valid for hex *and* var() colors
@@ -41,7 +41,7 @@ export function Meter({
         transition={{ duration: 0.8, delay, ease: [0.22, 1, 0.36, 1] }}
       />
       {benchFrac !== null && (
-        <motion.div
+        <m.div
           className="absolute top-1/2 w-[2px] rounded-full bg-vio"
           style={{ height: height + 8, translateY: "-50%" }}
           initial={{ left: 0, opacity: 0 }}

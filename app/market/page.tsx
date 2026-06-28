@@ -1,15 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   AnimatePresence,
-  motion,
+  m,
   useSpring,
   useTransform,
 } from "framer-motion";
 import { Sparkline } from "@/components/charts/Sparkline";
-import { LayerCard } from "@/components/market/LayerCard";
-import { RegimeDial } from "@/components/market/RegimeDial";
+
+// The regime dial and per-layer cards only render after the /api/market report
+// loads (the page early-returns on `!report`), so their JS is loaded on demand.
+const LayerCard = dynamic(
+  () => import("@/components/market/LayerCard").then((m) => m.LayerCard),
+  { ssr: false }
+);
+const RegimeDial = dynamic(
+  () => import("@/components/market/RegimeDial").then((m) => m.RegimeDial),
+  { ssr: false }
+);
 import { fmtScore, REGIME_COLOR, scoreTone } from "@/components/market/regimeUi";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Computing } from "@/components/ui/Computing";
@@ -72,14 +82,14 @@ function Count({
     sv.set(value);
   }, [value, sv]);
   const text = useTransform(sv, format);
-  return <motion.span className={className}>{text}</motion.span>;
+  return <m.span className={className}>{text}</m.span>;
 }
 
 /** A labelled mini-bar (0…100) used inside the hero stat tiles. */
 function MiniMeter({ value, color }: { value: number; color: string }) {
   return (
     <div className="mt-1.5 h-[3px] w-full overflow-hidden rounded-full bg-white/[0.06]">
-      <motion.div
+      <m.div
         className="h-full rounded-full"
         style={{ background: color }}
         initial={{ width: 0 }}
@@ -176,7 +186,7 @@ function DriverColumn({
       )}
       <div className="space-y-3">
         {items.map((d, idx) => (
-          <motion.div
+          <m.div
             key={`${d.layer}:${d.label}`}
             initial={{ opacity: 0, x: -6 }}
             animate={{ opacity: 1, x: 0 }}
@@ -203,7 +213,7 @@ function DriverColumn({
               {d.layer}
             </div>
             <p className="mt-1 text-[11px] leading-snug text-mute">{d.detail}</p>
-          </motion.div>
+          </m.div>
         ))}
       </div>
     </div>
@@ -601,14 +611,14 @@ export default function MarketPage() {
           </div>
           <span className="flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wide text-faint">
             {methodOpen ? "Hide" : "Show"}
-            <motion.span animate={{ rotate: methodOpen ? 180 : 0 }} transition={{ duration: 0.25 }}>
+            <m.span animate={{ rotate: methodOpen ? 180 : 0 }} transition={{ duration: 0.25 }}>
               ⌄
-            </motion.span>
+            </m.span>
           </span>
         </button>
         <AnimatePresence initial={false}>
           {methodOpen && (
-            <motion.div
+            <m.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
@@ -625,7 +635,7 @@ export default function MarketPage() {
                   </li>
                 ))}
               </ol>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       </Card>

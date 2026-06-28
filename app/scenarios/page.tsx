@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Computing } from "@/components/ui/Computing";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -128,7 +128,7 @@ export default function ScenariosPage() {
                   }`}
                 >
                   {kind === k && !activePreset && (
-                    <motion.span
+                    <m.span
                       layoutId="kind-pill"
                       className="absolute inset-0 rounded-md bg-ink"
                       transition={{ type: "spring", stiffness: 500, damping: 40 }}
@@ -239,7 +239,7 @@ export default function ScenariosPage() {
               {!result && <div className="panel h-[420px]" />}
               <AnimatePresence mode="wait">
                 {result && (
-              <motion.div
+              <m.div
                 key={result.label + result.dollarImpact.toFixed(0)}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -296,7 +296,7 @@ export default function ScenariosPage() {
                       const frac = Math.abs(x.dollarImpact) / maxAbs;
                       const neg = x.dollarImpact < 0;
                       return (
-                        <motion.div
+                        <m.div
                           key={x.symbol}
                           initial={{ opacity: 0, x: -6 }}
                           animate={{ opacity: 1, x: 0 }}
@@ -309,7 +309,7 @@ export default function ScenariosPage() {
                           {/* mirrored bar: losses grow left, gains grow right */}
                           <div className="relative h-[18px] flex-1">
                             <div className="absolute inset-y-0 left-1/2 w-px bg-white/10" />
-                            <motion.div
+                            <m.div
                               className="absolute top-1/2 h-[10px] -translate-y-1/2 rounded-full"
                               style={{
                                 background: neg
@@ -335,7 +335,7 @@ export default function ScenariosPage() {
                           <span className="w-14 shrink-0 text-right font-mono tnum text-[11px] text-faint">
                             {fmtPct(x.shockPct, 1, true)}
                           </span>
-                        </motion.div>
+                        </m.div>
                       );
                     })}
                   </div>
@@ -347,7 +347,7 @@ export default function ScenariosPage() {
                     (financials benefit, bond proxies suffer).
                   </p>
                 </Card>
-              </motion.div>
+              </m.div>
             )}
               </AnimatePresence>
             </>

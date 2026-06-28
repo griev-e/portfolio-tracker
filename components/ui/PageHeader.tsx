@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import type { ReactNode } from "react";
 
 export function PageHeader({
@@ -15,7 +15,7 @@ export function PageHeader({
   right?: ReactNode;
 }) {
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
@@ -33,6 +33,6 @@ export function PageHeader({
         )}
       </div>
       {right}
-    </motion.div>
+    </m.div>
   );
 }

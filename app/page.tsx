@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Donut, PALETTE } from "@/components/charts/Donut";
 import { Treemap } from "@/components/charts/Treemap";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
@@ -457,7 +457,7 @@ function HoldingRow({
   const neg = p.returnPct < 0;
 
   return (
-    <motion.tr
+    <m.tr
       layout="position"
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
@@ -535,7 +535,7 @@ function HoldingRow({
       <td className="px-6 py-3">
         <div className="flex items-center gap-2.5">
           <div className="h-[5px] w-20 overflow-hidden rounded-full bg-white/[0.05]">
-            <motion.div
+            <m.div
               className="h-full rounded-full transition-shadow duration-200 group-hover:shadow-[0_0_8px_var(--accent-glow)]"
               style={{
                 background: `linear-gradient(90deg, color-mix(in srgb, ${accent} 45%, transparent), ${accent})`,
@@ -557,7 +557,7 @@ function HoldingRow({
         <div className="flex items-center justify-end gap-3">
           <div className="relative h-[16px] w-24">
             <div className="absolute inset-y-0 left-1/2 w-px bg-white/10" />
-            <motion.div
+            <m.div
               className="absolute top-1/2 h-[7px] -translate-y-1/2 rounded-full"
               style={{
                 background: neg
@@ -583,6 +583,6 @@ function HoldingRow({
           </div>
         </div>
       </td>
-    </motion.tr>
+    </m.tr>
   );
 }

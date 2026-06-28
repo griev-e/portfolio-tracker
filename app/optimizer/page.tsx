@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { m as Motion } from "framer-motion";
 import { PALETTE } from "@/components/charts/Donut";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Computing } from "@/components/ui/Computing";
@@ -229,7 +229,7 @@ function PresetCard({
       }
     >
       {active && (
-        <motion.span
+        <Motion.span
           layoutId="preset-ring"
           className="pointer-events-none absolute inset-0 rounded-xl border"
           style={{ borderColor: `color-mix(in srgb, ${preset.accent} 55%, transparent)` }}
@@ -564,14 +564,14 @@ function FrontierChart({
           {/* frontier area + line */}
           {linePath && (
             <>
-              <motion.path
+              <Motion.path
                 d={`${linePath} L ${x(pts[pts.length - 1].vol)} ${H - PAD.b} L ${x(pts[0].vol)} ${H - PAD.b} Z`}
                 fill="url(#frontierFill)"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5 }}
               />
-              <motion.path
+              <Motion.path
                 d={linePath}
                 fill="none"
                 stroke={accent}
@@ -605,7 +605,7 @@ function FrontierChart({
             strokeWidth={1.6}
           />
           {/* optimized marker */}
-          <motion.circle
+          <Motion.circle
             cx={x(result.target.vol)}
             cy={y(result.target.ret)}
             r={6}
@@ -705,7 +705,7 @@ function AllocationCard({ result }: { result: OptimizerResult }) {
           const neg = r.deltaWeight < 0;
           const buying = r.deltaWeight > 0.001;
           return (
-            <motion.div
+            <Motion.div
               key={r.symbol}
               initial={{ opacity: 0, x: -6 }}
               animate={{ opacity: 1, x: 0 }}
@@ -730,7 +730,7 @@ function AllocationCard({ result }: { result: OptimizerResult }) {
                   className="absolute inset-y-0 left-0 rounded-full bg-white/[0.16]"
                   style={{ width: `${(r.currentWeight / scaleMax) * 100}%` }}
                 />
-                <motion.div
+                <Motion.div
                   className="absolute inset-y-0 left-0 rounded-full"
                   style={{ background: color }}
                   initial={{ width: 0 }}
@@ -740,7 +740,7 @@ function AllocationCard({ result }: { result: OptimizerResult }) {
                 {/* The slice being added to a name that's being bought — a subtle
                     glow on just the new capital, from the current edge to target. */}
                 {buying && (
-                  <motion.div
+                  <Motion.div
                     className="absolute inset-y-0 rounded-full"
                     style={{
                       left: `${(r.currentWeight / scaleMax) * 100}%`,
@@ -756,7 +756,7 @@ function AllocationCard({ result }: { result: OptimizerResult }) {
                   />
                 )}
               </div>
-            </motion.div>
+            </Motion.div>
           );
         })}
       </div>
@@ -863,7 +863,7 @@ function TradeTicket({ result }: { result: OptimizerResult }) {
           {trades.map((t, i) => {
             const sell = t.action === "sell" || t.action === "exit";
             return (
-              <motion.div
+              <Motion.div
                 key={t.symbol}
                 initial={{ opacity: 0, x: -6 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -898,7 +898,7 @@ function TradeTicket({ result }: { result: OptimizerResult }) {
                     {fmtShares(Math.abs(t.shares))} sh
                   </div>
                 </div>
-              </motion.div>
+              </Motion.div>
             );
           })}
         </div>
@@ -1152,7 +1152,7 @@ function ReviewBody({
 }) {
   const conv = CONVICTION[plan.confidence] ?? CONVICTION.low;
   return (
-    <motion.div
+    <Motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
@@ -1169,7 +1169,7 @@ function ReviewBody({
             {plan.keyShifts.map((s, i) => {
               const m = SHIFT_META[s.action] ?? SHIFT_META.increase;
               return (
-                <motion.div
+                <Motion.div
                   key={`${s.symbol}-${i}`}
                   initial={{ opacity: 0, x: -6 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -1185,7 +1185,7 @@ function ReviewBody({
                     <span className="font-mono font-medium text-ink">{s.symbol}</span>{" "}
                     — {s.detail}
                   </span>
-                </motion.div>
+                </Motion.div>
               );
             })}
           </div>
@@ -1262,7 +1262,7 @@ function ReviewBody({
           </span>
         )}
       </p>
-    </motion.div>
+    </Motion.div>
   );
 }
 

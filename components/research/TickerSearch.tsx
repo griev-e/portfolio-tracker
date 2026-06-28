@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { TickerLogo } from "@/components/ui/TickerLogo";
 import type { SearchResponse, SymbolHit } from "@/lib/research/types";
 
@@ -117,7 +117,7 @@ export function TickerSearch({
 
       <AnimatePresence>
         {open && query.trim().length > 0 && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
@@ -157,7 +157,7 @@ export function TickerSearch({
                 </button>
               ))
             )}
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { Card } from "@/components/ui/Card";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { fmtPct } from "@/lib/format";
@@ -22,7 +22,7 @@ function SignalSparkbar({ signals }: { signals: SignalResult[] }) {
             title={`${s.label}: ${fmtScore(s.score)}`}
           >
             <div className="absolute inset-x-0 top-1/2 h-px bg-white/10" />
-            <motion.div
+            <m.div
               className="absolute inset-x-0 rounded-[1px]"
               style={{
                 background: up ? "var(--color-pos)" : "var(--color-neg)",
@@ -98,15 +98,15 @@ export function LayerCard({ layer, i }: { layer: LayerResult; i: number }) {
             <SignalSparkbar signals={layer.signals} />
             <span className="flex shrink-0 items-center gap-1 font-mono text-[9.5px] uppercase tracking-wide text-faint transition-colors group-hover:text-mute">
               {open ? "Hide" : `${layer.signals.length} signals`}
-              <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.25 }}>
+              <m.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.25 }}>
                 ⌄
-              </motion.span>
+              </m.span>
             </span>
           </button>
 
           <AnimatePresence initial={false}>
             {open && (
-              <motion.div
+              <m.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
@@ -149,7 +149,7 @@ export function LayerCard({ layer, i }: { layer: LayerResult; i: number }) {
                   </Tooltip>
                   {fmtPct(layer.coverage, 0)}
                 </div>
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
         </>

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useState } from "react";
 import { useElementWidth } from "@/lib/useElementWidth";
 
@@ -80,7 +80,7 @@ export function Scatter({
             const r = p.isBenchmark ? 7 : 5 + p.size * 20;
             const active = hover === p.id;
             return (
-              <motion.g
+              <m.g
                 key={p.id}
                 initial={{ opacity: 0, scale: 0 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -132,7 +132,7 @@ export function Scatter({
                     {xFormat(p.x)} · {yFormat(p.y)}
                   </text>
                 )}
-              </motion.g>
+              </m.g>
             );
           })}
         </svg>

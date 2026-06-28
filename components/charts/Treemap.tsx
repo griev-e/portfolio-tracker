@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { memo, useMemo, useState } from "react";
 import { fmtPct, fmtUSDCompact } from "@/lib/format";
 import { useElementWidth } from "@/lib/useElementWidth";
@@ -130,7 +130,7 @@ export const Treemap = memo(function Treemap({
           const showLabel = r.w > 68 && r.h > 46;
           const showSub = r.w > 92 && r.h > 74;
           return (
-            <motion.g
+            <m.g
               key={r.item.id}
               initial={{ opacity: 0, scale: 0.92 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -187,7 +187,7 @@ export const Treemap = memo(function Treemap({
                   )}
                 </>
               )}
-            </motion.g>
+            </m.g>
           );
         })}
       </svg>

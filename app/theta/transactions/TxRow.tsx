@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useState } from "react";
 import { IconButton, TrashIcon } from "@/components/theta/ui";
 import { CATEGORIES, CATEGORY_COLOR, type Category, type Transaction } from "@/lib/theta/data";
@@ -95,7 +95,7 @@ export function TxRow({
   const transfer = t.category === "Transfer";
 
   return (
-    <motion.tr
+    <m.tr
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.15 + i * 0.025, duration: 0.3 }}
@@ -158,6 +158,6 @@ export function TxRow({
           )}
         </div>
       </td>
-    </motion.tr>
+    </m.tr>
   );
 }

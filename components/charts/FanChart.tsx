@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useMemo, useState } from "react";
 import { fmtUSDCompact } from "@/lib/format";
 import { useElementWidth } from "@/lib/useElementWidth";
@@ -132,7 +132,7 @@ export function FanChart({
 
         {/* ghost sample paths */}
         {samplePaths.map((path, i) => (
-          <motion.path
+          <m.path
             key={i}
             d={path
               .map(
@@ -152,21 +152,21 @@ export function FanChart({
         ))}
 
         {/* percentile fans */}
-        <motion.path
+        <m.path
           d={area((b) => b.p95, (b) => b.p5)}
           fill="rgba(176,43,10,0.07)"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.15 }}
         />
-        <motion.path
+        <m.path
           d={area((b) => b.p75, (b) => b.p25)}
           fill="rgba(176,43,10,0.14)"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.3 }}
         />
-        <motion.path
+        <m.path
           d={line((b) => b.p50)}
           fill="none"
           stroke="var(--color-mint)"
@@ -179,7 +179,7 @@ export function FanChart({
 
         {/* target line */}
         {target > 0 && target < maxY && (
-          <motion.g
+          <m.g
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.9 }}
@@ -203,7 +203,7 @@ export function FanChart({
             >
               target
             </text>
-          </motion.g>
+          </m.g>
         )}
 
         {/* hover crosshair */}

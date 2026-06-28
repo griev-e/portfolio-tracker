@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useSpring, useTransform } from "framer-motion";
+import { m, useSpring, useTransform } from "framer-motion";
 import { useEffect } from "react";
 
 /**
@@ -29,5 +29,5 @@ export function AnimatedNumber({
     sv.set(value);
   }, [value, sv]);
   const text = useTransform(sv, (v) => format(v));
-  return <motion.span className={className}>{text}</motion.span>;
+  return <m.span className={className}>{text}</m.span>;
 }

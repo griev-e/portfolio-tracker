@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { PALETTE } from "@/components/charts/Donut";
 import { Radar } from "@/components/charts/Radar";
 import { Scatter, type ScatterPoint } from "@/components/charts/Scatter";
@@ -96,7 +96,7 @@ export default function BenchmarkPage() {
               const beatsSpx = r.lowerIsBetter ? r.you < r.spx : r.you > r.spx;
               const beatsNdx = r.lowerIsBetter ? r.you < r.ndx : r.you > r.ndx;
               return (
-                <motion.div
+                <m.div
                   key={r.label}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -115,7 +115,7 @@ export default function BenchmarkPage() {
                     {r.format(r.ndx)}
                     <span className="ml-1 text-[10px]">{beatsNdx ? "✓" : ""}</span>
                   </span>
-                </motion.div>
+                </m.div>
               );
             })}
           </div>

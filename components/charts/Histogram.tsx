@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { fmtPct, fmtUSDCompact } from "@/lib/format";
 
 /** Terminal-value distribution with target threshold coloring. */
@@ -51,7 +51,7 @@ export function Histogram({
         {bins.map((b, i) => {
           const aboveTarget = target > 0 && b.x0 >= target;
           return (
-            <motion.div
+            <m.div
               key={i}
               onMouseEnter={() => setHover(i)}
               onMouseLeave={() => setHover((h) => (h === i ? null : h))}

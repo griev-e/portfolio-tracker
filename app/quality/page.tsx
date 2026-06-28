@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -95,14 +95,14 @@ export default function QualityPage() {
           <div className="flex flex-col items-center">
             <Ring score={report.composite} size={196}>
               <div className="eyebrow">composite</div>
-              <motion.div
+              <m.div
                 initial={{ scale: 0, rotate: -10 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ delay: 0.35, type: "spring", stiffness: 280, damping: 15 }}
                 className={`font-display text-[48px] font-bold leading-none ${GRADE_COLOR[report.compositeGrade]}`}
               >
                 {report.compositeGrade}
-              </motion.div>
+              </m.div>
               <div className="mt-1 font-mono tnum text-[13px] text-mute">
                 <AnimatedNumber
                   value={report.composite}
@@ -303,7 +303,7 @@ function HoldingCard({
     vsBook > 0 ? "text-pos" : vsBook < 0 ? "text-neg" : "text-faint";
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 + i * 0.04, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
@@ -336,7 +336,7 @@ function HoldingCard({
           <div key={id} className="flex flex-1 flex-col items-center gap-1">
             <span className="font-mono tnum text-[8.5px] text-mute">{s}</span>
             <div className="flex h-9 w-full items-end overflow-hidden rounded bg-white/[0.04]">
-              <motion.div
+              <m.div
                 className="w-full rounded"
                 style={{ background: tierColor(s), opacity: 0.85 }}
                 initial={{ height: 0 }}
@@ -364,6 +364,6 @@ function HoldingCard({
           <span className="text-faint">evenly balanced</span>
         )}
       </div>
-    </motion.div>
+    </m.div>
   );
 }

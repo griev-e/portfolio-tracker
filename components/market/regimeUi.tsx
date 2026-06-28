@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import type { RegimeLabel } from "@/lib/analytics/regime/types";
 
 /** Regime → accent color, shared across the Market Analysis surface. */
@@ -40,7 +40,7 @@ export function ScoreBar({
     <div className={`relative ${className}`} style={{ height }}>
       <div className="absolute inset-0 rounded-full bg-white/[0.05]" />
       <div className="absolute inset-y-0 left-1/2 w-px bg-white/15" />
-      <motion.div
+      <m.div
         className="absolute top-0 h-full rounded-full"
         style={{
           background: `color-mix(in srgb, ${color} 78%, transparent)`,

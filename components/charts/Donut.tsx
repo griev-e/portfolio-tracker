@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useState } from "react";
 import { fmtPct, fmtUSDCompact } from "@/lib/format";
 
@@ -51,7 +51,7 @@ export function Donut({
           aria-label={`${centerLabel} ${centerValue}, across ${arcs.length} segments.`}
         >
           {arcs.map((a, i) => (
-            <motion.circle
+            <m.circle
               key={a.id}
               cx={size / 2}
               cy={size / 2}
@@ -78,7 +78,7 @@ export function Donut({
           ))}
         </svg>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-          <motion.div
+          <m.div
             key={hover?.id ?? "total"}
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
@@ -93,7 +93,7 @@ export function Donut({
                 {fmtPct(hover.value / total, 1)}
               </div>
             )}
-          </motion.div>
+          </m.div>
         </div>
       </div>
       <div className="flex max-h-[230px] min-w-0 grow basis-[110px] flex-col gap-1.5 overflow-y-auto pr-1">

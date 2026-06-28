@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { CATEGORY_COLOR, type Category, type MonthFlow } from "@/lib/theta/data";
 import { fmtUSDCompact } from "@/lib/format";
 
@@ -26,7 +26,7 @@ export function ProgressBar({
       className="w-full overflow-hidden rounded-full bg-white/[0.05]"
       style={{ height }}
     >
-      <motion.div
+      <m.div
         className="h-full rounded-full"
         style={{
           background: `linear-gradient(90deg, color-mix(in srgb, ${stroke} 45%, transparent), ${stroke})`,
@@ -135,7 +135,7 @@ function Bar({
   const h = Math.max(2, (value / max) * height);
   return (
     <div className="group relative flex w-2.5 justify-center">
-      <motion.div
+      <m.div
         className="w-full rounded-t-[3px]"
         style={{
           background: `linear-gradient(180deg, ${color}, color-mix(in srgb, ${color} 35%, transparent))`,

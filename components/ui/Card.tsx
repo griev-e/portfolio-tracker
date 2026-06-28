@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import type { ReactNode } from "react";
 
 /** Glass panel with a staggered rise-in. Use `i` to order siblings. */
@@ -16,14 +16,14 @@ export function Card({
   hover?: boolean;
 }) {
   return (
-    <motion.section
+    <m.section
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
       className={`panel ${hover ? "panel-hover" : ""} ${className}`}
     >
       {children}
-    </motion.section>
+    </m.section>
   );
 }
 

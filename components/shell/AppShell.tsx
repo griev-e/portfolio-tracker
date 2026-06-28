@@ -1,11 +1,11 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { fmtUSDCompact } from "@/lib/format";
-import { usePortfolio } from "@/lib/store";
+import { usePortfolio, useLiveStatus, usePortfolioActions } from "@/lib/store";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
 import { ThetaProvider } from "@/lib/theta/store";
 import { AccountChip, AppTitle, Sigil, SignOutButton } from "./brand";
@@ -120,7 +120,7 @@ function NavRow({
       }`}
     >
       {active && (
-        <motion.span
+        <m.span
           layoutId="nav-active"
           className="absolute inset-0 rounded-md bg-white/[0.07]"
           style={{ boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--color-mint) 16%, transparent)" }}
@@ -245,7 +245,9 @@ function SidebarNav() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { portfolio, isDemo, ready, live, refreshLive } = usePortfolio();
+  const { portfolio, isDemo, ready } = usePortfolio();
+  const live = useLiveStatus();
+  const { refreshLive } = usePortfolioActions();
   const sidebar = useSidebarWidth("alpha.sidebarWidth.v1");
 
   // The entrance reveal from the lock screen is handled outside React, by a
@@ -382,17 +384,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           {/* Keyed enter animation only — no AnimatePresence/`mode="wait"` exit
               gating. The exit→enter handoff there raced on heavier data-driven
               pages (Overview, Risk, Research, …), leaving them blank until a
-              re-render. A keyed motion.div remounts per route and always runs
+              re-render. A keyed m.div remounts per route and always runs
               its initial→animate, so the new page is mounted and visible at
               once. */}
-          <motion.div
+          <m.div
             key={pathname}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           >
             {children}
-          </motion.div>
+          </m.div>
         </main>
       </div>
     </div>

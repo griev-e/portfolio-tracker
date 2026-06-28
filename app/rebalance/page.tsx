@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m as Motion } from "framer-motion";
 import { PALETTE } from "@/components/charts/Donut";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Computing } from "@/components/ui/Computing";
@@ -219,7 +219,7 @@ export default function RebalancePage() {
                   }`}
                 >
                   {basis === b.id && (
-                    <motion.span
+                    <Motion.span
                       layoutId="basis-pill"
                       className="absolute inset-0 rounded-md bg-ink"
                       transition={{ type: "spring", stiffness: 500, damping: 40 }}
@@ -297,7 +297,7 @@ export default function RebalancePage() {
                   }`}
                 >
                   {mode === m && (
-                    <motion.span
+                    <Motion.span
                       layoutId="mode-pill"
                       className="absolute inset-0 rounded-md bg-ink"
                       transition={{ type: "spring", stiffness: 500, damping: 40 }}
@@ -382,7 +382,7 @@ export default function RebalancePage() {
                     </div>
                     {/* target bar with a ghost marker at the current weight */}
                     <div className="relative mt-1 h-[3px] overflow-hidden rounded-full bg-white/[0.05]">
-                      <motion.div
+                      <Motion.div
                         className="h-full rounded-full"
                         style={{ background: color, opacity: 0.85 }}
                         animate={{ width: `${Math.min(t, 100)}%` }}
@@ -429,7 +429,7 @@ export default function RebalancePage() {
           {!plan && <div className="panel h-[460px]" />}
           <AnimatePresence mode="wait">
             {plan && (
-              <motion.div
+              <Motion.div
                 key={`${plan.mode}-${plan.basis}-${plan.cashDeployed.toFixed(0)}-${groupSig}`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -512,7 +512,7 @@ export default function RebalancePage() {
                       const color = colorOf[g.id] ?? PALETTE[i % PALETTE.length];
                       const neg = g.deltaValue < 0;
                       return (
-                        <motion.div
+                        <Motion.div
                           key={g.id}
                           initial={{ opacity: 0, x: -6 }}
                           animate={{ opacity: 1, x: 0 }}
@@ -547,7 +547,7 @@ export default function RebalancePage() {
                               style={{ width: `${(g.currentWeight / scaleMax) * 100}%` }}
                             />
                             {/* projected (colored) */}
-                            <motion.div
+                            <Motion.div
                               className="absolute inset-y-0 left-0 rounded-full"
                               style={{ background: color }}
                               initial={{ width: 0 }}
@@ -566,7 +566,7 @@ export default function RebalancePage() {
                               style={{ left: `${(g.targetWeight / scaleMax) * 100}%` }}
                             />
                           </div>
-                        </motion.div>
+                        </Motion.div>
                       );
                     })}
                   </div>
@@ -604,7 +604,7 @@ export default function RebalancePage() {
                       {plan.orders
                         .filter((o) => o.action !== "hold")
                         .map((o, i) => (
-                          <motion.div
+                          <Motion.div
                             key={o.symbol}
                             initial={{ opacity: 0, x: -6 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -650,7 +650,7 @@ export default function RebalancePage() {
                                 {fmtPct(o.projectedWeight, 1)}
                               </span>
                             </div>
-                          </motion.div>
+                          </Motion.div>
                         ))}
                     </div>
                   )}
@@ -660,7 +660,7 @@ export default function RebalancePage() {
                       : "Full rebalancing trades both directions to hit the exact target weights, distributing each bucket's move across its holdings pro-rata to current size."}
                   </p>
                 </Card>
-              </motion.div>
+              </Motion.div>
             )}
           </AnimatePresence>
         </div>
@@ -677,7 +677,7 @@ function Toggle({ on }: { on: boolean }) {
         on ? "bg-mint/70" : "bg-white/[0.12]"
       }`}
     >
-      <motion.span
+      <Motion.span
         className="absolute h-[13px] w-[13px] rounded-full bg-ink"
         animate={{ left: on ? 14 : 3 }}
         transition={{ type: "spring", stiffness: 500, damping: 35 }}
@@ -959,7 +959,7 @@ function AllocatorCard({
               const conv = CONVICTION[d.conviction] ?? CONVICTION.low;
               const color = colorOf[d.symbol] ?? PALETTE[i % PALETTE.length];
               return (
-                <motion.div
+                <Motion.div
                   key={d.symbol}
                   initial={{ opacity: 0, x: -6 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -980,7 +980,7 @@ function AllocatorCard({
                         </span>
                       </div>
                       <div className="mt-1.5 h-[4px] w-full max-w-[220px] overflow-hidden rounded-full bg-white/[0.05]">
-                        <motion.div
+                        <Motion.div
                           className="h-full rounded-full"
                           style={{ background: color }}
                           initial={{ width: 0 }}
@@ -1005,7 +1005,7 @@ function AllocatorCard({
                   <p className="mt-1.5 pl-[40px] text-[12px] leading-relaxed text-mute">
                     {d.rationale}
                   </p>
-                </motion.div>
+                </Motion.div>
               );
             })}
           </div>

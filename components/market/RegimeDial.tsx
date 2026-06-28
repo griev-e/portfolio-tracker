@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { motion, useSpring, useTransform } from "framer-motion";
+import { m, useSpring, useTransform } from "framer-motion";
 import type { RegimeLabel } from "@/lib/analytics/regime/types";
 import { fmtScore, REGIME_COLOR } from "./regimeUi";
 
@@ -74,7 +74,7 @@ export function RegimeDial({
         {ZONES.map((z) => {
           const active = frac >= z.from && frac <= z.to;
           return (
-            <motion.path
+            <m.path
               key={z.from}
               d={arcPath(z.from + 0.006, z.to - 0.006)}
               stroke={z.color}
@@ -108,7 +108,7 @@ export function RegimeDial({
 
         {/* accent sweep from the neutral center out to the score */}
         {fillFromCenter && (
-          <motion.path
+          <m.path
             d={arcPath(0.5, frac)}
             stroke={accent}
             strokeWidth={9}
@@ -124,7 +124,7 @@ export function RegimeDial({
         )}
 
         {/* marker dot */}
-        <motion.circle
+        <m.circle
           cx={marker.x}
           cy={marker.y}
           r={6}
@@ -142,12 +142,12 @@ export function RegimeDial({
         {/* center readout */}
         <foreignObject x={cx - size * 0.32} y={cy - size * 0.2} width={size * 0.64} height={size * 0.4}>
           <div className="flex h-full flex-col items-center justify-center">
-            <motion.span
+            <m.span
               className="font-mono tnum font-semibold leading-none"
               style={{ fontSize: size * 0.2, color: accent }}
             >
               {reading}
-            </motion.span>
+            </m.span>
             <span className="mt-2 font-mono text-[9.5px] uppercase tracking-[0.18em] text-faint">
               Risk score
             </span>

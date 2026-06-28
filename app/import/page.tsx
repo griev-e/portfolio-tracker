@@ -1,19 +1,19 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { parsePortfolioCSV, toCSV, type ParseResult } from "@/lib/csv";
 import { knownSymbols } from "@/lib/data/fundamentals";
 import { fmtUSD } from "@/lib/format";
-import { usePortfolio } from "@/lib/store";
+import { usePortfolio, usePortfolioActions } from "@/lib/store";
 
 const EXPECTED_HEADER = "name,symbol,shares,price,averageCost,totalReturn,equity";
 
 export default function ImportPage() {
-  const { ready, portfolio, hasData, isDemo, importHoldings, loadDemo, setCash, clear } =
-    usePortfolio();
+  const { ready, portfolio, hasData, isDemo } = usePortfolio();
+  const { importHoldings, loadDemo, setCash, clear } = usePortfolioActions();
   const [dragOver, setDragOver] = useState(false);
   const [pasted, setPasted] = useState("");
   const [parsed, setParsed] = useState<ParseResult | null>(null);
@@ -105,7 +105,7 @@ export default function ImportPage() {
                   : "border-edge2 hover:border-mint/30 hover:bg-white/[0.015]"
               }`}
             >
-              <motion.div
+              <m.div
                 animate={dragOver ? { y: [-2, 2, -2] } : { y: 0 }}
                 transition={dragOver ? { repeat: Infinity, duration: 1 } : {}}
                 className="mb-3 text-mint"
@@ -114,7 +114,7 @@ export default function ImportPage() {
                   <path d="M10 3.5 V12.2 M6.6 9 L10 12.4 L13.4 9" />
                   <path d="M4 13.6 V15.4 C4 16 4.5 16.5 5.1 16.5 H14.9 C15.5 16.5 16 16 16 15.4 V13.6" />
                 </svg>
-              </motion.div>
+              </m.div>
               <div className="text-[14px] font-medium text-ink">
                 Drop your CSV here, or click to browse
               </div>
@@ -156,7 +156,7 @@ export default function ImportPage() {
             {/* Parse preview */}
             <AnimatePresence>
               {parsed && (
-                <motion.div
+                <m.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
@@ -231,7 +231,7 @@ export default function ImportPage() {
                       </>
                     )}
                   </div>
-                </motion.div>
+                </m.div>
               )}
             </AnimatePresence>
           </Card>

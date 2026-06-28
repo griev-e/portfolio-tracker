@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Computing } from "@/components/ui/Computing";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -318,7 +318,7 @@ function EarningsCard({ portfolio }: { portfolio: Portfolio }) {
       ) : (
         <div className="space-y-1">
           {upcoming.map(({ position: p, date, days }, i) => (
-            <motion.div
+            <m.div
               key={p.symbol}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -355,7 +355,7 @@ function EarningsCard({ portfolio }: { portfolio: Portfolio }) {
               >
                 {days === 0 ? "today" : `in ${days}d`}
               </span>
-            </motion.div>
+            </m.div>
           ))}
         </div>
       )}
@@ -528,7 +528,7 @@ function NewsCard({ symbols }: { symbols: string[] }) {
           {items && visible.length > 0 && (
             <div className="space-y-1">
               {visible.map((n, i) => (
-                <motion.a
+                <m.a
                   key={n.id}
                   href={n.link}
                   target="_blank"
@@ -549,7 +549,7 @@ function NewsCard({ symbols }: { symbols: string[] }) {
                       <span>{relativeTime(n.publishedAt)}</span>
                     </div>
                   </div>
-                </motion.a>
+                </m.a>
               ))}
             </div>
           )}

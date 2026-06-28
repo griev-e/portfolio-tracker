@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { memo, useState } from "react";
 
 /**
@@ -99,7 +99,7 @@ export const Heatmap = memo(function Heatmap({
           />
           <span>1.0</span>
         </div>
-        <motion.div
+        <m.div
           key={hoverInfo ? `${hoverInfo.a}-${hoverInfo.b}` : "none"}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -114,7 +114,7 @@ export const Heatmap = memo(function Heatmap({
               <span className="text-mint">{hoverInfo.rho.toFixed(2)}</span>
             </>
           )}
-        </motion.div>
+        </m.div>
       </div>
     </div>
   );
@@ -153,7 +153,7 @@ function Row({
         const isDiag = i === j;
         const inCross = hover ? hover.i === i || hover.j === j : false;
         return (
-          <motion.div
+          <m.div
             key={j}
             initial={{ opacity: 0, scale: 0.7 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -183,7 +183,7 @@ function Row({
                 {rho.toFixed(2).replace(/^0\./, ".")}
               </span>
             )}
-          </motion.div>
+          </m.div>
         );
       })}
     </>

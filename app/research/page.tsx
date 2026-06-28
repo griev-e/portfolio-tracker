@@ -1,9 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { PriceChart } from "@/components/charts/PriceChart";
+import dynamic from "next/dynamic";
+import { AnimatePresence, m } from "framer-motion";
 import { TickerSearch } from "@/components/research/TickerSearch";
+
+// Rendered only once price history has loaded; deferred so the search box and
+// fundamentals paint without the chart's JS in the initial route bundle.
+const PriceChart = dynamic(
+  () => import("@/components/charts/PriceChart").then((m) => m.PriceChart),
+  { ssr: false }
+);
 import { Card, CardHeader } from "@/components/ui/Card";
 import { deltaToneClass } from "@/components/ui/Delta";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -92,14 +99,14 @@ export default function ResearchPage() {
         description="Look up any stock, ETF or fund — live price history, fundamentals, and how it stacks up against the S&P 500."
       />
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
         className="mb-5"
       >
         <TickerSearch onSelect={select} />
-      </motion.div>
+      </m.div>
 
       <QuickPicks
         label={picks.length > 0 ? "Your holdings" : "Popular"}
@@ -111,7 +118,7 @@ export default function ResearchPage() {
 
       {symbol ? (
         <AnimatePresence mode="wait">
-          <motion.div
+          <m.div
             key={symbol}
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
@@ -125,7 +132,7 @@ export default function ResearchPage() {
               holding={holding}
               portfolioIncome={portfolioIncome}
             />
-          </motion.div>
+          </m.div>
         </AnimatePresence>
       ) : (
         <Card className="mt-8 px-8 py-12 text-center">
@@ -506,7 +513,7 @@ function ResearchView({
               </span>
               <div className="relative flex-1">
                 <div className="h-[7px] w-full rounded-full bg-white/[0.05]" />
-                <motion.div
+                <m.div
                   className="absolute top-0 h-[7px] rounded-full"
                   style={{
                     background: `linear-gradient(90deg, color-mix(in srgb, ${color} 30%, transparent), ${color})`,
@@ -950,7 +957,7 @@ function TargetBullet({
     <div className="relative h-7">
       <div className="absolute top-1/2 h-[6px] w-full -translate-y-1/2 rounded-full bg-white/[0.05]" />
       {low > 0 && high > low && (
-        <motion.div
+        <m.div
           className="absolute top-1/2 h-[6px] -translate-y-1/2 rounded-full bg-gradient-to-r from-vio/30 via-vio/50 to-vio/30"
           style={{ left: pos(low), right: `calc(100% - ${pos(high)})` }}
           initial={{ opacity: 0 }}
@@ -958,7 +965,7 @@ function TargetBullet({
           transition={{ duration: 0.7, delay: 0.2 }}
         />
       )}
-      <motion.div
+      <m.div
         className="absolute top-1/2 h-[18px] w-[2.5px] -translate-y-1/2 rounded-full bg-vio"
         style={{ left: pos(mean) }}
         initial={{ opacity: 0, scaleY: 0 }}
@@ -966,7 +973,7 @@ function TargetBullet({
         transition={{ delay: 0.45 }}
         title={`mean target ${fmtUSD(mean)}`}
       />
-      <motion.div
+      <m.div
         className="absolute top-1/2 h-[18px] w-[18px] -translate-y-1/2 -translate-x-1/2"
         style={{ left: pos(price) }}
         initial={{ scale: 0 }}
@@ -975,7 +982,7 @@ function TargetBullet({
         title={`current ${fmtUSD(price)}`}
       >
         <div className="h-full w-full rounded-full border-2 border-mint bg-void shadow-[0_0_12px_rgba(176,43,10,0.5)]" />
-      </motion.div>
+      </m.div>
     </div>
   );
 }

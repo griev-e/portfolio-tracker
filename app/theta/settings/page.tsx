@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import Link from "next/link";
 import { useState } from "react";
 import { useTheta } from "@/lib/theta/store";
@@ -18,7 +18,7 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
         on ? "bg-vio/70" : "bg-white/[0.1]"
       }`}
     >
-      <motion.span
+      <m.span
         layout
         transition={{ type: "spring", stiffness: 600, damping: 34 }}
         className="absolute top-1/2 h-[16px] w-[16px] -translate-y-1/2 rounded-full bg-ink shadow"

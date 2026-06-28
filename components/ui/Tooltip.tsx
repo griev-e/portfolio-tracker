@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import {
   type ReactNode,
   useCallback,
@@ -104,7 +104,7 @@ export function Tooltip({
         createPortal(
           <AnimatePresence>
             {open && coords && (
-              <motion.div
+              <m.div
                 ref={boxRef}
                 initial={{ opacity: 0, y: coords.placement === "top" ? 4 : -4 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -124,7 +124,7 @@ export function Tooltip({
                 className="rounded-lg border border-edge2 bg-[#0d0d0d] px-3 py-2 text-[11.5px] leading-snug text-mute shadow-[0_8px_28px_-6px_rgba(0,0,0,0.85)]"
               >
                 {content}
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>,
           document.body,
