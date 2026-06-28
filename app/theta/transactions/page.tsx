@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AccountFilter } from "@/components/theta/AccountFilter";
+import { TransactionFilter } from "@/components/theta/TransactionFilter";
 import { AddTransactionButton } from "@/components/theta/modals";
 import { ThetaEmpty } from "@/components/theta/ui";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
-import { type Category } from "@/lib/theta/data";
+import { CATEGORIES, type Category } from "@/lib/theta/data";
 import { ledgerHasData, useTheta } from "@/lib/theta/store";
 import { fmtUSD } from "@/lib/format";
 import { TxRow } from "./TxRow";
@@ -28,25 +28,42 @@ const FILTERS: (Category | "All")[] = [
 ];
 
 export default function TransactionsPage() {
-  const { ready, ledger, deleteTransaction, setTransactionCategory, toggleAccountHidden, showAllAccounts } = useTheta();
+  const {
+    ready,
+    ledger,
+    deleteTransaction,
+    setTransactionCategory,
+    toggleAccountHidden,
+    toggleCategoryHidden,
+    resetTransactionFilters,
+  } = useTheta();
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState<Category | "All">("All");
 
   const transactions = ledger?.transactions ?? [];
   const accounts = useMemo(() => ledger?.accounts ?? [], [ledger]);
-  const hidden = useMemo(() => ledger?.hiddenAccounts ?? [], [ledger]);
+  const hiddenAccounts = useMemo(() => ledger?.hiddenAccounts ?? [], [ledger]);
+  const hiddenCategories = useMemo(() => ledger?.hiddenCategories ?? [], [ledger]);
   const acctName = (id: string) => accounts.find((a) => a.id === id)?.name ?? id;
+
+  // Categories actually present in the ledger, in the canonical order.
+  const presentCategories = useMemo(() => {
+    const seen = new Set(transactions.map((t) => t.category));
+    return CATEGORIES.filter((c) => seen.has(c));
+  }, [transactions]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const hiddenSet = new Set(hidden);
+    const hiddenAcctSet = new Set(hiddenAccounts);
+    const hiddenCatSet = new Set(hiddenCategories);
     return transactions.filter((t) => {
-      if (hiddenSet.has(t.account)) return false;
+      if (hiddenAcctSet.has(t.account)) return false;
+      if (hiddenCatSet.has(t.category)) return false;
       if (cat !== "All" && t.category !== cat) return false;
       if (q && !t.merchant.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [transactions, query, cat, hidden]);
+  }, [transactions, query, cat, hiddenAccounts, hiddenCategories]);
 
   if (!ready) return null;
   if (!ledger || !ledgerHasData(ledger)) return <ThetaEmpty page="Transactions" />;
@@ -92,11 +109,14 @@ export default function TransactionsPage() {
                 className="h-9 w-full rounded-md border border-edge bg-white/[0.03] pl-9 pr-3 text-[13px] text-ink placeholder:text-faint outline-none transition-colors focus:border-edge2"
               />
             </div>
-            <AccountFilter
+            <TransactionFilter
               accounts={accounts}
-              hidden={hidden}
-              onToggle={toggleAccountHidden}
-              onShowAll={showAllAccounts}
+              categories={presentCategories}
+              hiddenAccounts={hiddenAccounts}
+              hiddenCategories={hiddenCategories}
+              onToggleAccount={toggleAccountHidden}
+              onToggleCategory={toggleCategoryHidden}
+              onReset={resetTransactionFilters}
             />
           </div>
           <div className="flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

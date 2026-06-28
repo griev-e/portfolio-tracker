@@ -112,11 +112,14 @@ export type Ledger = {
   netWorthHistory: { month: string; value: number }[];
   flowHistory: MonthFlow[];
   /**
-   * Account ids whose transactions are hidden from the transaction lists
-   * (e.g. noisy brokerage activity). A view preference, not a data change;
-   * the accounts and balances themselves stay untouched.
+   * Account ids whose transactions are filtered out of the transaction lists
+   * AND the income/spending/budget math (e.g. noisy brokerage activity). The
+   * accounts and their balances stay in net worth — only their transactions
+   * are excluded.
    */
   hiddenAccounts?: string[];
+  /** Categories filtered out of the lists and the income/spending math. */
+  hiddenCategories?: string[];
 };
 
 export const MONTHS = [

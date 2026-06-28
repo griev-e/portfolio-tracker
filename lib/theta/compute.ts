@@ -62,6 +62,8 @@ export function recurringPerMonth(amount: number, cadence: string): number {
 export function deriveTheta(ledger: Ledger, now: Date = new Date()): ThetaView {
   const { key: curKey, label: curLabel } = currentYearMonth(now);
 
+  // Net worth is always over every account — hiding an account only filters its
+  // transactions out of the flow/spending math, never its balance from assets.
   const totalAssets = ledger.accounts
     .filter((a) => a.balance > 0)
     .reduce((s, a) => s + a.balance, 0);
@@ -70,10 +72,21 @@ export function deriveTheta(ledger: Ledger, now: Date = new Date()): ThetaView {
     .reduce((s, a) => s + Math.abs(a.balance), 0);
   const netWorth = totalAssets - totalLiabilities;
 
+  // Transaction-derived figures (income, spending, budget pacing, cash flow)
+  // honor the account/category filters: a hidden brokerage account's trades or
+  // a hidden category's churn shouldn't be counted as income or spending.
+  const hiddenAccounts = new Set(ledger.hiddenAccounts ?? []);
+  const hiddenCategories = new Set(ledger.hiddenCategories ?? []);
+  const included = (t: { account: string; category: Category }) =>
+    !hiddenAccounts.has(t.account) && !hiddenCategories.has(t.category);
+
   // This month's flows, derived from transactions dated in the current month.
-  const thisMonth = ledger.transactions.filter((t) => ym(t.date) === curKey);
+  // Transfers are excluded from BOTH sides — moving money between your own
+  // accounts is neither income nor spending (the receiving leg would otherwise
+  // inflate income).
+  const thisMonth = ledger.transactions.filter((t) => ym(t.date) === curKey && included(t));
   const monthIncome = thisMonth
-    .filter((t) => t.amount > 0)
+    .filter((t) => t.amount > 0 && t.category !== "Transfer")
     .reduce((s, t) => s + t.amount, 0);
   const monthExpenses = thisMonth
     .filter((t) => t.amount < 0 && t.category !== "Transfer")

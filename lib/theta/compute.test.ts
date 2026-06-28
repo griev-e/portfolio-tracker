@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { advanceRecurring, deriveTheta, recurringPerMonth } from "./compute";
-import { SAMPLE_LEDGER } from "./data";
+import { type Ledger, SAMPLE_LEDGER } from "./data";
 
 // Pin "now" into the sample's transaction month so the current-month buckets
 // line up with the seeded June data.
@@ -43,6 +43,57 @@ describe("deriveTheta", () => {
     for (let i = 1; i < v.spending.length; i++) {
       expect(v.spending[i - 1].amount).toBeGreaterThanOrEqual(v.spending[i].amount);
     }
+  });
+
+  it("never counts a transfer as income, even its receiving leg", () => {
+    // A transfer between your own accounts: money out of checking, into savings.
+    // Neither leg should land in income or expenses.
+    const ledger: Ledger = {
+      accounts: [],
+      transactions: [
+        { id: "out", date: "2026-06-10", merchant: "Transfer to Savings", category: "Transfer", account: "chk", amount: -500 },
+        { id: "in", date: "2026-06-10", merchant: "Transfer from Checking", category: "Transfer", account: "sav", amount: 500 },
+        { id: "pay", date: "2026-06-01", merchant: "Payroll", category: "Income", account: "chk", amount: 3000 },
+      ],
+      budgets: [],
+      goals: [],
+      recurring: [],
+      netWorthHistory: [],
+      flowHistory: [],
+    };
+    const v = deriveTheta(ledger, NOW);
+    expect(v.monthIncome).toBeCloseTo(3000, 2);
+    expect(v.monthExpenses).toBeCloseTo(0, 2);
+  });
+
+  it("excludes hidden accounts and categories from the income/spending math", () => {
+    const base = {
+      budgets: [],
+      goals: [],
+      recurring: [],
+      netWorthHistory: [],
+      flowHistory: [],
+      accounts: [],
+    };
+    const transactions = [
+      { id: "pay", date: "2026-06-01", merchant: "Payroll", category: "Income" as const, account: "chk", amount: 3000 },
+      { id: "buy", date: "2026-06-05", merchant: "Stock Buy", category: "Other" as const, account: "bkr", amount: -9000 },
+      { id: "sell", date: "2026-06-06", merchant: "Stock Sell", category: "Other" as const, account: "bkr", amount: 9500 },
+      { id: "food", date: "2026-06-07", merchant: "Groceries", category: "Food & Dining" as const, account: "chk", amount: -120 },
+    ];
+    const unfiltered = deriveTheta({ ...base, transactions }, NOW);
+    expect(unfiltered.monthIncome).toBeCloseTo(12500, 2); // brokerage sell inflates it
+    expect(unfiltered.monthExpenses).toBeCloseTo(9120, 2);
+
+    // Hiding the brokerage account drops its churn from both sides.
+    const filtered = deriveTheta({ ...base, transactions, hiddenAccounts: ["bkr"] }, NOW);
+    expect(filtered.monthIncome).toBeCloseTo(3000, 2);
+    expect(filtered.monthExpenses).toBeCloseTo(120, 2);
+
+    // Hiding by category does the same.
+    const byCat = deriveTheta({ ...base, transactions, hiddenCategories: ["Other"] }, NOW);
+    expect(byCat.monthIncome).toBeCloseTo(3000, 2);
+    expect(byCat.monthExpenses).toBeCloseTo(120, 2);
   });
 
   it("is empty-safe", () => {

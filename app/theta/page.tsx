@@ -24,11 +24,12 @@ export default function ThetaDashboard() {
   const nwUp = view.netWorthDelta >= 0;
   const expenseDelta = view.monthExpenses - view.prevMonthExpenses;
   const acctName = (id: string) => ledger.accounts.find((a) => a.id === id)?.name ?? id;
-  // Mirror the Transactions page account filter so brokerage churn the user
-  // hid there stays out of the recent-activity table here too.
+  // Mirror the Transactions page filters so accounts/categories the user hid
+  // there (e.g. brokerage churn) stay out of the recent-activity table too.
   const hiddenAccounts = new Set(ledger.hiddenAccounts ?? []);
+  const hiddenCategories = new Set(ledger.hiddenCategories ?? []);
   const recentTransactions = ledger.transactions
-    .filter((t) => !hiddenAccounts.has(t.account))
+    .filter((t) => !hiddenAccounts.has(t.account) && !hiddenCategories.has(t.category))
     .slice(0, 8);
   const assetCount = ledger.accounts.filter((a) => a.balance > 0).length;
   const liabCount = ledger.accounts.filter((a) => a.balance < 0).length;

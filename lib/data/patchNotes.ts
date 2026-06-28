@@ -8,6 +8,16 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.33",
+    date: "2026-06-28",
+    title: "theta — accurate income/spending, category filters, and bulk re-tagging",
+    changes: [
+      "Fixed inflated income and spending. Transfers between your own accounts are no longer counted as income (only the spending leg was being excluded before, so the receiving leg quietly inflated income), and the activity filters now drive the headline math — so hiding a noisy brokerage account stops its buys and sells from being counted as income and spending. Your net worth still reflects every account's balance; only the transaction-derived figures honor the filter.",
+      "Filter by category, not just by account. The Transactions filter now has a Categories section alongside Accounts — hide a whole category (and account) from the lists, the dashboard's recent activity, and the income/spending/budget math in one place.",
+      "Re-tagging is now bulk by default: change one transaction's category and every other transaction from the same merchant is re-tagged to match, so fixing one auto-categorized charge fixes the whole group. Combined with category filters, that means you can re-tag a merchant and immediately filter the lot.",
+    ],
+  },
+  {
     version: "1.32",
     date: "2026-06-28",
     title: "theta — sharper Intelligence, account logos, and more control over your activity",

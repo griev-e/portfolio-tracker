@@ -60,12 +60,17 @@ interface ThetaStore {
   updateAccountBalance: (id: string, balance: number) => void;
   removeAccount: (id: string) => void;
 
-  /** Toggle whether an account's transactions show in the transaction lists. */
+  /** Toggle whether an account's transactions count toward lists + spending math. */
   toggleAccountHidden: (id: string) => void;
-  /** Clear the transaction-list account filter (show every account again). */
-  showAllAccounts: () => void;
+  /** Toggle whether a category's transactions count toward lists + spending math. */
+  toggleCategoryHidden: (category: Category) => void;
+  /** Clear both the account and category transaction filters. */
+  resetTransactionFilters: () => void;
 
-  /** Re-tag a transaction's category (e.g. correcting an auto-categorized row). */
+  /**
+   * Re-tag a transaction's category. Also re-tags every other transaction from
+   * the same merchant, so correcting one fixes the whole group at once.
+   */
   setTransactionCategory: (id: string, category: Category) => void;
 
   loadSample: () => void;
@@ -375,19 +380,38 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
     [mutate]
   );
 
-  const showAllAccounts = useCallback(
-    () => mutate((l) => ({ ...l, hiddenAccounts: [] })),
+  const toggleCategoryHidden = useCallback(
+    (category: Category) =>
+      mutate((l) => {
+        const cur = l.hiddenCategories ?? [];
+        const next = cur.includes(category)
+          ? cur.filter((x) => x !== category)
+          : [...cur, category];
+        return { ...l, hiddenCategories: next };
+      }),
+    [mutate]
+  );
+
+  const resetTransactionFilters = useCallback(
+    () => mutate((l) => ({ ...l, hiddenAccounts: [], hiddenCategories: [] })),
     [mutate]
   );
 
   const setTransactionCategory = useCallback(
     (id: string, category: Category) =>
-      mutate((l) => ({
-        ...l,
-        transactions: l.transactions.map((t) =>
-          t.id === id ? { ...t, category } : t
-        ),
-      })),
+      mutate((l) => {
+        const target = l.transactions.find((t) => t.id === id);
+        if (!target) return l;
+        // Re-tag every transaction from the same merchant, not just this row,
+        // so fixing one auto-categorized charge fixes the whole group.
+        const key = target.merchant.trim().toLowerCase();
+        return {
+          ...l,
+          transactions: l.transactions.map((t) =>
+            t.merchant.trim().toLowerCase() === key ? { ...t, category } : t
+          ),
+        };
+      }),
     [mutate]
   );
 
@@ -421,7 +445,8 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
       updateAccountBalance,
       removeAccount,
       toggleAccountHidden,
-      showAllAccounts,
+      toggleCategoryHidden,
+      resetTransactionFilters,
       setTransactionCategory,
       loadSample,
       clear,
@@ -433,7 +458,8 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
       addGoal, contributeToGoal, removeGoal,
       addRecurring, markRecurringPaid, removeRecurring,
       updateAccountBalance, removeAccount,
-      toggleAccountHidden, showAllAccounts, setTransactionCategory,
+      toggleAccountHidden, toggleCategoryHidden, resetTransactionFilters,
+      setTransactionCategory,
       loadSample, clear,
     ]
   );
