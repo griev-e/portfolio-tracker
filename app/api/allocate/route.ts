@@ -11,8 +11,9 @@ import {
 } from "@/lib/server/allocator";
 
 export const dynamic = "force-dynamic";
-// Opus with adaptive thinking can run longer than the brief; streaming keeps the
-// connection warm and the client also bounds its own wait.
+// Sonnet with adaptive thinking can run longer than the brief; streaming keeps
+// the connection warm and generateAllocation enforces a hard 55s abort deadline
+// inside this window.
 export const maxDuration = 60;
 
 const SYMBOL_RE = /[^A-Z0-9.\-]/g;
@@ -133,11 +134,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const plan = await generateAllocation(parsed);
+    const { plan, costUSD } = await generateAllocation(parsed);
     const payload = {
       plan,
       generatedAt: new Date().toISOString(),
       cached: false,
+      costUSD,
     };
     setCachedPlan(key, payload);
     return NextResponse.json(payload, {
@@ -145,6 +147,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     const { status, error } = allocatorErrorResponse(err);
+    if (status === 502) console.error("allocation generation failed:", err);
     return NextResponse.json({ error }, { status });
   }
 }

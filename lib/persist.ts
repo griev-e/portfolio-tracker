@@ -35,24 +35,40 @@ export function getServerState(): Promise<ServerState | null> {
   return inflight;
 }
 
-async function put(path: string, value: unknown): Promise<void> {
-  try {
-    await fetch(path, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(value ?? null),
-      credentials: "same-origin",
-    });
-  } catch {
-    // Offline / transient — in-memory state still reflects the edit; the next
-    // successful save sends the latest snapshot.
+/**
+ * Returns true when the save was acknowledged by the server. On a transient
+ * failure it retries once after a short backoff before giving up; in-memory
+ * state still reflects the edit, and the next successful save sends the latest
+ * snapshot. A persistent failure is logged so it's diagnosable rather than
+ * silently lost. (User-facing surfacing — a toast/banner — is a follow-up that
+ * needs a notification primitive the app doesn't have yet.)
+ */
+async function put(path: string, value: unknown): Promise<boolean> {
+  const body = JSON.stringify(value ?? null);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(path, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body,
+        credentials: "same-origin",
+      });
+      if (res.ok) return true;
+      // A 4xx won't be fixed by retrying — stop.
+      if (res.status >= 400 && res.status < 500) break;
+    } catch {
+      // network blip — fall through to the retry
+    }
+    if (attempt === 0) await new Promise((r) => setTimeout(r, 400));
   }
+  console.error(`persist: failed to save ${path}`);
+  return false;
 }
 
 // Saves fire immediately on each mutation — every theta/alpha edit is a single
 // discrete commit (button click or input blur), never a per-keystroke burst, so
 // there's nothing to coalesce and no debounce window in which to lose a change.
-export const putPortfolio = (value: unknown): Promise<void> =>
+export const putPortfolio = (value: unknown): Promise<boolean> =>
   put("/api/state/portfolio", value);
-export const putLedger = (value: unknown): Promise<void> =>
+export const putLedger = (value: unknown): Promise<boolean> =>
   put("/api/state/ledger", value);

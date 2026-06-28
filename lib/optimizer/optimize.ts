@@ -102,6 +102,12 @@ interface Ctx {
 type Objective = (w: number[]) => number;
 type Gradient = (w: number[]) => number[];
 
+/** A solved weight vector plus whether the solver reached a stationary point. */
+interface Solved {
+  w: number[];
+  converged: boolean;
+}
+
 /** Projected gradient ascent with an arc (projected) line search. */
 function ascend(
   start: number[],
@@ -109,14 +115,21 @@ function ascend(
   grad: Gradient,
   cap: number,
   iters: number
-): number[] {
+): Solved {
   let w = projectCappedSimplex(start, cap);
   let fw = f(w);
+  // Converged when we hit a stationary point (tiny gradient) or no line-search
+  // step improves the objective; not converged if we exhaust `iters` while still
+  // making progress each step.
+  let converged = false;
   for (let it = 0; it < iters; it++) {
     const g = grad(w);
     let gmax = 0;
     for (const x of g) gmax = Math.max(gmax, Math.abs(x));
-    if (gmax < 1e-12) break;
+    if (gmax < 1e-12) {
+      converged = true;
+      break;
+    }
     let step = 1 / gmax; // scale the first probe to ~unit move
     let improved = false;
     for (let ls = 0; ls < 40; ls++) {
@@ -133,9 +146,12 @@ function ascend(
       }
       step *= 0.5;
     }
-    if (!improved) break;
+    if (!improved) {
+      converged = true;
+      break;
+    }
   }
-  return w;
+  return { w, converged };
 }
 
 /** Multistart wrapper — keeps the best objective across deterministic starts. */
@@ -145,7 +161,7 @@ function maximize(
   grad: Gradient,
   cap: number,
   iters = 250
-): number[] {
+): Solved {
   const { n } = ctx;
   const starts: number[][] = [
     ctx.current.slice(),
@@ -157,38 +173,47 @@ function maximize(
   }
   let best = starts[0];
   let bestF = -Infinity;
+  let bestConverged = false;
   for (const st of starts) {
-    const w = ascend(st, f, grad, cap, iters);
+    const { w, converged } = ascend(st, f, grad, cap, iters);
     const fv = f(w);
     if (fv > bestF) {
       bestF = fv;
       best = w;
+      bestConverged = converged;
     }
   }
-  return best;
+  return { w: best, converged: bestConverged };
 }
 
 /** Risk parity via cyclical coordinate descent → equal risk contributions. */
-function riskParity(cov: number[][], cap: number): number[] {
+function riskParity(cov: number[][], cap: number): Solved {
   const n = cov.length;
   const w = new Array(n).fill(1 / n);
+  let converged = false;
   for (let it = 0; it < 300; it++) {
-    let maxChange = 0;
+    const prev = w.slice();
     for (let i = 0; i < n; i++) {
       let b = 0;
       for (let j = 0; j < n; j++) if (j !== i) b += cov[i][j] * w[j];
-      const a = cov[i][i];
+      // Floor the diagonal so a near-zero-variance name can't divide by ~0.
+      const a = Math.max(cov[i][i], 1e-12);
       // wᵢ solves a·wᵢ² + b·wᵢ − 1 = 0 (the equal-RC fixed point, c = 1).
-      const wi = (-b + Math.sqrt(b * b + 4 * a)) / (2 * a);
-      maxChange = Math.max(maxChange, Math.abs(wi - w[i]));
-      w[i] = wi;
+      w[i] = (-b + Math.sqrt(b * b + 4 * a)) / (2 * a);
     }
     let sum = 0;
     for (const x of w) sum += x;
     for (let i = 0; i < n; i++) w[i] /= sum;
-    if (maxChange < 1e-9) break;
+    // Measure settling on the normalized weight vector (the inline per-coordinate
+    // delta plateaus at the normalization floor and never reaches the tolerance).
+    let maxChange = 0;
+    for (let i = 0; i < n; i++) maxChange = Math.max(maxChange, Math.abs(w[i] - prev[i]));
+    if (maxChange < 1e-9) {
+      converged = true;
+      break;
+    }
   }
-  return projectCappedSimplex(w, cap);
+  return { w: projectCappedSimplex(w, cap), converged };
 }
 
 /**
@@ -342,7 +367,7 @@ function solveObjective(
   ctx: Ctx,
   objective: ObjectiveId,
   cap: number
-): number[] {
+): Solved {
   const { mu, vol, yld, qual, cov } = ctx;
   const Sw = (w: number[]) => matVec(cov, w);
 
@@ -431,10 +456,13 @@ function solveObjective(
       return riskParity(cov, cap);
 
     case "equal":
-      return projectCappedSimplex(new Array(ctx.n).fill(1 / ctx.n), cap);
+      return {
+        w: projectCappedSimplex(new Array(ctx.n).fill(1 / ctx.n), cap),
+        converged: true,
+      };
 
     default:
-      return ctx.current.slice();
+      return { w: ctx.current.slice(), converged: true };
   }
 }
 
@@ -445,7 +473,7 @@ function computeFrontier(ctx: Ctx, cap: number): FrontierPoint[] {
   const pts: FrontierPoint[] = [];
   for (let k = 0; k < 22; k++) {
     const lambda = Math.pow(10, -1 + (3 * k) / 21); // 0.1 … 100
-    const w = maximize(
+    const { w } = maximize(
       ctx,
       (x) => dot(x, ctx.mu) - lambda * quad(x, ctx.cov),
       (x) => {
@@ -482,8 +510,12 @@ export function optimizePortfolio(
   if (!ctx) return null;
 
   const cap = Math.min(1, Math.max(constraints.maxWeight, 1 / ctx.n + 1e-9));
+  // Trades below this dollar value are reported as `hold` (odd-lot noise);
+  // defaults to $1, the previous hard-coded threshold.
+  const minTrade = Math.max(1, constraints.minTradeSize ?? 0);
 
-  let target = solveObjective(ctx, objective, cap);
+  const solved = solveObjective(ctx, objective, cap);
+  let target = solved.w;
   // Unless full exits are allowed, keep currently-held names above the floor so
   // the optimizer trims rather than zeroes them out.
   if (!constraints.allowExit) {
@@ -512,8 +544,8 @@ export function optimizePortfolio(
 
     let action: OptimizedPosition["action"];
     if (targetWeight < 1e-4 && currentWeight > 1e-4) action = "exit";
-    else if (dollarDelta > 1) action = "buy";
-    else if (dollarDelta < -1) action = "sell";
+    else if (dollarDelta > minTrade) action = "buy";
+    else if (dollarDelta < -minTrade) action = "sell";
     else action = "hold";
     if (action === "buy") buys++;
     else if (action === "sell" || action === "exit") sells++;
@@ -551,5 +583,6 @@ export function optimizePortfolio(
     buys,
     sells,
     cashWeight: ctx.cashWeight,
+    converged: solved.converged,
   };
 }

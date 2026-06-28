@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { fmtPct, fmtUSDCompact } from "@/lib/format";
 import { useElementWidth } from "@/lib/useElementWidth";
 
@@ -99,7 +99,7 @@ function cellColor(intensity: number): { bg: string; border: string } {
   };
 }
 
-export function Treemap({
+export const Treemap = memo(function Treemap({
   items,
   height = 360,
 }: {
@@ -194,4 +194,4 @@ export function Treemap({
       )}
     </div>
   );
-}
+});

@@ -20,7 +20,7 @@ const CACHE_MAX = 20;
  * the heavy lifting), so the fastest, cheapest current model is the right tool.
  * ~5× cheaper input/output than Opus and quick enough to keep the page snappy.
  */
-const BRIEF_MODEL = "claude-haiku-4-5";
+export const BRIEF_MODEL = "claude-haiku-4-5";
 
 /**
  * Cost backstop: cap how many *generations* (cache misses that actually hit the
@@ -82,7 +82,10 @@ export function setCachedBrief(key: string, data: BriefResponse): void {
   briefCache.set(key, { at: Date.now(), data });
 }
 
-/** Stable system prompt — no dates interpolated, keeps the prefix cacheable. */
+/** Stable system prompt — no per-request interpolation, so it's byte-identical
+ *  across calls. (No `cache_control` is set: the per-day-per-shape module cache
+ *  already dedupes the only repetition, and this prompt sits below Haiku 4.5's
+ *  minimum cacheable-prefix size, so a breakpoint would silently no-op.) */
 const SYSTEM = `You are the morning-brief writer for alpha, a private portfolio analytics terminal. You receive a JSON snapshot of one investor's portfolio (weights, day moves, total returns, sectors), recent headlines for their holdings, and upcoming earnings dates.
 
 Write a substantive, factual morning brief in the voice of a buy-side desk note: concrete numbers, sharp reasoning, no filler, no pleasantries. Each section earns its place — make the reader smarter about their own book.

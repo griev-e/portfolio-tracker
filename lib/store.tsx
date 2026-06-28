@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { buildPortfolio } from "./analytics/build";
+import { buildPortfolio, mergeAllFundamentals } from "./analytics/build";
 import { parsePortfolioCSV } from "./csv";
 import { primeLiveCMA } from "./live/cma";
 import { useLiveData } from "./live/useLiveData";
@@ -176,15 +176,23 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   );
   const liveData = useLiveData(symbols);
 
+  // Fundamentals merge keyed only on the symbol set + patches (slow-moving), so
+  // a 60s quote tick reprices without re-running the field-by-field merge.
+  const fundamentals = useMemo(
+    () => mergeAllFundamentals(symbols, liveData.patches),
+    [symbols, liveData.patches]
+  );
+
   const portfolio = useMemo(
     () =>
       stored && stored.holdings.length > 0
         ? buildPortfolio(stored.holdings, stored.cash, stored.asOf, {
             quotes: liveData.quotes,
             patches: liveData.patches,
+            fundamentals,
           })
         : null,
-    [stored, liveData.quotes, liveData.patches]
+    [stored, liveData.quotes, liveData.patches, fundamentals]
   );
 
   const live = useMemo<LiveStatus>(

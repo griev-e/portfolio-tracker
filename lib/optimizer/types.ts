@@ -43,6 +43,13 @@ export interface OptimizerConstraints {
    * false (default), held positions keep at least `minWeight`.
    */
   allowExit: boolean;
+  /**
+   * Minimum trade size in dollars. Moves whose dollar value is below this are
+   * reported as `hold` (and excluded from the trade count) rather than surfaced
+   * as unactionable odd-lot orders. The solved target weights are unchanged;
+   * this only cleans the trade list. Defaults to $1 when unset.
+   */
+  minTradeSize?: number;
 }
 
 /** Risk/return characteristics of a weight vector, on the total book (incl. cash). */
@@ -112,6 +119,12 @@ export interface OptimizerResult {
   sells: number;
   /** Cash weight held constant through the optimization, decimal. */
   cashWeight: number;
+  /**
+   * Whether the solver reached a stationary point for the chosen objective
+   * (vs. exhausting its iteration budget while still improving). False is rare
+   * and signals the metrics should be read as approximate — surface it in the UI.
+   */
+  converged: boolean;
 }
 
 /* ───────────────────────────── AI reasoning layer ───────────────────────── */

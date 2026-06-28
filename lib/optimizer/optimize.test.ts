@@ -152,4 +152,26 @@ describe("optimizePortfolio", () => {
       expect(r.frontier[i].ret).toBeGreaterThanOrEqual(r.frontier[i - 1].ret - 1e-9);
     }
   });
+
+  it.each(ALL)("reaches a stationary point (converged) for %s", (objective) => {
+    const r = optimizePortfolio(PORTFOLIO, objective, DEFAULTS)!;
+    expect(r.converged).toBe(true);
+  });
+
+  it("minTradeSize suppresses odd-lot moves without changing the solution", () => {
+    const normal = optimizePortfolio(PORTFOLIO, "equal", DEFAULTS)!;
+    const filtered = optimizePortfolio(PORTFOLIO, "equal", {
+      ...DEFAULTS,
+      minTradeSize: 1e12, // larger than any possible trade → all moves are noise
+    })!;
+    expect(normal.tradeCount).toBeGreaterThan(0);
+    expect(filtered.tradeCount).toBe(0);
+    expect(
+      filtered.positions.every((p) => p.action === "hold" || p.action === "exit")
+    ).toBe(true);
+    // The solved target weights are identical — only the trade labels differ.
+    expect(filtered.positions.map((p) => p.targetWeight)).toEqual(
+      normal.positions.map((p) => p.targetWeight)
+    );
+  });
 });

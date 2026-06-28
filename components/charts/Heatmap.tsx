@@ -1,13 +1,17 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { memo, useState } from "react";
 
 /**
  * Correlation heatmap. Cells fade in along the diagonal; hovering highlights
  * the full row + column crosshair and shows the pair readout.
+ *
+ * Memoized: the matrix is a large SVG/DOM tree, and the parent (Correlation,
+ * Report) can re-render on unrelated live-data ticks. The `symbols`/`matrix`
+ * props are stable while the portfolio is unchanged, so memo skips that work.
  */
-export function Heatmap({
+export const Heatmap = memo(function Heatmap({
   symbols,
   matrix,
 }: {
@@ -114,7 +118,7 @@ export function Heatmap({
       </div>
     </div>
   );
-}
+});
 
 function Row({
   rowSym,

@@ -31,6 +31,13 @@ export interface MonteCarloResult {
   bands: { month: number; p5: number; p25: number; p50: number; p75: number; p95: number }[];
   /** Probability the target is reached at the horizon. */
   probTargetAtHorizon: number;
+  /**
+   * Monte Carlo standard error on `probTargetAtHorizon` — √(p(1−p)/N). The
+   * binomial SE is mildly conservative under antithetic sampling (true variance
+   * is lower), but it gives the UI an honest ± on the headline probability so a
+   * 41% read isn't shown as more precise than the path count supports.
+   */
+  probTargetStdErr: number;
   /** Probability the target is reached at any point during the horizon. */
   probTargetEver: number;
   median: number;
@@ -97,15 +104,24 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
     return r * Math.cos(2 * Math.PI * v);
   };
 
-  // values[m] holds every path's value at month m (column-major for percentiles).
-  const values: Float64Array[] = Array.from(
-    { length: months + 1 },
-    () => new Float64Array(paths)
-  );
-  values[0].fill(initialValue);
+  // Keep only the cross-sections we actually read percentiles off (every month
+  // ≤10y, quarterly beyond) instead of the full months×paths matrix — bounds
+  // memory on long horizons. The per-path running value still drives the target
+  // hit-detection, so no information is lost.
+  const step = months > 120 ? 3 : 1;
+  const sampledMonths: number[] = [];
+  for (let m = 0; m <= months; m += step) sampledMonths.push(m);
+  if (sampledMonths[sampledMonths.length - 1] !== months) sampledMonths.push(months);
+
+  const colOf = new Int32Array(months + 1).fill(-1);
+  sampledMonths.forEach((m, ci) => {
+    colOf[m] = ci;
+  });
+  const cols: Float64Array[] = sampledMonths.map(() => new Float64Array(paths));
+  cols[colOf[0]].fill(initialValue);
+  const terminalCol = cols[colOf[months]];
 
   let everHit = 0;
-  const hitFlags = new Uint8Array(paths);
   const sampleIdx = new Set<number>();
   const sampleCount = Math.min(28, paths);
   for (let i = 0; i < sampleCount; i++) {
@@ -119,21 +135,44 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
     samplePaths.push(arr);
   }
 
-  for (let p = 0; p < paths; p++) {
-    let v = initialValue;
-    const sample = sampleMap.get(p); // hoisted: avoid a Map lookup per month
+  const record = (p: number, m: number, v: number, sample: number[] | undefined) => {
+    const ci = colOf[m];
+    if (ci >= 0) cols[ci][p] = v;
+    sample?.push(v);
+  };
+
+  // Antithetic variates: paths are drawn in mirror pairs that share the same
+  // shocks with opposite sign, cancelling much of the sampling noise in the
+  // mean/percentile estimates at no extra draws. Still fully deterministic per
+  // seed, so a given portfolio yields a reproducible fan.
+  for (let p = 0; p < paths; p += 2) {
+    const hasPair = p + 1 < paths;
+    let v0 = initialValue;
+    let v1 = initialValue;
+    let hit0 = false;
+    let hit1 = false;
+    const sample0 = sampleMap.get(p);
+    const sample1 = hasPair ? sampleMap.get(p + 1) : undefined;
     for (let m = 1; m <= months; m++) {
-      v = v * Math.exp(drift + diffusion * normal()) + monthlyContribution;
-      values[m][p] = v;
-      if (!hitFlags[p] && targetValue > 0 && v >= targetValue) {
-        hitFlags[p] = 1;
+      const z = normal();
+      v0 = v0 * Math.exp(drift + diffusion * z) + monthlyContribution;
+      record(p, m, v0, sample0);
+      if (!hit0 && targetValue > 0 && v0 >= targetValue) {
+        hit0 = true;
         everHit++;
       }
-      sample?.push(v);
+      if (hasPair) {
+        v1 = v1 * Math.exp(drift - diffusion * z) + monthlyContribution;
+        record(p + 1, m, v1, sample1);
+        if (!hit1 && targetValue > 0 && v1 >= targetValue) {
+          hit1 = true;
+          everHit++;
+        }
+      }
     }
   }
 
-  // Sort each month's cross-section once, then read all percentiles off it.
+  // Sort a cross-section once, then read every percentile off it.
   const sortedPct = (arr: Float64Array) => {
     const sorted = Float64Array.from(arr).sort();
     const at = (q: number) =>
@@ -142,22 +181,12 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
       ];
     return at;
   };
-  const bandAt = (m: number): MonteCarloResult["bands"][number] => {
-    const at = sortedPct(values[m]);
+  const bands: MonteCarloResult["bands"] = sampledMonths.map((m) => {
+    const at = sortedPct(cols[colOf[m]]);
     return { month: m, p5: at(0.05), p25: at(0.25), p50: at(0.5), p75: at(0.75), p95: at(0.95) };
-  };
+  });
 
-  // Sample every month up to 10y horizons, quarterly beyond, to keep the chart light.
-  const step = months > 120 ? 3 : 1;
-  const bands: MonteCarloResult["bands"] = [];
-  for (let m = 0; m <= months; m += step) {
-    bands.push(bandAt(m));
-  }
-  if (bands[bands.length - 1].month !== months) {
-    bands.push(bandAt(months));
-  }
-
-  const terminal = values[months];
+  const terminal = terminalCol;
   const hitAtHorizon =
     targetValue > 0
       ? terminal.reduce((s, v) => s + (v >= targetValue ? 1 : 0), 0)
@@ -192,9 +221,13 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
     histogram[b].count++;
   }
 
+  const probAtHorizon = targetValue > 0 ? hitAtHorizon / paths : 0;
+
   return {
     bands,
-    probTargetAtHorizon: targetValue > 0 ? hitAtHorizon / paths : 0,
+    probTargetAtHorizon: probAtHorizon,
+    probTargetStdErr:
+      targetValue > 0 ? Math.sqrt((probAtHorizon * (1 - probAtHorizon)) / paths) : 0,
     probTargetEver: targetValue > 0 ? everHit / paths : 0,
     median,
     p5: terminalAt(0.05),

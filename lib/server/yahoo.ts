@@ -53,40 +53,48 @@ export async function fetchQuotes(
     else missing.push(s);
   }
   if (missing.length > 0) {
-    const results = await yf.quote(missing);
-    const list = Array.isArray(results) ? results : [results];
-    for (const q of list) {
-      if (!q?.symbol || typeof q.regularMarketPrice !== "number") continue;
+    // Partial-failure safe: a single bad/delisted ticker makes yf.quote reject
+    // for the whole batch. Swallow that here so symbols already served from the
+    // warm cache (in `out`) survive and the unresolved ones degrade individually
+    // to the snapshot, rather than 502-ing live prices for the entire book.
+    try {
+      const results = await yf.quote(missing);
+      const list = Array.isArray(results) ? results : [results];
+      for (const q of list) {
+        if (!q?.symbol || typeof q.regularMarketPrice !== "number") continue;
 
-      // Extended-hours aware: outside the regular session, the latest pre- or
-      // post-market trade is the price. Day change stays anchored to the
-      // prior regular close, so it captures the full move since yesterday.
-      const state = q.marketState ?? "REGULAR";
-      let price = q.regularMarketPrice;
-      let time: Date | undefined = q.regularMarketTime;
-      if (state.startsWith("PRE") && typeof q.preMarketPrice === "number") {
-        price = q.preMarketPrice;
-        time = q.preMarketTime ?? time;
-      } else if (
-        state !== "REGULAR" &&
-        typeof q.postMarketPrice === "number"
-      ) {
-        price = q.postMarketPrice;
-        time = q.postMarketTime ?? time;
+        // Extended-hours aware: outside the regular session, the latest pre- or
+        // post-market trade is the price. Day change stays anchored to the
+        // prior regular close, so it captures the full move since yesterday.
+        const state = q.marketState ?? "REGULAR";
+        let price = q.regularMarketPrice;
+        let time: Date | undefined = q.regularMarketTime;
+        if (state.startsWith("PRE") && typeof q.preMarketPrice === "number") {
+          price = q.preMarketPrice;
+          time = q.preMarketTime ?? time;
+        } else if (
+          state !== "REGULAR" &&
+          typeof q.postMarketPrice === "number"
+        ) {
+          price = q.postMarketPrice;
+          time = q.postMarketTime ?? time;
+        }
+
+        const quote: LiveQuote = {
+          symbol: q.symbol,
+          price,
+          prevClose:
+            typeof q.regularMarketPreviousClose === "number"
+              ? q.regularMarketPreviousClose
+              : null,
+          asOf:
+            time instanceof Date ? time.toISOString() : new Date().toISOString(),
+        };
+        out[q.symbol] = quote;
+        quoteCache.set(q.symbol, { at: now, data: quote });
       }
-
-      const quote: LiveQuote = {
-        symbol: q.symbol,
-        price,
-        prevClose:
-          typeof q.regularMarketPreviousClose === "number"
-            ? q.regularMarketPreviousClose
-            : null,
-        asOf:
-          time instanceof Date ? time.toISOString() : new Date().toISOString(),
-      };
-      out[q.symbol] = quote;
-      quoteCache.set(q.symbol, { at: now, data: quote });
+    } catch {
+      // Provider error for the batch — keep whatever the cache already gave us.
     }
   }
   return out;

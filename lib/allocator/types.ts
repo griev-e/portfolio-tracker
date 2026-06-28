@@ -97,4 +97,6 @@ export interface AllocationResponse {
   plan: AllocationPlan;
   generatedAt: string;
   cached: boolean;
+  /** Estimated USD cost of the generation. Null when the model is unpriced. */
+  costUSD?: number | null;
 }

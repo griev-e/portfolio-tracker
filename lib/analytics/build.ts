@@ -12,6 +12,31 @@ import type {
 export interface LiveInputs {
   quotes?: Record<string, LiveQuote>;
   patches?: Record<string, FundamentalsPatch>;
+  /**
+   * Pre-merged fundamentals by symbol. When supplied, `buildPortfolio` uses it
+   * instead of re-running `mergeFundamentals` per position — letting the caller
+   * memoize the (slow-moving) fundamentals merge on the patch set alone, so a
+   * 60s quote tick reprices without re-merging fundamentals. Falls back to the
+   * inline merge when absent (tests, the report page).
+   */
+  fundamentals?: Map<string, Fundamentals | null>;
+}
+
+/**
+ * Merge the bundled snapshot with any live patch, per symbol. Pure and keyed
+ * only on the symbol set + patches, so the store can memoize it independently of
+ * quotes (which change every minute) — see `buildPortfolio`'s `fundamentals`.
+ */
+export function mergeAllFundamentals(
+  symbols: string[],
+  patches?: Record<string, FundamentalsPatch>
+): Map<string, Fundamentals | null> {
+  const out = new Map<string, Fundamentals | null>();
+  for (const symbol of symbols) {
+    if (out.has(symbol)) continue;
+    out.set(symbol, mergeFundamentals(getFundamentals(symbol), patches?.[symbol]));
+  }
+  return out;
 }
 
 /**
@@ -65,10 +90,10 @@ export function buildPortfolio(
   const positions: Position[] = repriced
     .map((h) => {
       const costBasis = h.shares * h.averageCost;
-      const fundamentals = mergeFundamentals(
-        getFundamentals(h.symbol),
-        live?.patches?.[h.symbol]
-      );
+      const fundamentals = live?.fundamentals
+        ? (live.fundamentals.get(h.symbol) ??
+           mergeFundamentals(getFundamentals(h.symbol), live?.patches?.[h.symbol]))
+        : mergeFundamentals(getFundamentals(h.symbol), live?.patches?.[h.symbol]);
       return {
         ...h,
         weight: totalValue > 0 ? h.equity / totalValue : 0,

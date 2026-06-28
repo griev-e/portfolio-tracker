@@ -20,8 +20,8 @@ const planCache = new Map<string, { at: number; data: DiscoverResponse }>();
 const PLAN_TTL = 24 * 3600_000;
 const CACHE_MAX = 40;
 
-const DISCOVER_MODEL = "claude-sonnet-4-6";
-const DISCOVER_EFFORT = "high" as const;
+export const DISCOVER_MODEL = "claude-sonnet-4-6";
+export const DISCOVER_EFFORT = "high" as const;
 
 const GEN_WINDOW_MS = 3600_000;
 const GEN_MAX = 25;
@@ -46,6 +46,11 @@ export function discoverErrorResponse(err: unknown): { status: number; error: st
     return { status: 501, error: "discover not configured" };
   if (err instanceof Anthropic.RateLimitError)
     return { status: 429, error: "discover rate limited" };
+  if (
+    err instanceof Anthropic.APIConnectionTimeoutError ||
+    err instanceof Anthropic.APIUserAbortError
+  )
+    return { status: 504, error: "discover timed out — try again" };
   return { status: 502, error: "discover unavailable" };
 }
 
@@ -72,7 +77,9 @@ export function setCachedDiscover(key: string, data: DiscoverResponse): void {
   planCache.set(key, { at: Date.now(), data });
 }
 
-/** Stable system prompt — no per-request interpolation, keeps the prefix cacheable. */
+/** Stable system prompt — no per-request interpolation, so it's byte-identical
+ *  across calls. (No `cache_control` is set: the per-day-per-shape module cache
+ *  already dedupes the only repetition that exists.) */
 const SYSTEM = `You are the equity-research desk for alpha, a private portfolio analytics terminal. You receive a JSON snapshot of one investor's book — per-holding weights, sector, valuation (forward P/E, dividend yield), quality (ROIC, revenue growth), risk (beta, volatility) — plus book-level metrics (expected return, volatility, Sharpe, beta, effective holdings) and a research directive describing the KIND of ideas to surface.
 
 Your job: propose NEW securities to ADD to this book — tickers the investor does NOT already own — that both (a) satisfy the directive and (b) genuinely complement THIS portfolio: filling its gaps, balancing its risks, or deepening a strength where that is the point.
@@ -200,38 +207,57 @@ const PLAN_SCHEMA = {
   },
 };
 
+// Hard wall-clock deadline fired by an AbortController on elapsed time (the
+// SDK's `timeout` is an idle timeout that resets on every streamed chunk, so
+// adaptive thinking never trips it). 55s fires inside the route's 60s
+// maxDuration, turning a slow tail into a catchable abort instead of a bare 504.
+const DEADLINE_MS = 55_000;
+
 export async function generateDiscover(
   req: DiscoverRequest
 ): Promise<{ plan: DiscoverPlan; costUSD: number | null }> {
   // reads ANTHROPIC_API_KEY; caller checks discoverConfigured() first. Stream +
-  // finalMessage keeps the connection warm while Opus thinks.
-  const client = new Anthropic({ timeout: 55_000, maxRetries: 1 });
+  // finalMessage keeps the connection warm while the model thinks. No retry
+  // budget: a retry on a near-deadline request would blow the ceiling anyway.
+  const client = new Anthropic({ timeout: 55_000, maxRetries: 0 });
   genCount += 1;
-  const stream = client.messages.stream({
-    model: DISCOVER_MODEL,
-    max_tokens: 6000,
-    thinking: { type: "adaptive" },
-    system: SYSTEM,
-    output_config: {
-      format: { type: "json_schema", schema: PLAN_SCHEMA },
-      effort: DISCOVER_EFFORT,
-    },
-    messages: [{ role: "user", content: buildUserMessage(req) }],
-  });
+  const controller = new AbortController();
+  const deadline = setTimeout(() => controller.abort(), DEADLINE_MS);
+  try {
+    const stream = client.messages.stream(
+      {
+        model: DISCOVER_MODEL,
+        max_tokens: 6000,
+        thinking: { type: "adaptive" },
+        system: SYSTEM,
+        output_config: {
+          format: { type: "json_schema", schema: PLAN_SCHEMA },
+          effort: DISCOVER_EFFORT,
+        },
+        messages: [{ role: "user", content: buildUserMessage(req) }],
+      },
+      { signal: controller.signal }
+    );
 
-  const response = await stream.finalMessage();
-  if (response.stop_reason === "refusal") {
-    throw new Error("discover generation declined");
-  }
-  for (const block of response.content) {
-    if (block.type === "text") {
-      return {
-        plan: JSON.parse(block.text) as DiscoverPlan,
-        costUSD: usdCost(DISCOVER_MODEL, response.usage),
-      };
+    const response = await stream.finalMessage();
+    if (response.stop_reason === "refusal") {
+      throw new Error("discover generation declined");
     }
+    if (response.stop_reason === "max_tokens") {
+      throw new Error("discover truncated: hit max_tokens before completing");
+    }
+    for (const block of response.content) {
+      if (block.type === "text") {
+        return {
+          plan: JSON.parse(block.text) as DiscoverPlan,
+          costUSD: usdCost(DISCOVER_MODEL, response.usage),
+        };
+      }
+    }
+    throw new Error("empty discover response");
+  } finally {
+    clearTimeout(deadline);
   }
-  throw new Error("empty discover response");
 }
 
 export function isDiscoverMode(v: unknown): v is DiscoverModeId {

@@ -82,6 +82,20 @@ describe("runMonteCarlo", () => {
     expect(r.medianCagr).toBeGreaterThan(naive);
   });
 
+  it("reports a binomial standard error on the horizon probability", () => {
+    const r = runMonteCarlo(baseInputs);
+    const n = baseInputs.paths ?? 3000;
+    const expected = Math.sqrt(
+      (r.probTargetAtHorizon * (1 - r.probTargetAtHorizon)) / n
+    );
+    expect(r.probTargetStdErr).toBeCloseTo(expected, 12);
+  });
+
+  it("reports zero probability standard error when there is no target", () => {
+    const r = runMonteCarlo({ ...baseInputs, targetValue: 0 });
+    expect(r.probTargetStdErr).toBe(0);
+  });
+
   it("reduces to deterministic compounding when volatility is zero", () => {
     const r = runMonteCarlo({
       ...baseInputs,

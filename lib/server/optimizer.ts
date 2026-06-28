@@ -20,17 +20,21 @@ const PLAN_TTL = 24 * 3600_000; // memory backstop; the date in the key rolls da
 const CACHE_MAX = 24;
 
 /**
- * Claude Haiku 4.5 with adaptive thinking. Reviewing an optimization — judging
- * whether the math's tradeoffs are worth taking for this specific book — is
- * narrower and more grounded than the dry-powder allocator's blank-slate sizing
- * (the optimal weights are already computed): the schema does the structural
- * heavy lifting, and thinking lets the model reason through the tradeoffs
- * before committing. Effort is `low`: `medium` and `high` both routinely ran
- * past the deadline (504s at the platform edge, observed in production) before
- * reaching the JSON write.
+ * Claude Sonnet 4.6 with adaptive thinking at `low` effort. Reviewing an
+ * optimization — judging whether the math's tradeoffs are worth taking for this
+ * specific book — is narrower and more grounded than the dry-powder allocator's
+ * blank-slate sizing (the optimal weights are already computed): the schema does
+ * the structural heavy lifting, and a shallow thinking pass lets the model reason
+ * through the tradeoffs before committing.
+ *
+ * Sonnet (not Haiku) because the `effort` parameter and adaptive thinking are
+ * unsupported on Haiku 4.5 — that pairing is rejected by the API, so the review
+ * never reached the JSON write. Sonnet supports both; `low` effort keeps it well
+ * inside the deadline while still earning a real reasoning pass on a grounded
+ * result.
  */
-const OPTIMIZER_MODEL = "claude-haiku-4-5";
-const OPTIMIZER_EFFORT = "low" as const;
+export const OPTIMIZER_MODEL = "claude-sonnet-4-6";
+export const OPTIMIZER_EFFORT = "low" as const;
 
 /**
  * Cost backstop: cap fresh generations (cache misses that hit the API) per warm
@@ -99,7 +103,9 @@ export function setCachedOptimization(key: string, data: OptimizerResponse): voi
   planCache.set(key, { at: Date.now(), data });
 }
 
-/** Stable system prompt — no dates interpolated, keeps the prefix cacheable. */
+/** Stable system prompt — no per-request interpolation, so it's byte-identical
+ *  across calls. (No `cache_control` is set: the per-day-per-shape module cache
+ *  already dedupes the only repetition that exists.) */
 const SYSTEM = `You are the portfolio-construction desk for alpha, a private portfolio analytics terminal. A quantitative optimizer has already solved for an optimal long-only weight vector on one investor's existing holdings, for a stated objective (e.g. maximum Sharpe, minimum volatility, risk parity, maximum diversification, income, quality) under per-name weight constraints. You receive: the objective, the constraints, the before/after risk-return metrics (expected return, volatility, Sharpe, diversification ratio, effective number of holdings, top weight, yield, beta), the implementation turnover, and the largest weight shifts with each name's valuation, quality and risk characteristics.
 
 Your job: review this optimization like a buy-side PM signing off on a construction decision. Explain what the optimizer actually did to the book, judge whether the tradeoffs are worth taking for this specific portfolio, and surface what the investor gives up and what risk remains.

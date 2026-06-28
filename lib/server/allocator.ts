@@ -4,6 +4,7 @@ import type {
   AllocationResponse,
   AllocatorRequest,
 } from "@/lib/allocator/types";
+import { usdCost } from "@/lib/server/cost";
 
 /**
  * AI dry-powder allocator: given a portfolio snapshot and the cash available to
@@ -25,12 +26,12 @@ const CACHE_MAX = 20;
  * serverless time budget allows, since the json_schema does the structural
  * heavy lifting.
  */
-const ALLOCATOR_MODEL = "claude-sonnet-4-6";
-const ALLOCATOR_EFFORT = "high" as const;
+export const ALLOCATOR_MODEL = "claude-sonnet-4-6";
+export const ALLOCATOR_EFFORT = "high" as const;
 
 /**
  * Cost backstop: cap fresh generations (cache misses that hit the API) per warm
- * instance per hour. Opus is pricier than the brief's Haiku, so this is tighter.
+ * instance per hour. Sonnet is pricier than the brief's Haiku, so this is tighter.
  * Resets on cold start — accepted, like the caches above.
  */
 const GEN_WINDOW_MS = 3600_000;
@@ -61,6 +62,11 @@ export function allocatorErrorResponse(err: unknown): { status: number; error: s
     return { status: 501, error: "allocator not configured" };
   if (err instanceof Anthropic.RateLimitError)
     return { status: 429, error: "allocator rate limited" };
+  if (
+    err instanceof Anthropic.APIConnectionTimeoutError ||
+    err instanceof Anthropic.APIUserAbortError
+  )
+    return { status: 504, error: "allocation timed out — try again" };
   return { status: 502, error: "allocator unavailable" };
 }
 
@@ -87,7 +93,9 @@ export function setCachedPlan(key: string, data: AllocationResponse): void {
   planCache.set(key, { at: Date.now(), data });
 }
 
-/** Stable system prompt — no dates interpolated, keeps the prefix cacheable. */
+/** Stable system prompt — no per-request interpolation, so it's byte-identical
+ *  across calls. (No `cache_control` is set: the per-day-per-shape module cache
+ *  already dedupes the only repetition that exists.) */
 const SYSTEM = `You are the capital-allocation desk for alpha, a private portfolio analytics terminal. You receive a JSON snapshot of one investor's book — per-holding weights, sector, valuation (forward P/E, FCF yield, dividend yield), quality (ROIC, revenue growth), risk (beta, volatility), analyst rating and upside — plus the dollars of dry powder available to deploy.
 
 Your job: decide how to put that dry powder to work across the holdings the investor already owns. Think like a buy-side PM sizing additions — reason about where an incremental dollar does the most good for this specific book, weighing concentration, valuation, quality, momentum, and diversification against one another.
@@ -211,34 +219,58 @@ function buildUserMessage(req: AllocatorRequest): string {
   ].join("\n");
 }
 
-export async function generateAllocation(req: AllocatorRequest): Promise<AllocationPlan> {
-  // reads ANTHROPIC_API_KEY; caller checks allocatorConfigured() first. Stream +
-  // finalMessage keeps the connection alive while Opus thinks, so a slow turn
-  // doesn't trip the SDK's HTTP timeout; the route caps total duration.
-  const client = new Anthropic({ timeout: 55_000, maxRetries: 1 });
-  genCount += 1;
-  const stream = client.messages.stream({
-    model: ALLOCATOR_MODEL,
-    max_tokens: 6000,
-    // Adaptive thinking lets the model reason through the tradeoffs; the schema
-    // constrains the final shape, so no reasoning leaks into the JSON.
-    thinking: { type: "adaptive" },
-    system: SYSTEM,
-    output_config: {
-      format: { type: "json_schema", schema: PLAN_SCHEMA },
-      effort: ALLOCATOR_EFFORT,
-    },
-    messages: [{ role: "user", content: buildUserMessage(req) }],
-  });
+// Hard wall-clock deadline for the whole call, fired by an AbortController on
+// elapsed time (the SDK's `timeout` is an idle timeout that resets on every
+// streamed chunk, so adaptive thinking — which streams deltas while it thinks —
+// never trips it). 55s fires safely inside the route's 60s maxDuration, turning
+// a slow tail into a catchable abort instead of a bare platform 504. No retry
+// budget: a retry on a near-deadline request would blow the ceiling anyway.
+const DEADLINE_MS = 55_000;
 
-  const response = await stream.finalMessage();
-  if (response.stop_reason === "refusal") {
-    throw new Error("allocation generation declined");
-  }
-  for (const block of response.content) {
-    if (block.type === "text") {
-      return JSON.parse(block.text) as AllocationPlan;
+export async function generateAllocation(
+  req: AllocatorRequest
+): Promise<{ plan: AllocationPlan; costUSD: number | null }> {
+  // reads ANTHROPIC_API_KEY; caller checks allocatorConfigured() first. Stream +
+  // finalMessage keeps the connection alive while the model thinks.
+  const client = new Anthropic({ timeout: 55_000, maxRetries: 0 });
+  genCount += 1;
+  const controller = new AbortController();
+  const deadline = setTimeout(() => controller.abort(), DEADLINE_MS);
+  try {
+    const stream = client.messages.stream(
+      {
+        model: ALLOCATOR_MODEL,
+        max_tokens: 6000,
+        // Adaptive thinking lets the model reason through the tradeoffs; the
+        // schema constrains the final shape, so no reasoning leaks into the JSON.
+        thinking: { type: "adaptive" },
+        system: SYSTEM,
+        output_config: {
+          format: { type: "json_schema", schema: PLAN_SCHEMA },
+          effort: ALLOCATOR_EFFORT,
+        },
+        messages: [{ role: "user", content: buildUserMessage(req) }],
+      },
+      { signal: controller.signal }
+    );
+
+    const response = await stream.finalMessage();
+    if (response.stop_reason === "refusal") {
+      throw new Error("allocation generation declined");
     }
+    if (response.stop_reason === "max_tokens") {
+      throw new Error("allocation truncated: hit max_tokens before completing");
+    }
+    for (const block of response.content) {
+      if (block.type === "text") {
+        return {
+          plan: JSON.parse(block.text) as AllocationPlan,
+          costUSD: usdCost(ALLOCATOR_MODEL, response.usage),
+        };
+      }
+    }
+    throw new Error("empty allocation response");
+  } finally {
+    clearTimeout(deadline);
   }
-  throw new Error("empty allocation response");
 }

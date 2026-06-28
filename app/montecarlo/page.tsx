@@ -16,6 +16,7 @@ import { riskReport } from "@/lib/analytics/risk";
 import { SPX } from "@/lib/data/benchmarks";
 import { fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 
 export default function MonteCarloPage() {
   const { ready, portfolio } = usePortfolio();
@@ -25,13 +26,20 @@ export default function MonteCarloPage() {
   // Bumped by the "refresh simulation" control to redraw a fresh set of paths.
   const [seedSalt, setSeedSalt] = useState(0);
 
+  // Debounce the slider-driven values so a drag fires one 3,000-path sim on the
+  // settled value rather than dozens of full re-runs across the worker.
+  const dYears = useDebouncedValue(years, 140);
+  const dContribution = useDebouncedValue(contribution, 140);
+  const dTargetMultiple = useDebouncedValue(targetMultiple, 140);
+
   const risk = useMemo(
     () => (portfolio ? riskReport(portfolio, SPX.sectorWeights) : null),
     [portfolio]
   );
 
-  // Round to a clean figure, but never to $0 for small portfolios.
-  const rawTarget = (portfolio?.totalValue ?? 0) * targetMultiple;
+  // Round to a clean figure, but never to $0 for small portfolios. Driven by
+  // the debounced multiple so the simulated/displayed target matches the sim.
+  const rawTarget = (portfolio?.totalValue ?? 0) * dTargetMultiple;
   const target =
     rawTarget >= 5000
       ? Math.round(rawTarget / 1000) * 1000
@@ -43,13 +51,13 @@ export default function MonteCarloPage() {
       initialValue: portfolio.totalValue,
       mu: risk.expectedReturn,
       sigma: risk.volatility,
-      years,
-      monthlyContribution: contribution,
+      years: dYears,
+      monthlyContribution: dContribution,
       targetValue: target,
       paths: 3000,
       seedSalt,
     };
-  }, [portfolio, risk, years, contribution, target, seedSalt]);
+  }, [portfolio, risk, dYears, dContribution, target, seedSalt]);
 
   const { result, pending } = useMonteCarlo(mcInputs);
 
@@ -156,7 +164,7 @@ export default function MonteCarloPage() {
           <div className="panel h-[480px]" />
         ) : (
           <ErrorBoundary label="The projection">
-            <ResultsView result={result} target={target} years={years} prob={prob} />
+            <ResultsView result={result} target={target} years={dYears} prob={prob} />
           </ErrorBoundary>
         )}
       </div>
@@ -206,6 +214,11 @@ function ResultsView({
               </div>
               <div className="eyebrow !text-[0.5rem]">at horizon</div>
             </Ring>
+            {result.probTargetStdErr > 0 && (
+              <div className="mt-2 font-mono text-[10px] text-faint">
+                ±{(result.probTargetStdErr * 200).toFixed(1)}% (95% CI, 3,000 paths)
+              </div>
+            )}
             <div className="mt-4 w-full space-y-2 border-t border-edge pt-4">
               <div className="flex justify-between text-[12px]">
                 <span className="text-mute">Touched at any point</span>
