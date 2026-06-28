@@ -144,7 +144,11 @@ auth.**
   app's existing shape opaquely: two tables (`users`, `user_state`) in
   `lib/db/schema.ts`, the lazy provider-agnostic Postgres client (via
   `postgres-js`) in `lib/db/index.ts`. Saving an alpha
-  change never touches the theta blob (separate `PUT` endpoints).
+  change never touches the theta blob (separate `PUT` endpoints). `user_state`
+  also carries an optional `simplefin` column (theta's bank-sync access URL +
+  last-sync time) that is read **only** by the `/api/theta/simplefin/*` routes
+  and deliberately never selected by `getUserState`, so the credential can't
+  ride along to the client.
 - **The stores choose their backend.** `lib/store.tsx` and `lib/theta/store.tsx`
   branch on `useAuth()`: signed in → hydrate from `/api/state` and push edits
   back through `lib/persist.ts`; otherwise → localStorage as before. In server
@@ -177,6 +181,7 @@ Maps as a warm-lambda cache. Provider code (`yahoo-finance2`, Anthropic SDK) is
 | `/api/theta-brief` | `lib/server/thetaBrief.ts` | theta's AI daily brief, parallel to `/api/brief` but over the ledger snapshot instead of the portfolio. |
 | `/api/auth/*` | `auth.ts` (NextAuth) | Session, sign-in/out, CSRF. The Credentials provider (username + password, bcrypt) authenticates against the `users` table; the fixed-window limiter in `lib/server/rateLimit.ts` throttles login brute force. Only meaningful when accounts are enabled. |
 | `/api/state` | `lib/db/state.ts` (`lib/server/authState.ts` reads the session) | `GET` returns both saved blobs (alpha portfolio + theta ledger) for the signed-in user; `PUT /api/state/portfolio` and `PUT /api/state/ledger` upsert each independently. 404 when accounts are off, 401 when signed out. |
+| `/api/theta/simplefin` | `lib/server/simplefin.ts` + `lib/db/state.ts` | theta's optional SimpleFIN bank sync (**accounts-only**). `POST /claim` exchanges a setup token for an access URL stored server-side; `POST /sync` pulls accounts+transactions and returns them already mapped to theta shapes (the pure `lib/theta/simplefin.ts`), the client merging by stable id via `applySimplefinSync`; `GET`/`DELETE` report/clear the link. The access URL holds bank credentials — it lives in the `user_state.simplefin` column, is read only by these routes, and **never** reaches the client (`getUserState` omits it). Same `requireUser` gate as `/api/state`. |
 
 `middleware.ts` enforces the auth gate **when accounts are on**: pages redirect
 to `/lock`, APIs return 401, and `/api/auth/*` + `/lock` are always allowed.
@@ -269,8 +274,16 @@ with alpha, but otherwise has its own state, shell, and analytics:
   `EMPTY_LEDGER`/`SAMPLE_LEDGER`. `lib/theta/compute.ts` (`deriveTheta`,
   `advanceRecurring`) is theta's analogue to `buildPortfolio` — the pure
   derivation layer most pages consume. `lib/theta/csv.ts` handles transaction
-  CSV import. `lib/theta/intelligence.ts` builds the `ThetaSnapshot`/
-  `ThetaBrief` consumed by `/api/theta-brief`.
+  CSV import; `lib/theta/categorize.ts` is the shared merchant→category
+  inference (used by CSV import and bank sync when no category is given).
+  `lib/theta/intelligence.ts` builds the `ThetaSnapshot`/`ThetaBrief` consumed
+  by `/api/theta-brief`.
+- **Bank sync (optional, accounts-only)** — `lib/theta/simplefin.ts` is the
+  pure mapper from a SimpleFIN payload to theta `Account`/`Transaction` records
+  (stable prefixed ids for dedup, account-kind inference, liability-sign
+  normalization). It's driven by the `/api/theta/simplefin/*` routes over
+  `lib/server/simplefin.ts`; the client merges results with `applySimplefinSync`
+  in the store. See the route table above for the credential-isolation rule.
 - **Shell & nav** — `components/shell/ThetaShell.tsx` (own icon set in
   `components/shell/thetaIcons.tsx`) replaces `AppShell` entirely for
   `/theta/*` routes: `AppShell.tsx` detects the `/theta` path prefix, wraps

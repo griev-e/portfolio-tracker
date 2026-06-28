@@ -8,6 +8,16 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.31",
+    date: "2026-06-28",
+    title: "theta — connect a bank with SimpleFIN",
+    changes: [
+      "theta can now sync balances and transactions automatically through SimpleFIN — a read-only bank-aggregation bridge that works with Robinhood and most US banks. Connect your bank at bridge.simplefin.org, paste the setup token into Import & Data, and theta pulls your accounts and transactions on demand. No more wrestling a CSV out of a bank that won't export one.",
+      "Private by design: the link is claimed and stored server-side against your account (it requires accounts to be enabled), so the credential never touches the browser — only the resulting accounts and transactions come back. Re-syncing is incremental and de-duplicated by a stable id, so pending charges settle in place and your manual edits and manually-added accounts are always preserved.",
+      "Synced transactions are auto-categorized from the merchant name (with an honest 'Other' fallback you can correct by hand). The same categorizer now also fills the category for any CSV import that doesn't carry one.",
+    ],
+  },
+  {
     version: "1.30",
     date: "2026-06-27",
     title: "Rebrand: delta is now theta",

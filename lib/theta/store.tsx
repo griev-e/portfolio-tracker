@@ -42,6 +42,8 @@ interface ThetaStore {
   addTransaction: (tx: NewTransaction) => void;
   deleteTransaction: (id: string) => void;
   importTransactions: (txs: NewTransaction[]) => void;
+  /** Merge a SimpleFIN sync into the ledger (dedup by stable id). */
+  applySimplefinSync: (sync: { accounts: Account[]; transactions: Transaction[] }) => void;
 
   setBudgetLimit: (category: Category, limit: number) => void;
   addBudget: (category: Category, limit: number) => void;
@@ -209,6 +211,33 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
     [mutate]
   );
 
+  const applySimplefinSync = useCallback(
+    (sync: { accounts: Account[]; transactions: Transaction[] }) =>
+      mutate((l) => {
+        // Accounts: upsert the synced rows by id; keep manual accounts untouched
+        // and extend (rather than reset) an existing balance trend on each sync.
+        const prev = new Map(l.accounts.map((a) => [a.id, a]));
+        const synced: Account[] = sync.accounts.map((a) => {
+          const existing = prev.get(a.id);
+          if (!existing) return a;
+          return { ...existing, ...a, trend: [...existing.trend.slice(1), a.balance] };
+        });
+        const syncedIds = new Set(sync.accounts.map((a) => a.id));
+        const accounts = [...l.accounts.filter((a) => !syncedIds.has(a.id)), ...synced];
+
+        // Transactions: incoming (stable-id) rows replace prior copies of
+        // themselves (so pending → posted updates in place); manual rows survive.
+        const txIds = new Set(sync.transactions.map((t) => t.id));
+        const transactions = [
+          ...sync.transactions,
+          ...l.transactions.filter((t) => !txIds.has(t.id)),
+        ].sort((a, b) => b.date.localeCompare(a.date));
+
+        return { ...l, accounts, transactions };
+      }),
+    [mutate]
+  );
+
   const setBudgetLimit = useCallback(
     (category: Category, limit: number) =>
       mutate((l) => {
@@ -335,6 +364,7 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
       addTransaction,
       deleteTransaction,
       importTransactions,
+      applySimplefinSync,
       setBudgetLimit,
       addBudget,
       removeBudget,
@@ -350,7 +380,7 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
     }),
     [
       ready, isSample, ledger, view,
-      addTransaction, deleteTransaction, importTransactions,
+      addTransaction, deleteTransaction, importTransactions, applySimplefinSync,
       setBudgetLimit, addBudget, removeBudget,
       addGoal, contributeToGoal, removeGoal,
       markRecurringPaid, removeRecurring,

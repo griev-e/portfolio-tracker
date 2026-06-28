@@ -29,9 +29,19 @@ export const userState = pgTable("user_state", {
   portfolio: jsonb("portfolio"),
   /** theta `Ledger` shape — or null. */
   ledger: jsonb("ledger"),
+  /**
+   * Optional SimpleFIN bank-sync link: `{ accessUrl, syncedAt }`. The access
+   * URL embeds HTTP-Basic credentials, so this column is read **only** by the
+   * /api/theta/simplefin routes and is never returned by /api/state — it must
+   * not reach the client.
+   */
+  simplefin: jsonb("simplefin"),
   portfolioUpdatedAt: timestamp("portfolio_updated_at", { withTimezone: true }),
   ledgerUpdatedAt: timestamp("ledger_updated_at", { withTimezone: true }),
 });
 
 export type UserRow = typeof users.$inferSelect;
 export type UserStateRow = typeof userState.$inferSelect;
+
+/** The SimpleFIN link blob stored in `user_state.simplefin`. Server-only. */
+export type SimplefinLink = { accessUrl: string; syncedAt: string | null };

@@ -5,6 +5,7 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { parseTransactionsCSV, SAMPLE_CSV_TEXT } from "@/lib/theta/csv";
 import { useTheta } from "@/lib/theta/store";
+import { SimplefinCard } from "@/components/theta/SimplefinCard";
 
 export default function ThetaImportPage() {
   const { ready, ledger, isSample, importTransactions, loadSample, clear } = useTheta();
@@ -45,8 +46,12 @@ export default function ThetaImportPage() {
       <PageHeader
         eyebrow="System"
         title="Import & Data"
-        description="Bring in your own transactions, or manage the sample ledger."
+        description="Connect a bank, bring in your own transactions, or manage the sample ledger."
       />
+
+      <div className="mb-5">
+        <SimplefinCard i={0} />
+      </div>
 
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
         <Card className="px-5 py-5" i={0}>

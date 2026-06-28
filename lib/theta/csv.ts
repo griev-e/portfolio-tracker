@@ -10,6 +10,7 @@ import {
   CATEGORIES,
   type Transaction,
 } from "./data";
+import { categorize } from "./categorize";
 
 export type ParsedTx = Omit<Transaction, "id">;
 
@@ -68,8 +69,9 @@ function parseDate(raw: string): string | null {
   return d.toISOString().slice(0, 10);
 }
 
-function matchCategory(raw: string): Category {
-  return CATEGORY_BY_LOWER.get(raw.trim().toLowerCase()) ?? "Other";
+/** An explicit category column wins; otherwise null so we can infer from merchant. */
+function matchCategory(raw: string): Category | null {
+  return CATEGORY_BY_LOWER.get(raw.trim().toLowerCase()) ?? null;
 }
 
 const HEADER_ALIASES: Record<string, string[]> = {
@@ -127,7 +129,9 @@ export function parseTransactionsCSV(text: string, accounts: Account[]): ParseRe
       skipped++;
       continue;
     }
-    const category = cols.category !== undefined ? matchCategory(f[cols.category] ?? "") : "Other";
+    // Explicit category column wins; otherwise infer from the merchant string.
+    const explicit = cols.category !== undefined ? matchCategory(f[cols.category] ?? "") : null;
+    const category = explicit ?? categorize(merchant);
     const acctRaw = (cols.account !== undefined ? f[cols.account] : "")?.trim().toLowerCase();
     const account = (acctRaw && acctByName.get(acctRaw)) || defaultAccount;
     transactions.push({ date, merchant, amount, category, account });

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useState } from "react";
 import { useTheta } from "@/lib/theta/store";
+import { CATEGORIZE_RULES } from "@/lib/theta/categorize";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 
@@ -116,7 +117,7 @@ export default function SettingsPage() {
               <Toggle on={toggles.roundUp} onClick={() => flip("roundUp")} />
             </Row>
             <Row title="Auto-categorize" desc="Sort new transactions by merchant rules">
-              <span className="font-mono text-[12px] text-mute">14 rules</span>
+              <span className="font-mono text-[12px] text-mute">{CATEGORIZE_RULES.length} rules</span>
             </Row>
           </div>
         </Card>

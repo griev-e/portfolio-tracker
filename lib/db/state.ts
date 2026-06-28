@@ -6,7 +6,7 @@
  */
 import { eq } from "drizzle-orm";
 import { getDb } from "./index";
-import { userState } from "./schema";
+import { type SimplefinLink, userState } from "./schema";
 
 export type UserState = {
   portfolio: unknown | null;
@@ -43,4 +43,32 @@ export async function putLedger(userId: string, ledger: unknown): Promise<void> 
       target: userState.userId,
       set: { ledger, ledgerUpdatedAt: now },
     });
+}
+
+/**
+ * The SimpleFIN link for a user (server-only — the access URL holds bank
+ * credentials and never leaves the server). `getUserState` deliberately omits
+ * this column so it can't ride along to the client via /api/state.
+ */
+export async function getSimplefin(userId: string): Promise<SimplefinLink | null> {
+  const rows = await getDb()
+    .select({ simplefin: userState.simplefin })
+    .from(userState)
+    .where(eq(userState.userId, userId))
+    .limit(1);
+  return (rows[0]?.simplefin as SimplefinLink | null) ?? null;
+}
+
+export async function putSimplefin(userId: string, link: SimplefinLink): Promise<void> {
+  await getDb()
+    .insert(userState)
+    .values({ userId, simplefin: link })
+    .onConflictDoUpdate({ target: userState.userId, set: { simplefin: link } });
+}
+
+export async function clearSimplefin(userId: string): Promise<void> {
+  await getDb()
+    .insert(userState)
+    .values({ userId, simplefin: null })
+    .onConflictDoUpdate({ target: userState.userId, set: { simplefin: null } });
 }
