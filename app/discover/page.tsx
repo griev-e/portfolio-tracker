@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
@@ -14,7 +14,6 @@ import {
   type Conviction,
   type DiscoverIdea,
   type DiscoverModeId,
-  type DiscoverPlan,
   type DiscoverRequest,
   type DiscoverResponse,
 } from "@/lib/discover/types";

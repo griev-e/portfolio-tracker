@@ -24,7 +24,7 @@ Stack: Next.js 15 (App Router) · React 19 · TypeScript (strict) · Tailwind CS
 npm run dev        # dev server → http://localhost:3000
 npm run build      # production build
 npm run start      # serve the production build
-npm run lint       # next lint (ESLint)
+npm run lint       # eslint . — flat config (eslint.config.mjs) + eslint-config-next
 npm run typecheck  # tsc --noEmit — strict type check, run this after edits
 npm test           # vitest run — the analytics unit suite
 npm run test:watch # vitest in watch mode
@@ -32,7 +32,10 @@ npm run refresh:snapshot  # regenerate lib/data/fundamentals.ts from live provid
 ```
 
 After edits, verify with `npm run typecheck` and `npm run lint`; run `npm test`
-when you touch anything under `lib/analytics`, `lib/csv.ts`, or `lib/data`.
+when you touch anything under `lib/analytics`, `lib/csv.ts`, or `lib/data`. CI
+(`.github/workflows/ci.yml`) runs lint → typecheck → test → build on every push
+and PR, so all four must be green. Linting also runs during `next build`, so a
+lint **error** fails the production build (warnings don't).
 Tests live next to the code as `*.test.ts` (Vitest, `node` environment — see
 `vitest.config.ts`); shared fixtures are in `lib/__tests__/factory.ts`. The
 suite covers the pure analytics (risk, correlation, quality, scenarios, Monte

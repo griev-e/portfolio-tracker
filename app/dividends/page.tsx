@@ -497,7 +497,7 @@ export default function DividendsPage() {
         </div>
         <p className="px-6 py-3 text-[10.5px] text-faint">
           Hover a safety score for the full point-by-point reasoning; hover ⚠
-          for that holding's risk flags.
+          for that holding&apos;s risk flags.
         </p>
       </Card>
 
@@ -547,7 +547,7 @@ export default function DividendsPage() {
               : r.top3Share > 0.75
                 ? "A small core funds most of the income — watch those names closely."
                 : "No single name can break the income stream on its own."}{" "}
-            Fund income is allocated to sectors by each fund's holdings mix.
+            Fund income is allocated to sectors by each fund&apos;s holdings mix.
           </p>
         </Card>
 

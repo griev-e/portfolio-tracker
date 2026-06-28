@@ -74,8 +74,11 @@ histogram, scatter, gauges) are hand-built SVG — no chart library.
 
 ```bash
 npm install
-npm run dev      # http://localhost:3000
-npm run build    # production build
+npm run dev       # http://localhost:3000
+npm run build     # production build
+npm run lint      # eslint (flat config + eslint-config-next)
+npm run typecheck # tsc --noEmit (strict)
+npm test          # vitest — the analytics unit suite
 ```
 
 ## Deploy to Vercel

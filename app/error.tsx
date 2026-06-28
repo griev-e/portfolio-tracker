@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 /**
  * Route-level error boundary (App Router). Catches render errors anywhere in a
  * page subtree and replaces just the page content — the layout (sidebar, top
@@ -28,9 +30,9 @@ export default function Error({
         <button onClick={reset} className="btn-primary">
           Try again
         </button>
-        <a href="/" className="btn-secondary">
+        <Link href="/" className="btn-secondary">
           Back to overview
-        </a>
+        </Link>
       </div>
     </div>
   );
