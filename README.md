@@ -1,26 +1,38 @@
 # alpha — Private Portfolio Intelligence
 
-A dark, institutional-grade personal portfolio analytics terminal. Import your
-holdings as CSV and get allocation, risk, research, quality, factor, scenario,
+A dark, institutional-grade personal finance suite with two apps in one
+deployment: **alpha**, a portfolio analytics terminal, and **theta**, its
+sister personal-finance/budgeting app. Import your holdings (or transactions)
+as CSV and get allocation, risk, research, quality, factor, scenario,
 correlation, and Monte Carlo analysis — all computed client-side with
-hand-built animated SVG visualizations. No accounts, no servers, no tracking:
-your portfolio lives in your browser's localStorage.
+hand-built animated SVG visualizations. By default there are no accounts and
+no database: your data lives in the browser's `localStorage`. Accounts are an
+**optional** layer — turn them on and each person gets their own saved
+portfolio/ledger persisted server-side.
 
-## Features
+## alpha — portfolio analytics
 
 | Page | What it does |
 | --- | --- |
-| **Overview** | Net value, cash position, P&L, squarified allocation treemap (size × performance), interactive donut, sortable holdings table |
+| **Overview** | Net value, cash position, P&L, squarified allocation treemap (size × performance), interactive donut, sortable holdings table with per-position data-source provenance |
+| **Intelligence** | AI daily brief (Claude) summarizing the portfolio's state, plus the market regime read |
 | **Risk** | Beta / volatility / Sharpe gauges vs S&P 500, position concentration (HHI, effective N, top-N), marginal risk contributions, sector tilts vs SPX, revenue-weighted geographic exposure |
 | **Research** | Per-holding dashboard: market cap, revenue/EPS/FCF growth, forward P/E, PEG, ROIC, margins, analyst rating + price-target bullet chart, insider buying/selling, next earnings countdown, per-stock factor profile |
-| **Quality** | Weighted scorecard (revenue growth, EPS growth, ROIC, operating margin, valuation multiples…) graded A+–F vs the S&P 500, with composite grade ring and per-holding drill-down. Multiples aggregate via weighted harmonic mean |
+| **Dividends** | Dividend history and forward income projection across the portfolio |
+| **Rebalance** | AI dry-powder allocator — pick where new cash should go given current weights and fundamentals |
+| **Discover** | AI stock-idea generator across six research lenses (diversify / growth / value / defensive / quality / thematic) |
+| **Optimizer** | Deterministic constrained solver (projected gradient ascent / coordinate descent) over factor covariance and CAPM returns for eight objectives, with an AI review of the result |
+| **Market Analysis** | The regime engine's composite read across ~23 daily index series — score, confidence, health, and drivers |
+| **Quality** | Weighted scorecard (revenue growth, EPS growth, ROIC, operating margin, valuation multiples…) graded A+–F vs the S&P 500, with composite grade ring and per-holding drill-down |
 | **Benchmark & Factors** | Head-to-head vs S&P 500 and NASDAQ-100, Growth/Value/Quality/Momentum factor radar, growth-vs-valuation positioning map |
-| **Scenarios** | "What if TSLA falls 20%?" — single-name shocks with correlated spillover, market moves by beta, rate shocks scaled by duration/valuation/sector. Presets + custom builder |
 | **Correlation** | Factor-model correlation heatmap with crosshair hover, most/least coupled pairs, diversification ratio |
-| **Monte Carlo** | 3,000-path GBM simulation with monthly contributions: percentile fan chart, target probability, terminal distribution. Seeded RNG — deterministic per portfolio |
+| **Scenarios** | "What if TSLA falls 20%?" — single-name shocks with correlated spillover, market moves by beta, rate shocks scaled by duration/valuation/sector. Presets + custom builder |
+| **Monte Carlo** | 3,000-path GBM simulation with monthly contributions, run in a Web Worker: percentile fan chart, target probability, terminal distribution. Seeded RNG — deterministic per portfolio |
+| **Export Report** | Print-optimized, full-portfolio dossier (risk, quality, factors, correlation, dividends, regime) — exported via the browser's native print-to-PDF |
 | **Import & Data** | Drag-and-drop / paste CSV, cash position, demo portfolio, CSV export, clear data |
+| **Patch Notes** | Changelog of notable updates |
 
-## CSV format
+### CSV format
 
 ```csv
 name,symbol,shares,price,averageCost,totalReturn,equity
@@ -33,31 +45,42 @@ parenthesized negatives, quoted names, duplicate-lot merging. `totalReturn`
 is auto-detected as dollars or percent. A `CASH`/`USD` row sets the cash
 position. A sample file lives at `public/sample-portfolio.csv`.
 
+## theta — personal finance
+
+A companion budgeting/net-worth app at `/theta`, sharing the deployment and
+optional accounts layer but with its own state and shell: Dashboard, Net
+Worth, Intelligence (AI money brief), Accounts, Transactions, Cash Flow,
+Budgets, Goals, Recurring, and Import & Data. Transactions can be imported
+via CSV or synced from a bank through SimpleFIN (optional, requires
+accounts). Categorization is inferred from merchant names and editable.
+
 ## Data model — read this once
 
 - **Your positions**: the CSV is the source of truth for *shares and cost
-  basis*. Holdings persist in localStorage and never leave the browser.
+  basis*. Holdings persist in localStorage (or server-side, with accounts
+  on) and never leave the browser unless you turn accounts on.
 - **Live quotes** (Yahoo Finance, unofficial, keyless): proxied through
   `/api/quotes`, CDN-cached 60s, polled every minute while the tab is
   visible. Price, equity, P&L, and the "Today" stat reprice automatically;
   if the feed fails, the app silently falls back to imported prices (amber
   status dot in the sidebar).
-- **Live fundamentals** (Yahoo, same proxy pattern): `/api/fundamentals`
-  overlays growth, margins, forward P/E, analyst targets, insider flows,
-  earnings dates, dividend yield, and ETF sector look-through onto the
-  bundled snapshot, field by field. CDN-cached 12h. Each stock in Research
-  shows a `live` / `snapshot` badge.
+- **Live fundamentals** (Yahoo, same proxy pattern, enriched with Financial
+  Modeling Prep when `FMP_API_KEY` is set): `/api/fundamentals` overlays
+  growth, margins, forward P/E, analyst targets, insider flows, earnings
+  dates, dividend yield, realized volatility, ROIC, FCF growth, region mix,
+  and ETF sector look-through onto the bundled snapshot, field by field.
+  CDN-cached 12h. Each stock in Research shows a `live` / `snapshot` badge.
 - **Bundled snapshot** (`lib/data/fundamentals.ts`, ~90 tickers + major
-  ETFs) is the fallback layer for anything the provider doesn't return
-  (e.g. ROIC, FCF growth, region revenue mixes, per-name volatility) and
-  for fully offline use.
+  ETFs) is the fallback layer for anything the providers don't return and
+  for fully offline use. Refreshed monthly by an automated job that opens a
+  PR with the drift.
 - **Derived analytics** (correlations, portfolio volatility, scenarios,
   Monte Carlo) are model estimates: a single-market-factor correlation model
   with sector/industry affinity, CAPM expected returns, and GBM simulation.
   Methodology notes live next to the math in `lib/analytics/*`.
 - Unknown tickers degrade gracefully: with live data they get promoted to
   full research coverage; without it they keep allocation/P&L math and use
-  conservative defaults (β = 1.0, σ = 32%), flagged in the UI.
+  conservative defaults (β = 1.0, σ derived from beta), flagged in the UI.
 
 Heads-up: Yahoo's API is unofficial. If it ever breaks, the app keeps
 working on imported prices + snapshot until `yahoo-finance2` ships a fix, or
@@ -66,20 +89,33 @@ analytics.
 
 ## Stack
 
-Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS 4 ·
+Next.js 15 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS 4 ·
 Framer Motion. All charts (treemap, donut, radar, heatmap, fan chart,
-histogram, scatter, gauges) are hand-built SVG — no chart library.
+histogram, scatter, gauges, sparklines, price chart) are hand-built SVG — no
+chart library.
 
 ## Run it
 
 ```bash
 npm install
-npm run dev       # http://localhost:3000
-npm run build     # production build
-npm run lint      # eslint (flat config + eslint-config-next)
-npm run typecheck # tsc --noEmit (strict)
-npm test          # vitest — the analytics unit suite
+npm run dev            # http://localhost:3000
+npm run build          # production build
+npm run lint           # eslint (flat config + eslint-config-next)
+npm run typecheck      # tsc --noEmit (strict)
+npm test               # vitest — the analytics unit suite
+npm run refresh:snapshot  # regenerate lib/data/fundamentals.ts from live providers
 ```
+
+## Environment variables (all optional)
+
+See `.env.example` for full details. Nothing below is required to run the
+app — every feature degrades gracefully when its variable is unset.
+
+| Variable | Enables |
+| --- | --- |
+| `AUTH_SECRET` + `DATABASE_URL` | Real username/password accounts (NextAuth + Postgres) with server-side saved data. Both must be set; provision logins with `npm run create-user -- <user> <pass>`. |
+| `ANTHROPIC_API_KEY` | The AI daily brief, dry-powder allocator, Discover ideas, optimizer review, and theta's money brief (Claude). |
+| `FMP_API_KEY` | Financial Modeling Prep enrichment for ROIC, FCF growth, and region mix (free tier, 250 req/day). |
 
 ## Deploy to Vercel
 
@@ -91,15 +127,9 @@ The repo is zero-config for Vercel:
 
 Or from the CLI: `npx vercel`.
 
-### PIN lock
-
-Set `ACCESS_PIN` (a 4-digit code) in Vercel → Project → Settings →
-Environment Variables to require a PIN before anyone can see the app.
-Entry is masked, the cookie stores only a SHA-256 hash of the PIN with a fixed
-application prefix (never the PIN itself), and failed attempts are rate-limited
-by a flat delay. It's meant to keep casual visitors out, not to be hardened
-auth. When the variable is unset the gate is disabled — so local dev and fresh
-deploys never lock you out.
+Set any of the environment variables above as desired, post-deploy. To turn
+on accounts, also run `npm run db:push` and `npm run create-user` against
+your `DATABASE_URL`.
 
 ## Disclaimer
 
