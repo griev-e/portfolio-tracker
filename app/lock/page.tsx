@@ -390,7 +390,7 @@ function PortalChoice({
         transition={{ type: "spring", stiffness: 300, damping: 22 }}
         style={{ filter: isHot ? `drop-shadow(0 0 28px rgba(${rgb},0.45))` : "none" }}
       >
-        <Mark kind={kind} size={kind === "theta" ? 112 : 128} />
+        <Mark kind={kind} size={128} />
       </m.div>
 
       <div className="relative text-center">

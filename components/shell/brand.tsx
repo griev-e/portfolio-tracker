@@ -50,14 +50,16 @@ export const APP_META: Record<
 
 /** The cursive serif glyph that anchors each app. */
 export function Mark({ kind, size = 26 }: { kind: AppKind; size?: number }) {
-  // α sits a touch high; θ is a round lowercase form, so it's nudged down
-  // and sized a hair smaller to balance against α at the same box.
+  // α sits a touch high; θ is a round lowercase form sized a hair smaller to
+  // balance against α at the same box. Because both glyphs are vertically
+  // centered (dominant-baseline central), the smaller θ would otherwise carry a
+  // higher baseline than α — so it's nudged further down to sit on α's line.
   const isAlpha = kind === "alpha";
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
       <text
         x="16"
-        y={isAlpha ? 12.8 : 13.6}
+        y={isAlpha ? 12.8 : 15}
         textAnchor="middle"
         dominantBaseline="central"
         fill="white"
