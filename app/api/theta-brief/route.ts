@@ -11,7 +11,7 @@ import {
 } from "@/lib/server/thetaBrief";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 45;
+export const maxDuration = 60;
 
 const num = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 

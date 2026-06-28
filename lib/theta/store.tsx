@@ -53,11 +53,20 @@ interface ThetaStore {
   contributeToGoal: (id: string, amount: number) => void;
   removeGoal: (id: string) => void;
 
+  addRecurring: (r: Omit<Recurring, "id">) => void;
   markRecurringPaid: (id: string) => void;
   removeRecurring: (id: string) => void;
 
   updateAccountBalance: (id: string, balance: number) => void;
   removeAccount: (id: string) => void;
+
+  /** Toggle whether an account's transactions show in the transaction lists. */
+  toggleAccountHidden: (id: string) => void;
+  /** Clear the transaction-list account filter (show every account again). */
+  showAllAccounts: () => void;
+
+  /** Re-tag a transaction's category (e.g. correcting an auto-categorized row). */
+  setTransactionCategory: (id: string, category: Category) => void;
 
   loadSample: () => void;
   clear: () => void;
@@ -298,6 +307,15 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
     [mutate]
   );
 
+  const addRecurring = useCallback(
+    (r: Omit<Recurring, "id">) =>
+      mutate((l) => ({
+        ...l,
+        recurring: [...l.recurring, { ...r, id: uid("r") }],
+      })),
+    [mutate]
+  );
+
   const markRecurringPaid = useCallback(
     (id: string) =>
       mutate((l) => {
@@ -347,6 +365,32 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
     [mutate]
   );
 
+  const toggleAccountHidden = useCallback(
+    (id: string) =>
+      mutate((l) => {
+        const cur = l.hiddenAccounts ?? [];
+        const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
+        return { ...l, hiddenAccounts: next };
+      }),
+    [mutate]
+  );
+
+  const showAllAccounts = useCallback(
+    () => mutate((l) => ({ ...l, hiddenAccounts: [] })),
+    [mutate]
+  );
+
+  const setTransactionCategory = useCallback(
+    (id: string, category: Category) =>
+      mutate((l) => ({
+        ...l,
+        transactions: l.transactions.map((t) =>
+          t.id === id ? { ...t, category } : t
+        ),
+      })),
+    [mutate]
+  );
+
   const loadSample = useCallback(
     () => persist(JSON.parse(JSON.stringify(SAMPLE_LEDGER)) as Ledger, true),
     [persist]
@@ -371,10 +415,14 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
       addGoal,
       contributeToGoal,
       removeGoal,
+      addRecurring,
       markRecurringPaid,
       removeRecurring,
       updateAccountBalance,
       removeAccount,
+      toggleAccountHidden,
+      showAllAccounts,
+      setTransactionCategory,
       loadSample,
       clear,
     }),
@@ -383,8 +431,9 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
       addTransaction, deleteTransaction, importTransactions, applySimplefinSync,
       setBudgetLimit, addBudget, removeBudget,
       addGoal, contributeToGoal, removeGoal,
-      markRecurringPaid, removeRecurring,
+      addRecurring, markRecurringPaid, removeRecurring,
       updateAccountBalance, removeAccount,
+      toggleAccountHidden, showAllAccounts, setTransactionCategory,
       loadSample, clear,
     ]
   );

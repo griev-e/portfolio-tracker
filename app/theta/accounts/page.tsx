@@ -2,6 +2,7 @@
 
 import { Sparkline } from "@/components/charts/Sparkline";
 import { EditableMoney } from "@/components/theta/EditableMoney";
+import { InstitutionLogo } from "@/components/theta/InstitutionLogo";
 import { ThetaEmpty, IconButton, TrashIcon } from "@/components/theta/ui";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -79,12 +80,7 @@ function AccountRow({
   return (
     <div className="group flex items-center gap-4 py-3.5 first:pt-0 last:pb-0">
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <span
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-[13px] font-medium"
-          style={{ background: `color-mix(in srgb, ${color} 14%, transparent)`, color }}
-        >
-          {a.institution.charAt(0)}
-        </span>
+        <InstitutionLogo institution={a.institution} domain={a.domain} accent={color} size={36} />
         <div className="min-w-0">
           <div className="truncate text-[13px] font-medium text-ink">{a.name}</div>
           <div className="text-[11px] text-faint">

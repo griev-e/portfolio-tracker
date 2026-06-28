@@ -26,6 +26,8 @@ export type Account = {
   /** Trailing daily balances for the row sparkline (oldest → newest). */
   trend: number[];
   mask: string; // last 4, display only
+  /** Institution web domain, used to fetch a brand logo. Optional. */
+  domain?: string;
 };
 
 export type Category =
@@ -109,6 +111,12 @@ export type Ledger = {
   /** Trailing months EXCLUDING the current one — the current point is derived. */
   netWorthHistory: { month: string; value: number }[];
   flowHistory: MonthFlow[];
+  /**
+   * Account ids whose transactions are hidden from the transaction lists
+   * (e.g. noisy brokerage activity). A view preference, not a data change;
+   * the accounts and balances themselves stay untouched.
+   */
+  hiddenAccounts?: string[];
 };
 
 export const MONTHS = [
@@ -131,6 +139,54 @@ export const CATEGORY_COLOR: Record<Category, string> = {
   Transfer: "#94a3b8",
   Other: "#94a3b8",
 };
+
+/**
+ * Web domains for common institutions, used to fetch a brand logo when a
+ * synced account didn't carry one. Matched as a substring of the institution
+ * name (lowercased), most-specific keys first.
+ */
+const INSTITUTION_DOMAINS: [match: string, domain: string][] = [
+  ["american express", "americanexpress.com"],
+  ["amex", "americanexpress.com"],
+  ["bank of america", "bankofamerica.com"],
+  ["capital one", "capitalone.com"],
+  ["wells fargo", "wellsfargo.com"],
+  ["charles schwab", "schwab.com"],
+  ["schwab", "schwab.com"],
+  ["navy federal", "navyfederal.org"],
+  ["us bank", "usbank.com"],
+  ["goldman", "marcus.com"],
+  ["marcus", "marcus.com"],
+  ["chase", "chase.com"],
+  ["ally", "ally.com"],
+  ["fidelity", "fidelity.com"],
+  ["vanguard", "vanguard.com"],
+  ["sofi", "sofi.com"],
+  ["robinhood", "robinhood.com"],
+  ["citibank", "citi.com"],
+  ["citi", "citi.com"],
+  ["discover", "discover.com"],
+  ["pnc", "pnc.com"],
+  ["truist", "truist.com"],
+  ["venmo", "venmo.com"],
+  ["paypal", "paypal.com"],
+  ["coinbase", "coinbase.com"],
+  ["etrade", "etrade.com"],
+  ["e*trade", "etrade.com"],
+  ["betterment", "betterment.com"],
+  ["wealthfront", "wealthfront.com"],
+  ["chime", "chime.com"],
+  ["apple", "apple.com"],
+];
+
+/** Best-guess web domain for an institution name (for logo lookup), or "". */
+export function institutionDomain(institution: string): string {
+  const s = institution.toLowerCase();
+  for (const [match, domain] of INSTITUTION_DOMAINS) {
+    if (s.includes(match)) return domain;
+  }
+  return "";
+}
 
 export const ACCOUNT_KIND_LABEL: Record<AccountKind, string> = {
   checking: "Checking",

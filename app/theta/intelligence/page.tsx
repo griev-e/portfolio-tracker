@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ThetaEmpty } from "@/components/theta/ui";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -11,6 +11,7 @@ import { ledgerHasData, useTheta } from "@/lib/theta/store";
 import { fmtPct, fmtUSD } from "@/lib/format";
 
 type State =
+  | { kind: "idle" } // waiting for the user to ask for a brief
   | { kind: "loading" }
   | { kind: "ready"; brief: ThetaBrief; cached: boolean; costUSD: number | null }
   | { kind: "offline" } // no API key
@@ -18,7 +19,7 @@ type State =
 
 export default function ThetaIntelligencePage() {
   const { ready, ledger, view } = useTheta();
-  const [state, setState] = useState<State>({ kind: "loading" });
+  const [state, setState] = useState<State>({ kind: "idle" });
   const reqId = useRef(0);
 
   const buildSnapshot = useCallback((): ThetaSnapshot | null => {
@@ -72,11 +73,6 @@ export default function ThetaIntelligencePage() {
     }
   }, [buildSnapshot]);
 
-  useEffect(() => {
-    if (ready && ledger && ledgerHasData(ledger)) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready]);
-
   if (!ready) return null;
   if (!ledger || !view || !ledgerHasData(ledger)) return <ThetaEmpty page="Intelligence" />;
 
@@ -92,7 +88,11 @@ export default function ThetaIntelligencePage() {
             disabled={state.kind === "loading"}
             className="inline-flex h-8 items-center gap-1.5 rounded-md border border-edge2 px-3 text-[12.5px] font-medium text-mute transition-colors hover:border-white/30 hover:text-ink disabled:opacity-40"
           >
-            {state.kind === "loading" ? "Thinking…" : "Refresh"}
+            {state.kind === "loading"
+              ? "Thinking…"
+              : state.kind === "ready"
+                ? "Regenerate"
+                : "Generate brief"}
           </button>
         }
       />
@@ -112,6 +112,19 @@ export default function ThetaIntelligencePage() {
           <Stat label="Fixed costs" value={view.monthlyRecurring} format={(v) => fmtUSD(v, true)} size="sm" sub="recurring/mo" />
         </Card>
       </div>
+
+      {state.kind === "idle" && (
+        <Card className="px-6 py-10 text-center" i={4}>
+          <h2 className="font-display text-[15px] font-medium text-ink">Ready when you are</h2>
+          <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-mute">
+            Generate a Claude-written read on your month — what&apos;s working, what to watch, and a
+            few concrete moves. Your numbers above are always computed locally.
+          </p>
+          <button onClick={load} className="btn-primary mt-5">
+            Generate brief
+          </button>
+        </Card>
+      )}
 
       {state.kind === "loading" && (
         <Card className="px-6 py-10 text-center" i={4}>
@@ -200,7 +213,7 @@ function BriefView({ brief, cached, costUSD }: { brief: ThetaBrief; cached: bool
       <div className="flex flex-wrap items-center justify-between gap-3 px-1">
         <p className="text-[12.5px] italic text-faint">{brief.goalNote}</p>
         <p className="font-mono text-[11px] text-faint">
-          Written by Claude Haiku 4.5{cached ? " · cached" : ""}
+          Written by Claude Sonnet 4.6{cached ? " · cached" : ""}
           {costUSD !== null && !cached ? ` · ~$${costUSD.toFixed(4)}` : ""}
         </p>
       </div>

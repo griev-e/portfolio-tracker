@@ -1,6 +1,7 @@
 "use client";
 
 import { CategoryTag } from "@/components/theta/bits";
+import { AddRecurringButton } from "@/components/theta/modals";
 import { ThetaEmpty, IconButton, TrashIcon } from "@/components/theta/ui";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -32,6 +33,7 @@ export default function RecurringPage() {
         eyebrow="Planning"
         title="Recurring"
         description="Subscriptions and bills that hit on a schedule — your fixed monthly burn."
+        right={<AddRecurringButton />}
       />
 
       <div className="mb-5 grid grid-cols-3 gap-3">

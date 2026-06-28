@@ -16,7 +16,7 @@ import { fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
 import { TxRow } from "./transactions/TxRow";
 
 export default function ThetaDashboard() {
-  const { ready, ledger, view, deleteTransaction } = useTheta();
+  const { ready, ledger, view, deleteTransaction, setTransactionCategory } = useTheta();
 
   if (!ready) return null;
   if (!ledger || !view || !ledgerHasData(ledger)) return <ThetaEmpty page="The dashboard" />;
@@ -24,6 +24,12 @@ export default function ThetaDashboard() {
   const nwUp = view.netWorthDelta >= 0;
   const expenseDelta = view.monthExpenses - view.prevMonthExpenses;
   const acctName = (id: string) => ledger.accounts.find((a) => a.id === id)?.name ?? id;
+  // Mirror the Transactions page account filter so brokerage churn the user
+  // hid there stays out of the recent-activity table here too.
+  const hiddenAccounts = new Set(ledger.hiddenAccounts ?? []);
+  const recentTransactions = ledger.transactions
+    .filter((t) => !hiddenAccounts.has(t.account))
+    .slice(0, 8);
   const assetCount = ledger.accounts.filter((a) => a.balance > 0).length;
   const liabCount = ledger.accounts.filter((a) => a.balance < 0).length;
 
@@ -220,8 +226,15 @@ export default function ThetaDashboard() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-[13px]">
             <tbody>
-              {ledger.transactions.slice(0, 8).map((t, i) => (
-                <TxRow key={t.id} t={t} i={i} accountName={acctName(t.account)} onDelete={deleteTransaction} />
+              {recentTransactions.map((t, i) => (
+                <TxRow
+                  key={t.id}
+                  t={t}
+                  i={i}
+                  accountName={acctName(t.account)}
+                  onDelete={deleteTransaction}
+                  onChangeCategory={setTransactionCategory}
+                />
               ))}
             </tbody>
           </table>

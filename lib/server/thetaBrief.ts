@@ -10,10 +10,14 @@ import { usdCost } from "@/lib/server/cost";
  * theta's money brief: one Claude call per day per ledger shape, cached in
  * module scope (resets on cold start — accepted, like alpha's brief).
  *
- * Haiku 4.5 — a constrained, structured task where the JSON schema does the
- * heavy lifting, so the fastest/cheapest current model is the right tool.
+ * Sonnet 4.6 with adaptive thinking at `high` effort. The brief is now an
+ * on-demand, user-triggered read (not an every-visit summary), so it earns the
+ * deeper reasoning pass: weighing the month's flows, budget pacing and goal
+ * tradeoffs before committing to wins / watch-outs / moves. The JSON schema
+ * still constrains the final shape.
  */
-const BRIEF_MODEL = "claude-haiku-4-5";
+const BRIEF_MODEL = "claude-sonnet-4-6";
+const BRIEF_EFFORT = "high" as const;
 
 const cache = new Map<string, { at: number; data: ThetaBriefResponse }>();
 const TTL = 24 * 3600_000;
@@ -118,17 +122,26 @@ function buildUserMessage(req: ThetaBriefRequest): string {
 export async function generateThetaBrief(
   req: ThetaBriefRequest
 ): Promise<{ brief: ThetaBrief; costUSD: number | null }> {
-  const client = new Anthropic({ timeout: 30_000, maxRetries: 1 });
+  // Stream + finalMessage keeps the HTTP connection alive while the model
+  // thinks, so a slow adaptive-thinking turn doesn't trip the SDK timeout; the
+  // route caps total duration.
+  const client = new Anthropic({ timeout: 55_000, maxRetries: 1 });
   genCount += 1;
-  const response = await client.messages.create({
+  const stream = client.messages.stream({
     model: BRIEF_MODEL,
-    max_tokens: 1400,
-    thinking: { type: "disabled" },
+    max_tokens: 4000,
+    // Adaptive thinking lets the model reason through the month before
+    // committing; the schema constrains the final JSON so no reasoning leaks.
+    thinking: { type: "adaptive" },
     system: SYSTEM,
-    output_config: { format: { type: "json_schema", schema: SCHEMA } },
+    output_config: {
+      format: { type: "json_schema", schema: SCHEMA },
+      effort: BRIEF_EFFORT,
+    },
     messages: [{ role: "user", content: buildUserMessage(req) }],
   });
 
+  const response = await stream.finalMessage();
   if (response.stop_reason === "refusal") throw new Error("brief generation declined");
   const text = response.content.find((b) => b.type === "text");
   if (!text) throw new Error("empty brief response");

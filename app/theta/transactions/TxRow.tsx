@@ -1,8 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useState } from "react";
 import { IconButton, TrashIcon } from "@/components/theta/ui";
-import { CATEGORY_COLOR, type Transaction } from "@/lib/theta/data";
+import { CATEGORIES, CATEGORY_COLOR, type Category, type Transaction } from "@/lib/theta/data";
 import { fmtUSD } from "@/lib/format";
 
 function shortDate(iso: string): string {
@@ -11,17 +12,83 @@ function shortDate(iso: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+/** The category cell: a static tag, or a click-to-retag picker when editable. */
+function CategoryCell({
+  category,
+  onChange,
+}: {
+  category: Category;
+  onChange?: (category: Category) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const accent = CATEGORY_COLOR[category];
+
+  if (!onChange) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[12px] text-mute">
+        <span className="h-2 w-2 rounded-full" style={{ background: accent }} />
+        {category}
+      </span>
+    );
+  }
+
+  return (
+    <span className="relative inline-block">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        title="Change category"
+        className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[12px] text-mute transition-colors hover:bg-white/[0.06] hover:text-ink"
+      >
+        <span className="h-2 w-2 rounded-full" style={{ background: accent }} />
+        {category}
+        <svg width="9" height="9" viewBox="0 0 12 8" fill="none" stroke="currentColor" strokeWidth="1.6" className="text-faint">
+          <path d="M1 1l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 z-30 mt-1 max-h-72 w-44 overflow-y-auto rounded-lg border border-edge2 bg-panel p-1 shadow-2xl">
+            {CATEGORIES.map((c) => (
+              <button
+                key={c}
+                onClick={() => {
+                  if (c !== category) onChange(c);
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] transition-colors hover:bg-white/[0.05] ${
+                  c === category ? "text-ink" : "text-mute"
+                }`}
+              >
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: CATEGORY_COLOR[c] }} />
+                {c}
+                {c === category && (
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="ml-auto text-vio">
+                    <path d="M2.5 6.5l2.5 2.5 4.5-5" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </span>
+  );
+}
+
 /** One transaction row: merchant glyph + name, category, amount, date. */
 export function TxRow({
   t,
   i,
   accountName,
   onDelete,
+  onChangeCategory,
 }: {
   t: Transaction;
   i: number;
   accountName?: string;
   onDelete?: (id: string) => void;
+  onChangeCategory?: (id: string, category: Category) => void;
 }) {
   const accent = CATEGORY_COLOR[t.category];
   const income = t.amount > 0;
@@ -62,10 +129,10 @@ export function TxRow({
       </td>
 
       <td className="hidden px-3 py-3 sm:table-cell">
-        <span className="inline-flex items-center gap-1.5 text-[12px] text-mute">
-          <span className="h-2 w-2 rounded-full" style={{ background: accent }} />
-          {t.category}
-        </span>
+        <CategoryCell
+          category={t.category}
+          onChange={onChangeCategory ? (c) => onChangeCategory(t.id, c) : undefined}
+        />
       </td>
 
       <td className="px-3 py-3 text-right">

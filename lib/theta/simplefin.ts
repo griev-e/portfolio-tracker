@@ -101,6 +101,9 @@ function mapAccount(raw: SfAccount): Account {
   // inconsistent about the sign on cards/loans, so normalize: a positive
   // liability balance means "amount owed" → negate it.
   const balance = isLiability(kind) && rawBal > 0 ? -rawBal : rawBal;
+  // Prefer the org's own domain for the brand logo; fall back to a guess from
+  // the institution name (handled at display time when this is empty).
+  const domain = raw.org?.domain?.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
   return {
     id: sfAccountId(raw.id),
     name: raw.name || org,
@@ -109,6 +112,7 @@ function mapAccount(raw: SfAccount): Account {
     balance,
     trend: Array(7).fill(balance), // seeded flat; the store extends it per sync
     mask: deriveMask(raw.name, raw.id),
+    ...(domain ? { domain } : {}),
   };
 }
 

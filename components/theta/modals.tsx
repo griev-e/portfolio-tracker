@@ -5,6 +5,7 @@ import {
   CATEGORIES,
   type Category,
   type Goal,
+  type Recurring,
   SPEND_CATEGORIES,
 } from "@/lib/theta/data";
 import { useTheta } from "@/lib/theta/store";
@@ -259,6 +260,81 @@ export function ContributeModal({
   );
 }
 
+const CADENCES: Recurring["cadence"][] = ["monthly", "yearly", "weekly"];
+const CADENCE_LABEL: Record<Recurring["cadence"], string> = {
+  monthly: "Monthly",
+  yearly: "Yearly",
+  weekly: "Weekly",
+};
+
+export function AddRecurringModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { addRecurring } = useTheta();
+  const [name, setName] = useState("");
+  const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState<Category>("Subscriptions");
+  const [cadence, setCadence] = useState<Recurring["cadence"]>("monthly");
+  const [nextDate, setNextDate] = useState(today());
+
+  const valid = name.trim().length > 0 && Number(amount) > 0 && !!nextDate;
+
+  function submit() {
+    if (!valid) return;
+    addRecurring({
+      name: name.trim(),
+      amount: Math.abs(Number(amount)),
+      category,
+      cadence,
+      nextDate,
+    });
+    setName("");
+    setAmount("");
+    setCategory("Subscriptions");
+    setCadence("monthly");
+    setNextDate(today());
+    onClose();
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Add recurring charge">
+      <div className="flex flex-col gap-3.5">
+        <Field label="Name">
+          <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Netflix" autoFocus />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Amount">
+            <TextInput
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+              placeholder="15.49"
+            />
+          </Field>
+          <Field label="Cadence">
+            <Select value={cadence} onChange={(e) => setCadence(e.target.value as Recurring["cadence"])}>
+              {CADENCES.map((c) => (
+                <option key={c} value={c}>{CADENCE_LABEL[c]}</option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Category">
+            <Select value={category} onChange={(e) => setCategory(e.target.value as Category)}>
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Next charge">
+            <TextInput type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)} />
+          </Field>
+        </div>
+      </div>
+      <Actions onCancel={onClose} onSubmit={submit} submitLabel="Add charge" disabled={!valid} />
+    </Modal>
+  );
+}
+
 /** Convenience: a header "Add" button that opens the transaction modal. */
 export function AddTransactionButton() {
   const [open, setOpen] = useState(false);
@@ -268,6 +344,19 @@ export function AddTransactionButton() {
         + Add
       </ActionButton>
       <AddTransactionModal open={open} onClose={() => setOpen(false)} />
+    </>
+  );
+}
+
+/** Header "Add" button that opens the recurring-charge modal. */
+export function AddRecurringButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <ActionButton onClick={() => setOpen(true)} variant="primary">
+        + Add
+      </ActionButton>
+      <AddRecurringModal open={open} onClose={() => setOpen(false)} />
     </>
   );
 }

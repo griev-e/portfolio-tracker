@@ -8,6 +8,18 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.32",
+    date: "2026-06-28",
+    title: "theta — sharper Intelligence, account logos, and more control over your activity",
+    changes: [
+      "The theta Intelligence brief is now on-demand and smarter: it waits for you to press Generate instead of running on every visit, and it's written by Claude Sonnet 4.6 with adaptive thinking at high effort — so it reasons through your month's flows, budget pacing and goal tradeoffs before committing to wins, watch-outs and moves. Your headline numbers are still computed locally and shown instantly.",
+      "Accounts now show their institution's brand logo (fetched by domain, with a clean monogram fallback when there's no match) — synced banks carry their own domain, and common institutions are recognized by name.",
+      "Filter noisy accounts out of your activity: a new account filter on the Transactions page lets you hide accounts (handy for chatty brokerage churn) from the transaction list, and the same filter is reflected in the dashboard's recent-activity table.",
+      "Re-tag transactions inline: click any transaction's category to change it — useful for correcting an auto-categorized import.",
+      "Add recurring charges by hand: the Recurring page now has an Add button for logging a subscription or bill with its amount, cadence, category and next charge date.",
+    ],
+  },
+  {
     version: "1.31",
     date: "2026-06-28",
     title: "theta — connect a bank with SimpleFIN",
