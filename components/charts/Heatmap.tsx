@@ -94,7 +94,7 @@ export const Heatmap = memo(function Heatmap({
             className="h-2 w-36 rounded-full"
             style={{
               background:
-                "linear-gradient(90deg, rgba(96,140,200,0.25), rgba(167,139,250,0.55), rgba(176,43,10,0.9))",
+                "linear-gradient(90deg, rgba(96,140,200,0.25), rgba(167,139,250,0.55), rgba(94,234,212,0.9))",
             }}
           />
           <span>1.0</span>

@@ -58,7 +58,7 @@ export function Histogram({
               className="flex-1 rounded-t-[3px]"
               style={{
                 background: aboveTarget
-                  ? "linear-gradient(180deg, rgba(176,43,10,0.85), rgba(176,43,10,0.25))"
+                  ? "linear-gradient(180deg, rgba(94,234,212,0.85), rgba(94,234,212,0.25))"
                   : "linear-gradient(180deg, rgba(148,163,184,0.4), rgba(148,163,184,0.12))",
                 filter: hover === i ? "brightness(1.4)" : undefined,
               }}

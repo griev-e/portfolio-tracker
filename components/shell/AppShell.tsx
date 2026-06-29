@@ -8,7 +8,7 @@ import { fmtUSDCompact } from "@/lib/format";
 import { usePortfolio, useLiveStatus, usePortfolioActions } from "@/lib/store";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
 import { ThetaProvider } from "@/lib/theta/store";
-import { AccountChip, AppTitle, Sigil, SignOutButton } from "./brand";
+import { AppTitle, Sigil, SignOutButton } from "./brand";
 import { ThetaShell } from "./ThetaShell";
 import {
   IconBenchmark,
@@ -123,13 +123,13 @@ function NavRow({
         <m.span
           layoutId="nav-active"
           className="absolute inset-0 rounded-md bg-white/[0.07]"
-          style={{ boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--color-mint) 16%, transparent)" }}
+          style={{ boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 16%, transparent)" }}
           transition={{ type: "spring", stiffness: 520, damping: 40 }}
         />
       )}
       <span
         className={`relative z-10 opacity-80 [&>svg]:h-4 [&>svg]:w-4 ${
-          active ? "text-mint" : ""
+          active ? "text-accent" : ""
         }`}
       >
         <Icon />
@@ -301,9 +301,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               </span>
             )}
             <SignOutButton className="ml-auto" />
-          </div>
-          <div className="mt-3 flex flex-col gap-2">
-            <AccountChip className="px-0.5" />
           </div>
         </div>
 
