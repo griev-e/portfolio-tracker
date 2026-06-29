@@ -10,7 +10,7 @@
   /* ~5:1 on the near-black background — clears WCAG AA for body text, where
      the previous #666 sat just under the 4.5:1 line. */
   --color-faint: #7c7c7c;
-  --color-mint: #b02b0a;
+  --color-mint: #5eead4;
   --color-pos: #34d399;
   --color-neg: #fb7185;
   --color-warn: #fbbf24;
@@ -59,7 +59,7 @@ body {
 }
 
 ::selection {
-  background: rgba(176, 43, 10, 0.25);
+  background: rgba(94, 234, 212, 0.25);
 }
 
 * {
@@ -172,7 +172,7 @@ input[type="range"] {
   border-radius: 4px;
   background: linear-gradient(
     90deg,
-    rgba(176, 43, 10, 0.5),
+    rgba(94, 234, 212, 0.5),
     rgba(167, 139, 250, 0.5)
   );
   outline: none;

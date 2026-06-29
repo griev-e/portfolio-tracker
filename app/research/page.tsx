@@ -981,7 +981,7 @@ function TargetBullet({
         transition={{ delay: 0.55, type: "spring", stiffness: 300, damping: 18 }}
         title={`current ${fmtUSD(price)}`}
       >
-        <div className="h-full w-full rounded-full border-2 border-mint bg-void shadow-[0_0_12px_rgba(176,43,10,0.5)]" />
+        <div className="h-full w-full rounded-full border-2 border-mint bg-void shadow-[0_0_12px_rgba(94,234,212,0.5)]" />
       </m.div>
     </div>
   );

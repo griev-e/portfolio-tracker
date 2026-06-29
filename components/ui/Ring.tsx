@@ -48,7 +48,7 @@ export function Ring({
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={c}
-          style={{ filter: `drop-shadow(0 0 8px ${ringColor === "var(--color-mint)" ? "rgba(176,43,10,0.4)" : "rgba(251,191,36,0.3)"})` }}
+          style={{ filter: `drop-shadow(0 0 8px ${ringColor === "var(--color-mint)" ? "rgba(94,234,212,0.4)" : "rgba(251,191,36,0.3)"})` }}
           initial={{ strokeDashoffset: c }}
           animate={{ strokeDashoffset: c * (1 - frac) }}
           transition={{ duration: 1.3, ease: [0.22, 1, 0.36, 1] }}

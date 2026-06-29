@@ -154,14 +154,14 @@ export function FanChart({
         {/* percentile fans */}
         <m.path
           d={area((b) => b.p95, (b) => b.p5)}
-          fill="rgba(176,43,10,0.07)"
+          fill="rgba(94,234,212,0.07)"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.15 }}
         />
         <m.path
           d={area((b) => b.p75, (b) => b.p25)}
-          fill="rgba(176,43,10,0.14)"
+          fill="rgba(94,234,212,0.14)"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.3 }}
@@ -171,7 +171,7 @@ export function FanChart({
           fill="none"
           stroke="var(--color-mint)"
           strokeWidth={2.4}
-          style={{ filter: "drop-shadow(0 0 6px rgba(176,43,10,0.45))" }}
+          style={{ filter: "drop-shadow(0 0 6px rgba(94,234,212,0.45))" }}
           initial={{ pathLength: 0 }}
           animate={{ pathLength: 1 }}
           transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
