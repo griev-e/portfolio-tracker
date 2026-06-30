@@ -55,6 +55,16 @@ describe("riskReport", () => {
     expect(halfCash.beta).toBeLessThan(noCash.beta);
   });
 
+  it("exposes an equity-only (ex-cash) beta that strips the cash drag", () => {
+    const noCash = riskReport(twoStock(0), SPX.sectorWeights);
+    expect(noCash.equityBeta).toBeCloseTo(noCash.beta, 6); // no cash, no difference
+
+    const halfCash = riskReport(twoStock(2000), SPX.sectorWeights);
+    expect(halfCash.beta).toBeCloseTo(0.4625, 3); // cash-diluted
+    expect(halfCash.equityBeta).toBeCloseTo(0.925, 3); // same as the no-cash book
+    expect(halfCash.equityVolatility).toBeGreaterThan(0);
+  });
+
   it("derives a positive volatility and a finite Sharpe", () => {
     const r = riskReport(twoStock(), SPX.sectorWeights);
     expect(r.volatility).toBeGreaterThan(0);

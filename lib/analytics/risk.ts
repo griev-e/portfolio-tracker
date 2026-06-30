@@ -33,6 +33,14 @@ export interface RiskReport {
   regions: RegionExposure[];
   beta: number; // total portfolio incl. cash drag
   volatility: number; // annualized, total portfolio
+  /**
+   * Beta/volatility of just the priced equity sleeve — cash and any no-data
+   * holdings excluded and the remaining weights renormalized to their own
+   * total, rather than diluted by them. The counterpart to `beta`/`volatility`
+   * for "what does my stock book actually look like" vs. "incl. cash drag".
+   */
+  equityBeta: number;
+  equityVolatility: number;
   expectedReturn: number; // CAPM
   sharpe: number;
   /** Σwσ / σ_p on the invested book — >1 means diversification is working. */
@@ -128,6 +136,24 @@ export function riskReport(
   }
   const volatility = Math.sqrt(Math.max(variance, 0));
 
+  // Equity-only (ex-cash) counterparts: renormalize the covered names' weights
+  // to their own total instead of the whole book, so `beta`/`volatility`'s
+  // cash drag is removed for "what does my stock book alone look like".
+  const equityW = covered.map((p) =>
+    coverageWeight > 0 ? p.weight / coverageWeight : 0
+  );
+  const equityBeta = covered.reduce(
+    (s, p, i) => s + equityW[i] * (p.fundamentals?.beta ?? 0),
+    0
+  );
+  let equityVariance = 0;
+  for (let i = 0; i < equityW.length; i++) {
+    for (let j = 0; j < equityW.length; j++) {
+      equityVariance += equityW[i] * equityW[j] * cov[i][j];
+    }
+  }
+  const equityVolatility = Math.sqrt(Math.max(equityVariance, 0));
+
   const expectedReturn =
     scale *
     (portfolio.cashWeight * CMA.riskFree +
@@ -183,6 +209,8 @@ export function riskReport(
     regions,
     beta,
     volatility,
+    equityBeta,
+    equityVolatility,
     expectedReturn,
     sharpe,
     diversificationRatio,
