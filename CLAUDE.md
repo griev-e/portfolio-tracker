@@ -51,6 +51,11 @@ Carlo, the regime engine and its `mathx` helpers, CSV parsing, fundamentals).
   `npm run create-user`. (This replaces the old `ACCESS_PIN` PIN gate.)
 - `ANTHROPIC_API_KEY` — enables the AI daily brief on the Intelligence page.
   When unset, the brief section degrades gracefully and everything else works.
+- `FINNHUB_API_KEY` — optional Finnhub key. A **second live provider that
+  gap-fills** the fundamentals Yahoo leaves empty (common for newly-listed
+  tickers with no statement history: margins, ROIC, growth, beta). Gap-fill
+  only — never overrides Yahoo. Two calls/symbol, 12h-cached, inside the free
+  tier's 60-requests/minute budget. See `lib/server/finnhub.ts`.
 - `FMP_API_KEY` — optional Financial Modeling Prep key. When set, fundamentals
   are enriched with FMP's ROIC, FCF growth and revenue-by-region mix (the fields
   Yahoo's keyless feed can't cleanly provide). When unset, the app runs on Yahoo
@@ -75,7 +80,9 @@ masquerading as live. Understand this before touching `lib/analytics` or
    fundamental field for a stock (sector, beta, margins, growth, analyst,
    insider, earnings), derives **realized volatility** from price history and
    **ROIC / FCF growth** from Yahoo's statement modules, and pulls **ETF sector
-   look-through** from `topHoldings`. When `FMP_API_KEY` is set it also overlays
+   look-through** from `topHoldings`. When `FINNHUB_API_KEY` is set, Finnhub
+   **gap-fills** any field Yahoo left empty (never overriding it). When
+   `FMP_API_KEY` is set it also overlays
    ROIC, FCF growth and **region mix** (region mix has no keyless source).
    `lib/live/merge.ts` (`mergeFundamentals`/`fromPatch`) turns the patch into a
    `Fundamentals`; with no patch the result is `null` (no data).
@@ -172,7 +179,7 @@ Maps as a warm-lambda cache. Provider code (`yahoo-finance2`, Anthropic SDK) is
 | Route | Backed by | Notes |
 | --- | --- | --- |
 | `/api/quotes` | `lib/server/yahoo.ts` | Live prices, 60s CDN cache, `?fresh=1` bypasses caches. Extended-hours aware. |
-| `/api/fundamentals` | `lib/server/fundamentals.ts` (Yahoo + optional FMP) | Fundamentals patch, 12h cache. Adds realized vol, ROIC, FCF growth, region mix. |
+| `/api/fundamentals` | `lib/server/fundamentals.ts` (Yahoo + optional Finnhub + FMP) | Fundamentals patch, 12h cache. Yahoo primary; Finnhub gap-fills; FMP overlays ROIC/FCF growth/region mix. |
 | `/api/history` | `lib/server/yahoo.ts` | Adjusted-close price history for one symbol (`?symbol=&range=1m\|6m\|1y\|5y`), 10min cache. Powers the Research price chart. |
 | `/api/search` | `lib/server/yahoo.ts` | Ticker / company lookup for the Research terminal, 6h cache. Failures return an empty list, never a 5xx. |
 | `/api/cma` | `lib/server/cma.ts` | Capital-market assumptions (risk-free rate, benchmark vols), 6h cache. Overlays live market data onto static forward assumptions. |

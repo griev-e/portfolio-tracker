@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { classifyRegion, regionsFromSegmentation } from "./fmp";
+import { sectorFromIndustry } from "./finnhub";
 import { annualizedVol, fcfGrowthFromStatements, roicFrom } from "./yahoo";
 
 describe("annualizedVol", () => {
@@ -83,5 +84,23 @@ describe("regionsFromSegmentation", () => {
 
   it("returns undefined when there is no positive revenue", () => {
     expect(regionsFromSegmentation({ Nowhere: 0 })).toBeUndefined();
+  });
+});
+
+describe("sectorFromIndustry (Finnhub)", () => {
+  it("maps common Finnhub industries to sector buckets", () => {
+    expect(sectorFromIndustry("Semiconductors")).toBe("Technology");
+    expect(sectorFromIndustry("Software")).toBe("Technology");
+    expect(sectorFromIndustry("Pharmaceuticals")).toBe("Health Care");
+    expect(sectorFromIndustry("Banking")).toBe("Financials");
+    expect(sectorFromIndustry("Oil & Gas")).toBe("Energy");
+    expect(sectorFromIndustry("Utilities")).toBe("Utilities");
+    expect(sectorFromIndustry("Real Estate")).toBe("Real Estate");
+    expect(sectorFromIndustry("Media")).toBe("Communication Services");
+  });
+
+  it("returns undefined for unknown or missing industries (no forced guess)", () => {
+    expect(sectorFromIndustry(undefined)).toBeUndefined();
+    expect(sectorFromIndustry("Conglomerate Holdings")).toBeUndefined();
   });
 });

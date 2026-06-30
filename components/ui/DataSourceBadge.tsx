@@ -4,10 +4,11 @@ import type { DataCoverage, Fundamentals } from "@/lib/types";
 import { Tooltip } from "./Tooltip";
 
 /**
- * Provenance indicator: shows whether a holding's data is live, partially live,
- * or running on the bundled snapshot — so a frozen value is never silently
- * presented as if it were live. Backed by `Position.dataSource` /
- * `Fundamentals.provenance`.
+ * Provenance indicator: shows whether a holding's data is fully live, partially
+ * live, or estimated — so a value the provider didn't return is never silently
+ * presented as if it were live. There is no bundled snapshot; "estimated" means
+ * a neutral default filled a gap the live providers left. Backed by
+ * `Position.dataSource` / `Fundamentals.provenance`.
  */
 
 const META: Record<
@@ -26,14 +27,14 @@ const META: Record<
     dot: "bg-warn",
     text: "text-warn",
     blurb:
-      "Partially live — some values are from a live provider, others fall back to the bundled snapshot.",
+      "Partially live — some values come from a live provider; others the provider didn't return are estimated.",
   },
   fallback: {
-    label: "Snapshot",
+    label: "Estimated",
     dot: "border border-warn/70",
     text: "text-warn",
     blurb:
-      "No live data — running on the bundled snapshot / conservative defaults. These values may be stale.",
+      "No live fundamentals — the provider returned nothing, so risk fields use neutral estimates. Treat as indicative.",
   },
 };
 
@@ -58,7 +59,7 @@ function tooltipContent(source: DataCoverage, fundamentals?: Fundamentals | null
       <div>{META[source].blurb}</div>
       {stale.length > 0 && (
         <div className="text-faint">
-          From snapshot: {stale.join(", ")}
+          Estimated: {stale.join(", ")}
         </div>
       )}
     </div>
@@ -88,7 +89,7 @@ export function DataSourceDot({
 
 /**
  * Inline legend summarizing data liveness across a set of holdings, e.g.
- * "● 12 live · ● 3 snapshot". Buckets with zero count are omitted.
+ * "● 12 live · ● 3 estimated". Buckets with zero count are omitted.
  */
 export function DataCoverageSummary({
   sources,
@@ -111,7 +112,7 @@ export function DataCoverageSummary({
   const allLive = counts.live === sources.length;
   const summary = allLive
     ? "Every holding is on live data."
-    : "Holdings running on the bundled snapshot are marked; their values may be stale.";
+    : "Holdings with estimated values are marked; the provider didn't return everything for them.";
 
   return (
     <Tooltip

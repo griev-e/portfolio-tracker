@@ -47,6 +47,9 @@ export default function RiskPage() {
         ? { text: "Diversification is thinner than it looks", tone: "warn" }
         : { text: "Concentration profile looks healthy", tone: "ok" };
 
+  // Holdings with no live fundamentals are excluded from the factor math.
+  const noData = portfolio.positions.filter((p) => !p.fundamentals);
+
   return (
     <div>
       <PageHeader
@@ -122,6 +125,31 @@ export default function RiskPage() {
           </div>
         </div>
       </Card>
+
+      {/* Coverage banner — only when some of the book lacks live fundamentals. */}
+      {risk.coveragePct < 0.999 && (
+        <Card className="mb-5 px-6 py-4" i={0}>
+          <div className="flex items-start gap-3">
+            <span className="mt-[5px] inline-block h-[7px] w-[7px] shrink-0 rounded-full border border-warn/70" />
+            <div>
+              <div className="font-mono text-[12px] text-warn">
+                Risk analytics cover {fmtPct(risk.coveragePct, 0)} of the book by
+                weight
+              </div>
+              <div className="mt-1 text-[12.5px] leading-relaxed text-mute">
+                {noData.length} holding{noData.length === 1 ? "" : "s"} with no
+                live fundamentals{" "}
+                <span className="font-mono text-faint">
+                  ({noData.map((p) => p.symbol).join(", ")})
+                </span>{" "}
+                {noData.length === 1 ? "is" : "are"} excluded from the beta,
+                volatility, correlation and factor math — never imputed with a
+                placeholder. Allocation, weights and P&amp;L still include them.
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <div className="mb-5 grid gap-5 lg:grid-cols-2">
         {/* Concentration */}

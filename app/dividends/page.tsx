@@ -427,7 +427,7 @@ export default function DividendsPage() {
                       {h.estimated && (
                         <span
                           className="rounded border border-warn/30 bg-warn/10 px-1 py-px font-mono text-[8.5px] text-warn"
-                          title="Income estimated from snapshot yield — provider history unavailable"
+                          title="Income estimated from the dividend yield — provider history unavailable"
                         >
                           est
                         </span>

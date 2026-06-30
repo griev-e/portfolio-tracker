@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, m } from "framer-motion";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -11,6 +12,7 @@ import { usePortfolio, usePortfolioActions } from "@/lib/store";
 const EXPECTED_HEADER = "name,symbol,shares,price,averageCost,totalReturn,equity";
 
 export default function ImportPage() {
+  const router = useRouter();
   const { ready, portfolio, hasData, isDemo } = usePortfolio();
   const { importHoldings, loadDemo, setCash, clear } = usePortfolioActions();
   const [dragOver, setDragOver] = useState(false);
@@ -39,6 +41,8 @@ export default function ImportPage() {
     setParsed(null);
     setPasted("");
     setFileName(null);
+    // Land on the Overview once holdings are in.
+    router.push("/");
   };
 
   const downloadCurrent = () => {
@@ -270,7 +274,10 @@ export default function ImportPage() {
             <CardHeader eyebrow="Quick actions" title="Data controls" className="mb-4" />
             <div className="space-y-2.5">
               <button
-                onClick={loadDemo}
+                onClick={() => {
+                  loadDemo();
+                  router.push("/");
+                }}
                 className="w-full rounded-lg border border-edge bg-void/40 px-4 py-2.5 text-left text-[13px] text-ink transition hover:border-mint/30"
               >
                 <span className="font-medium">Load demo portfolio</span>

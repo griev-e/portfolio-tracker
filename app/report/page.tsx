@@ -192,7 +192,7 @@ export default function ReportPage() {
     .sort((a, b) => (a.d ?? 0) - (b.d ?? 0));
 
   const dataStatus = live.degraded
-    ? `Imported / snapshot prices (live feed offline) · ${live.livePriceCount} live`
+    ? `Imported prices (live feed offline) · ${live.livePriceCount} live`
     : `Live prices · ${live.livePriceCount} of ${portfolio.positions.length} repriced`;
 
   return (

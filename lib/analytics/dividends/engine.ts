@@ -603,7 +603,7 @@ export function dividendReport(
     ],
     holdings,
     methodology: [
-      "Forward income = shares × the declared forward rate, falling back to the trailing-12-month payment sum; positions with neither are estimated from the snapshot yield and marked.",
+      "Forward income = shares × the declared forward rate, falling back to the trailing-12-month payment sum; positions with neither are estimated from the live dividend yield and marked.",
       "Growth, streaks, and cut detection use completed calendar years only, on each year's median payment × normalized payment count — so a half-finished year, a payment slipping across a year boundary, or a one-off special dividend never reads as a cut or a growth spike.",
       "Safety starts neutral at 50 and earns or loses points on earnings payout, graduated free-cash-flow coverage (covered twice over vs. barely covered scores differently), increase streaks — with a premium for 25-year records — past cuts weighted by how recent they are, the payout-versus-earnings-trajectory interaction, and yield sanity. Every adjustment is recorded on the holding.",
       `The composite weighs safety 35%, growth 25%, stability 20%, and diversification 20% — sustainability over headline yield, growth over static income. Portfolio aggregates are income-weighted; the growth score blends the 3- and 5-year trends and is anchored to the S&P's long-run ~${Math.round(spxDivGrowth() * 100)}%/yr dividend growth, so matching the index reads as average and beating it scores up.`,

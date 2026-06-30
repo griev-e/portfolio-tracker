@@ -390,6 +390,14 @@ const str = (v: unknown): string | undefined =>
 const SEARCHABLE_TYPES = new Set(["EQUITY", "ETF", "MUTUALFUND"]);
 
 /**
+ * Major US listing venues to keep in search results, by Yahoo exchange code:
+ * Nasdaq (NMS/NGM/NCM), NYSE (NYQ), NYSE American / AMEX (ASE), NYSE Arca (PCX).
+ * Everything else — OTC, foreign listings, pink sheets — is dropped so the
+ * autocomplete stays on tickers the user can actually trade and re-fetch.
+ */
+const US_EXCHANGES = new Set(["NMS", "NGM", "NCM", "NYQ", "ASE", "PCX"]);
+
+/**
  * Ticker / company search via Yahoo's suggest endpoint. Returns only tradable
  * securities the user would actually research, capped and de-noised.
  */
@@ -411,6 +419,9 @@ export async function searchSymbols(query: string): Promise<SymbolHit[]> {
         const symbol = str(r.symbol);
         const type = str(r.quoteType) ?? "";
         if (!symbol || !SEARCHABLE_TYPES.has(type)) return [];
+        // Keep only the major US venues (NASDAQ / NYSE / AMEX / Arca).
+        const exch = str(r.exchange) ?? "";
+        if (!US_EXCHANGES.has(exch)) return [];
         return [
           {
             symbol,
