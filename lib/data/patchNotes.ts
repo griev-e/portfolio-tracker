@@ -8,6 +8,15 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.35",
+    date: "2026-06-30",
+    title: "Fixed portfolio beta/volatility being diluted by no-data holdings",
+    changes: [
+      "Portfolio beta, volatility, expected return and Sharpe were silently understated whenever a holding had no live fundamentals: the no-data holding's weight dropped out of the math entirely instead of being excluded, which is mathematically identical to treating it as riskless cash. A 50% position with no data could cut your reported beta roughly in half. These figures are now renormalized over the priced portion of the book (cash + holdings with live data), with the excluded weight still reported honestly via the existing coverage gap.",
+      "This affected every page that reads portfolio beta/volatility/expected return — Overview, Risk, Correlation, Monte Carlo, Benchmark, Discover and the printable Report.",
+    ],
+  },
+  {
     version: "1.34",
     date: "2026-06-30",
     title: "Live-only data — the static fundamentals snapshot is gone",

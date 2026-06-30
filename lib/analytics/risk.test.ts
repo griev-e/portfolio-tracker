@@ -127,7 +127,34 @@ describe("riskReport", () => {
       SPX.sectorWeights
     );
     expect(r.coveragePct).toBeCloseTo(0.5, 6); // only SPY is covered
-    expect(Number.isFinite(r.beta)).toBe(true);
-    expect(r.beta).toBeGreaterThan(0);
+    // ZZZZ must be excluded from the factor math, not silently treated as
+    // riskless cash: beta should reflect SPY alone (β 1.0), not be diluted to
+    // 0.5 by a weighted average over the whole (half-unpriceable) book.
+    expect(r.beta).toBeCloseTo(1.0, 6);
+  });
+
+  it("renormalizes beta/volatility/expectedReturn over the priced book (cash + covered), not the whole book", () => {
+    // SPY (β 1.0) + an uncovered holding, both $1000, plus $2000 cash on a
+    // $4000 book: weights are SPY 0.25, ZZZZ 0.25 (excluded), cash 0.5.
+    // The priced sub-portfolio is cash (0.5) + SPY (0.25) = 0.75 of the book,
+    // so SPY's renormalized share of the *priced* portion is 0.25/0.75 = 1/3.
+    const r = riskReport(
+      makePortfolio(
+        [
+          holding({ symbol: "SPY", shares: 10, price: 100 }),
+          holding({ symbol: "ZZZZ", shares: 10, price: 100 }),
+        ],
+        2000,
+        { ZZZZ: null }
+      ),
+      SPX.sectorWeights
+    );
+    expect(r.coveragePct).toBeCloseTo(0.25, 6);
+    expect(r.beta).toBeCloseTo(1 / 3, 6);
+    // CAPM consistency: expectedReturn must equal rf + β·ERP for the same
+    // (renormalized) beta this report returns (rf 0.04, ERP 0.045 defaults) —
+    // the no-data exclusion can't silently decouple the two.
+    expect(r.expectedReturn).toBeCloseTo(0.04 + (1 / 3) * 0.045, 6);
+    expect(r.volatility).toBeGreaterThan(0);
   });
 });
