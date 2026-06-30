@@ -461,36 +461,38 @@ function ResearchView({
           i={3}
           title="Growth"
           rows={[
-            row("Revenue growth", f.revenueGrowth, spx.revenueGrowth, true, pctSigned),
-            row("EPS growth", f.epsGrowth, spx.epsGrowth, true, pctSigned),
-            row("FCF growth", f.fcfGrowth, spx.fcfGrowth, true, pctSigned, f.provenance?.fields.fcfGrowth !== "live"),
-            row("12-month return", f.return12m, spx.return12m, true, pctSigned),
+            row("Revenue growth", f.revenueGrowth, spx.revenueGrowth, true, pctSigned, isEst(f, "revenueGrowth")),
+            row("EPS growth", f.epsGrowth, spx.epsGrowth, true, pctSigned, isEst(f, "epsGrowth")),
+            row("FCF growth", f.fcfGrowth, spx.fcfGrowth, true, pctSigned, isEst(f, "fcfGrowth")),
+            row("12-month return", f.return12m, spx.return12m, true, pctSigned, isEst(f, "return12m")),
           ]}
         />
         <CompareCard
           i={4}
           title="Valuation"
           rows={[
-            row("Forward P/E", f.forwardPE, spx.forwardPE, false, (v) => fmtMultiple(v)),
-            row("FCF yield", f.fcfYield, spx.fcfYield, true, (v) => fmtPct(v, 1)),
-            row("Dividend yield", f.dividendYield, spx.dividendYield, true, (v) => fmtPct(v, 2)),
+            row("Forward P/E", f.forwardPE, spx.forwardPE, false, (v) => fmtMultiple(v), isEst(f, "forwardPE")),
+            row("FCF yield", f.fcfYield, spx.fcfYield, true, (v) => fmtPct(v, 1), isEst(f, "fcfYield")),
+            row("Dividend yield", f.dividendYield, spx.dividendYield, true, (v) => fmtPct(v, 2), isEst(f, "dividendYield")),
             row(
               "PEG ratio",
               peg(f.forwardPE, f.epsGrowth),
               peg(spx.forwardPE, spx.epsGrowth) ?? 0,
               false,
-              (v) => v.toFixed(2)
+              (v) => v.toFixed(2),
+              isEst(f, "forwardPE") || isEst(f, "epsGrowth")
             ),
           ]}
         />
         <CompareCard
           i={5}
-          title="Quality"
+          title="Quality & risk"
           rows={[
-            row("ROIC", f.roic, spx.roic, true, (v) => fmtPct(v, 1), f.provenance?.fields.roic !== "live"),
-            row("Operating margin", f.operatingMargin, spx.operatingMargin, true, (v) => fmtPct(v, 1)),
-            row("Gross margin", f.grossMargin, spx.grossMargin, true, (v) => fmtPct(v, 1)),
-            row("Beta", f.beta, spx.beta, false, (v) => v.toFixed(2)),
+            row("ROIC", f.roic, spx.roic, true, (v) => fmtPct(v, 1), isEst(f, "roic")),
+            row("Operating margin", f.operatingMargin, spx.operatingMargin, true, (v) => fmtPct(v, 1), isEst(f, "operatingMargin")),
+            row("Gross margin", f.grossMargin, spx.grossMargin, true, (v) => fmtPct(v, 1), isEst(f, "grossMargin")),
+            row("Beta", f.beta, spx.beta, false, (v) => v.toFixed(2), isEst(f, "beta")),
+            row("Volatility", f.volatility, spx.volatility, false, (v) => fmtPct(v, 0), isEst(f, "volatility")),
           ]}
         />
       </div>
@@ -585,6 +587,11 @@ function row(
 }
 
 const pctSigned = (v: number) => fmtPct(v, 1, true);
+
+/** Whether a fundamentals field is estimated rather than sourced live. */
+function isEst(f: Fundamentals, field: keyof Fundamentals): boolean {
+  return f.provenance?.fields[field] !== "live";
+}
 
 function peg(forwardPE: number | null, epsGrowth: number): number | null {
   if (!forwardPE || forwardPE <= 0 || epsGrowth <= 0) return null;
@@ -897,7 +904,9 @@ function ProvenanceBadge({ target }: { target: ResearchTarget }) {
   const text = hasQuote
     ? fundLive
       ? `Live · ${target.asOf ? relativeTime(target.asOf) : "now"}`
-      : "Live price · partial fundamentals"
+      : coverage === "fallback"
+        ? "Live price · estimated fundamentals"
+        : "Live price · partial fundamentals"
     : target.live
       ? coverage === "partial"
         ? "Partial fundamentals"

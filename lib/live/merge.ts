@@ -128,9 +128,24 @@ export function mergeFundamentals(
   };
 }
 
-/** Build full fundamentals for a ticker the bundle doesn't know. */
-function fromPatch(patch: FundamentalsPatch): Fundamentals {
-  const beta = patch.beta ?? 1.0;
+/** Neutral default beta for a name the provider gives us no beta for. */
+export const DEFAULT_BETA = 1.0;
+
+/** Approximate annualized volatility from beta, when realized vol is unavailable. */
+export function estimatedVolatility(beta: number): number {
+  return Math.min(0.85, Math.max(0.18, 0.12 + 0.16 * beta));
+}
+
+/**
+ * Build full fundamentals for a ticker the bundle doesn't know. Exported so
+ * callers that only have a quote (no fundamentals patch at all, e.g. the
+ * Research page on a provider-coverage gap) can still synthesize a
+ * fully-estimated profile for display — every field traces through
+ * {@link buildProvenance} as "fallback", so the UI never confuses it with live
+ * data.
+ */
+export function fromPatch(patch: FundamentalsPatch): Fundamentals {
+  const beta = patch.beta ?? DEFAULT_BETA;
   return {
     symbol: patch.symbol,
     name: patch.name ?? patch.symbol,
@@ -142,7 +157,7 @@ function fromPatch(patch: FundamentalsPatch): Fundamentals {
     marketCap: patch.marketCap ?? 0,
     beta,
     // Realized vol from price history when available; else approximate from beta.
-    volatility: patch.volatility ?? Math.min(0.85, Math.max(0.18, 0.12 + 0.16 * beta)),
+    volatility: patch.volatility ?? estimatedVolatility(beta),
     revenueGrowth: patch.revenueGrowth ?? 0.05,
     epsGrowth: patch.epsGrowth ?? 0.08,
     fcfGrowth: patch.fcfGrowth ?? patch.revenueGrowth ?? 0.05,
