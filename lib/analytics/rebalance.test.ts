@@ -15,14 +15,15 @@ import {
  * sector / style targeting bases.
  */
 
-// Two snapshot-known names in different sectors (AAPL=Tech, JPM=Financials).
+// Two names in different sectors (AAPL=Tech, JPM=Financials).
 const twoSector = () =>
   makePortfolio(
     [
       holding({ symbol: "AAPL", shares: 75, price: 100 }), // $7,500
       holding({ symbol: "JPM", shares: 25, price: 100 }), // $2,500
     ],
-    1000 // cash
+    1000, // cash
+    { JPM: { sector: "Financials" } }
   );
 
 const opts = (o: Partial<RebalanceOptions>): RebalanceOptions => ({
@@ -45,11 +46,15 @@ describe("buildGroups", () => {
   });
 
   it("buckets by sector, collapsing same-sector holdings together", () => {
-    const portfolio = makePortfolio([
-      holding({ symbol: "AAPL", shares: 50, price: 100 }), // Technology
-      holding({ symbol: "MSFT", shares: 50, price: 100 }), // Technology
-      holding({ symbol: "JPM", shares: 100, price: 100 }), // Financials
-    ]);
+    const portfolio = makePortfolio(
+      [
+        holding({ symbol: "AAPL", shares: 50, price: 100 }), // Technology
+        holding({ symbol: "MSFT", shares: 50, price: 100 }), // Technology
+        holding({ symbol: "JPM", shares: 100, price: 100 }), // Financials
+      ],
+      0,
+      { JPM: { sector: "Financials" } }
+    );
     const groups = buildGroups(portfolio, "sector");
     const tech = groups.find((g) => g.id === "Technology")!;
     expect(tech.members.sort()).toEqual(["AAPL", "MSFT"]);

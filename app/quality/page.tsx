@@ -19,6 +19,7 @@ import {
 } from "@/lib/analytics/quality";
 import { fmtMultiple, fmtPct } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
+import { useAssumptions } from "@/lib/assumptions/store";
 
 const GRADE_COLOR: Record<string, string> = {
   "A+": "text-mint",
@@ -61,9 +62,12 @@ function fmtMetric(value: number, format: "pct" | "multiple" | "ratio"): string 
 
 export default function QualityPage() {
   const { ready, portfolio } = usePortfolio();
+  const { version } = useAssumptions();
   const report = useMemo(
     () => (portfolio ? qualityReport(portfolio) : null),
-    [portfolio]
+    // version: recompute on assumption edits (read via the analytics singleton).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [portfolio, version]
   );
 
   if (!ready) return null;

@@ -9,20 +9,24 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
 import { correlationMatrix } from "@/lib/analytics/correlation";
 import { riskReport } from "@/lib/analytics/risk";
-import { SPX } from "@/lib/data/benchmarks";
+import { liveBenchmarkProfiles } from "@/lib/live/cma";
+import { useAssumptions } from "@/lib/assumptions/store";
 import { fmtNum } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 
 export default function CorrelationPage() {
   const { ready, portfolio } = usePortfolio();
+  const { version } = useAssumptions();
 
   const data = useMemo(() => {
     if (!portfolio) return null;
     return {
       corr: correlationMatrix(portfolio),
-      risk: riskReport(portfolio, SPX.sectorWeights),
+      risk: riskReport(portfolio, liveBenchmarkProfiles().spx.sectorWeights),
     };
-  }, [portfolio]);
+    // version: recompute on assumption edits (read via the analytics singleton).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [portfolio, version]);
 
   if (!ready) return null;
   if (!portfolio || !data) return <EmptyState page="The correlation matrix" />;

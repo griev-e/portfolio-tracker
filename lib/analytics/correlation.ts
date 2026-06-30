@@ -1,5 +1,4 @@
 import { getCMA } from "../live/cma";
-import { UNKNOWN_DEFAULTS } from "../data/fundamentals";
 import type { Portfolio, Position } from "../types";
 
 /**
@@ -52,12 +51,23 @@ export interface CorrInputs {
   isFund: boolean;
 }
 
+/**
+ * Positions with live fundamentals — the only ones the factor model can price.
+ * A holding with no live data (`fundamentals === null`) is excluded from the
+ * risk/correlation math rather than imputed with a default beta/vol; callers
+ * surface the excluded weight as a coverage gap.
+ */
+export function coveredPositions(portfolio: Portfolio): Position[] {
+  return portfolio.positions.filter((p) => p.fundamentals !== null);
+}
+
 export function corrInputs(p: Position): CorrInputs {
   const f = p.fundamentals;
+  // Only ever called on covered positions; the fallback keeps the type total.
   return {
     symbol: p.symbol,
-    beta: f?.beta ?? UNKNOWN_DEFAULTS.beta,
-    vol: f?.volatility ?? UNKNOWN_DEFAULTS.volatility,
+    beta: f?.beta ?? 1,
+    vol: f?.volatility ?? 0.2,
     sector: f?.sector ?? "Unknown",
     industry: f?.industry ?? "Unknown",
     isFund: !!f?.fund,
@@ -170,7 +180,7 @@ export interface CorrelationMatrix {
 }
 
 export function correlationMatrix(portfolio: Portfolio): CorrelationMatrix {
-  const ps = portfolio.positions;
+  const ps = coveredPositions(portfolio);
   const inputs = ps.map(corrInputs);
   const n = inputs.length;
   const cov = factorCovariance(inputs);
@@ -214,7 +224,12 @@ export function correlationMatrix(portfolio: Portfolio): CorrelationMatrix {
   };
 }
 
-/** Covariance matrix Σ for the portfolio's positions (PSD by construction). */
+/**
+ * Covariance matrix Σ for the portfolio's *covered* positions (those with live
+ * fundamentals), PSD by construction. Indexed parallel to
+ * {@link coveredPositions}, so callers must align their weight vectors to that
+ * same filtered list.
+ */
 export function covarianceMatrix(portfolio: Portfolio): number[][] {
-  return factorCovariance(portfolio.positions.map(corrInputs));
+  return factorCovariance(coveredPositions(portfolio).map(corrInputs));
 }

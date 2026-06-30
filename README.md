@@ -65,27 +65,28 @@ accounts). Categorization is inferred from merchant names and editable.
   if the feed fails, the app silently falls back to imported prices (amber
   status dot in the sidebar).
 - **Live fundamentals** (Yahoo, same proxy pattern, enriched with Financial
-  Modeling Prep when `FMP_API_KEY` is set): `/api/fundamentals` overlays
+  Modeling Prep when `FMP_API_KEY` is set): `/api/fundamentals` returns
   growth, margins, forward P/E, analyst targets, insider flows, earnings
   dates, dividend yield, realized volatility, ROIC, FCF growth, region mix,
-  and ETF sector look-through onto the bundled snapshot, field by field.
-  CDN-cached 12h. Each stock in Research shows a `live` / `snapshot` badge.
-- **Bundled snapshot** (`lib/data/fundamentals.ts`, ~90 tickers + major
-  ETFs) is the fallback layer for anything the providers don't return and
-  for fully offline use. Refreshed monthly by an automated job that opens a
-  PR with the drift.
+  and ETF sector look-through — entirely live, no bundled snapshot.
+  CDN-cached 12h. Each stock in Research shows a `live` / `partial` badge.
+- **Market assumptions** (`lib/data/assumptions.ts`) cover the few inputs
+  with no live quote — the equity risk premium and the S&P 500 / NASDAQ-100
+  profitability & growth aggregates (no keyless index-level source exists).
+  They're user-editable with reference-anchored presets (Market today /
+  10-year average / Recession) on the Benchmark page, not hidden constants.
 - **Derived analytics** (correlations, portfolio volatility, scenarios,
   Monte Carlo) are model estimates: a single-market-factor correlation model
   with sector/industry affinity, CAPM expected returns, and GBM simulation.
   Methodology notes live next to the math in `lib/analytics/*`.
-- Unknown tickers degrade gracefully: with live data they get promoted to
-  full research coverage; without it they keep allocation/P&L math and use
-  conservative defaults (β = 1.0, σ derived from beta), flagged in the UI.
+- Holdings with no live data degrade honestly: allocation and P&L still work
+  from the imported book, but they're **excluded** from the factor analytics
+  (never imputed with a fake beta) and surfaced as a coverage gap in the UI.
 
 Heads-up: Yahoo's API is unofficial. If it ever breaks, the app keeps
-working on imported prices + snapshot until `yahoo-finance2` ships a fix, or
-you can swap the provider behind `lib/server/yahoo.ts` without touching the
-analytics.
+working on the imported book (allocation, weights, P&L) until `yahoo-finance2`
+ships a fix, or you can swap the provider behind `lib/server/yahoo.ts` without
+touching the analytics.
 
 ## Stack
 
@@ -103,7 +104,6 @@ npm run build          # production build
 npm run lint           # eslint (flat config + eslint-config-next)
 npm run typecheck      # tsc --noEmit (strict)
 npm test               # vitest — the analytics unit suite
-npm run refresh:snapshot  # regenerate lib/data/fundamentals.ts from live providers
 ```
 
 ## Environment variables (all optional)

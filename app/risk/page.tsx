@@ -10,7 +10,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
 import { riskReport } from "@/lib/analytics/risk";
 import { SPX } from "@/lib/data/benchmarks";
-import { getCMA, liveBenchmarkVolatility } from "@/lib/live/cma";
+import { getCMA, liveBenchmarkVolatility, liveBenchmarkProfiles } from "@/lib/live/cma";
+import { useAssumptions } from "@/lib/assumptions/store";
 import { fmtNum, fmtPct } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 
@@ -23,11 +24,17 @@ const REGION_COLORS: Record<string, string> = {
 
 export default function RiskPage() {
   const { ready, portfolio } = usePortfolio();
+  const { version } = useAssumptions();
   const CMA = getCMA();
   const spxVol = liveBenchmarkVolatility(SPX);
   const risk = useMemo(
-    () => (portfolio ? riskReport(portfolio, SPX.sectorWeights) : null),
-    [portfolio]
+    () =>
+      portfolio
+        ? riskReport(portfolio, liveBenchmarkProfiles().spx.sectorWeights)
+        : null,
+    // version: recompute on assumption edits (read via the analytics singleton).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [portfolio, version]
   );
 
   if (!ready) return null;
@@ -45,7 +52,7 @@ export default function RiskPage() {
       <PageHeader
         eyebrow="Portfolio"
         title="Risk Analysis"
-        description="Estimated from position weights, factor-model correlations, and bundled per-name betas and volatilities. Violet ticks mark the S&P 500 reference."
+        description="Estimated from position weights, factor-model correlations, and live per-name betas and volatilities. Violet ticks mark the S&P 500 reference."
       />
 
       {/* Vitals */}

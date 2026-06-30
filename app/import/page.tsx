@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { AnimatePresence, m } from "framer-motion";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { parsePortfolioCSV, toCSV, type ParseResult } from "@/lib/csv";
-import { knownSymbols } from "@/lib/data/fundamentals";
 import { fmtUSD } from "@/lib/format";
 import { usePortfolio, usePortfolioActions } from "@/lib/store";
 
@@ -21,8 +20,6 @@ export default function ImportPage() {
   const [cashInput, setCashInput] = useState<string>("");
   const [confirmClear, setConfirmClear] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  const known = useMemo(() => new Set(knownSymbols()), []);
 
   const handleText = useCallback((text: string, name: string | null) => {
     setFileName(name);
@@ -194,16 +191,8 @@ export default function ImportPage() {
                           {parsed.holdings.map((h) => (
                             <span
                               key={h.symbol}
-                              className={`rounded-md border px-2 py-0.5 font-mono text-[11px] ${
-                                known.has(h.symbol)
-                                  ? "border-mint/25 bg-mint/[0.06] text-mint"
-                                  : "border-warn/25 bg-warn/[0.06] text-warn"
-                              }`}
-                              title={
-                                known.has(h.symbol)
-                                  ? "fundamentals available"
-                                  : "no bundled fundamentals — conservative defaults in risk math"
-                              }
+                              className="rounded-md border border-edge bg-panel px-2 py-0.5 font-mono text-[11px] text-mute"
+                              title="Fundamentals are fetched live after import, where the provider has them."
                             >
                               {h.symbol}
                             </span>

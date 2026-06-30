@@ -1,4 +1,3 @@
-import { UNKNOWN_DEFAULTS } from "../data/fundamentals";
 import type { Fundamentals, Portfolio, Position } from "../types";
 import { factorScores } from "./factors";
 
@@ -107,7 +106,7 @@ function classifyStyle(f: Fundamentals | null): Style | "Unclassified" {
 
 function groupKey(p: Position, basis: TargetBasis): string {
   if (basis === "holding") return p.symbol;
-  if (basis === "sector") return p.fundamentals?.sector ?? UNKNOWN_DEFAULTS.sector;
+  if (basis === "sector") return p.fundamentals?.sector ?? "Unknown";
   return classifyStyle(p.fundamentals);
 }
 

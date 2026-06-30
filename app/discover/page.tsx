@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { TickerLogo } from "@/components/ui/TickerLogo";
 import { riskReport } from "@/lib/analytics/risk";
-import { SPX } from "@/lib/data/benchmarks";
+import { liveBenchmarkProfiles } from "@/lib/live/cma";
 import {
   DISCOVER_MODES,
   type Conviction,
@@ -99,7 +99,7 @@ const CONVICTION_COLOR: Record<Conviction, string> = {
 /* --------------------------------- request --------------------------------- */
 
 function buildRequest(portfolio: Portfolio, mode: DiscoverModeId): DiscoverRequest {
-  const risk = riskReport(portfolio, SPX.sectorWeights);
+  const risk = riskReport(portfolio, liveBenchmarkProfiles().spx.sectorWeights);
   const positions = [...portfolio.positions]
     .sort((a, b) => b.weight - a.weight)
     .slice(0, 30)

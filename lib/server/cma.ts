@@ -1,11 +1,20 @@
 import { CMA as STATIC_CMA, NDX } from "@/lib/data/benchmarks";
-import { annualizedVol, fetchHistory, yf } from "./yahoo";
+import {
+  annualizedVol,
+  fetchBenchmarkFields,
+  fetchHistory,
+  yf,
+  type BenchmarkLiveFields,
+} from "./yahoo";
 
 export interface LiveCMA {
   riskFree: number;
   marketVolatility: number;
   /** Realized NASDAQ-100 volatility (^NDX), for the benchmark profile. */
   ndxVolatility: number;
+  /** Live benchmark valuation/sector aggregates from the ETF proxies. */
+  spx: BenchmarkLiveFields;
+  ndx: BenchmarkLiveFields;
   asOf: string;
 }
 
@@ -37,10 +46,12 @@ export async function getLiveCMA(): Promise<LiveCMA> {
 }
 
 async function build(): Promise<LiveCMA> {
-  const [irx, gspc, ndx] = await Promise.allSettled([
+  const [irx, gspc, ndx, spyFields, qqqFields] = await Promise.allSettled([
     yf.quote("^IRX"),
     fetchHistory("^GSPC", "1y"),
     fetchHistory("^NDX", "1y"),
+    fetchBenchmarkFields("SPY"),
+    fetchBenchmarkFields("QQQ"),
   ]);
 
   let riskFree = STATIC_CMA.riskFree;
@@ -64,10 +75,15 @@ async function build(): Promise<LiveCMA> {
     if (vol !== undefined) ndxVolatility = vol;
   }
 
+  const spx = spyFields.status === "fulfilled" ? spyFields.value : {};
+  const ndxFields = qqqFields.status === "fulfilled" ? qqqFields.value : {};
+
   return {
     riskFree,
     marketVolatility,
     ndxVolatility,
+    spx,
+    ndx: ndxFields,
     asOf: new Date().toISOString(),
   };
 }

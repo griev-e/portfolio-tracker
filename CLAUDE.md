@@ -28,7 +28,6 @@ npm run lint       # eslint . — flat config (eslint.config.mjs) + eslint-confi
 npm run typecheck  # tsc --noEmit — strict type check, run this after edits
 npm test           # vitest run — the analytics unit suite
 npm run test:watch # vitest in watch mode
-npm run refresh:snapshot  # regenerate lib/data/fundamentals.ts from live providers
 ```
 
 After edits, verify with `npm run typecheck` and `npm run lint`; run `npm test`
@@ -62,50 +61,53 @@ Carlo, the regime engine and its `mathx` helpers, CSV parsing, fundamentals).
 
 ### The data-layering model (read this first)
 
-Every fundamental and price value flows through a three-tier fallback. Understand
-this before touching anything in `lib/analytics` or `lib/live`:
+The app is **live-only**: there is no bundled per-ticker fundamentals snapshot.
+Every fundamental and price value comes from a provider, and the few inputs with
+no live quote are explicit, user-editable assumptions — never frozen data
+masquerading as live. Understand this before touching `lib/analytics` or
+`lib/live`:
 
 1. **Your positions** — the imported CSV is the source of truth for *shares and
    cost basis*. Persisted in `localStorage`, never sent anywhere.
 2. **Live quotes / fundamentals** — Yahoo Finance (unofficial, keyless) via
-   `yahoo-finance2`, proxied through `/api/quotes` and `/api/fundamentals`.
-   Live values overlay the snapshot field-by-field where the provider returns
-   them. The `/api/fundamentals` orchestrator (`lib/server/fundamentals.ts`)
-   also derives **realized volatility** from price history and **ROIC / FCF
-   growth** from Yahoo's statement modules, and — when `FMP_API_KEY` is set —
-   overrides ROIC, FCF growth and **region mix** with FMP's cleaner values.
-3. **Bundled snapshot** — `lib/data/fundamentals.ts` (~90 tickers + major ETFs)
-   is the offline fallback and fills any field the providers didn't return.
-   Historically the only source for ROIC, FCF growth, region mixes and per-name
-   volatility; those are now fetched/derived live (tier 2) where available, with
-   the snapshot as backstop. It's kept fresh by a scheduled job
-   (`scripts/refresh-snapshot.ts` → `.github/workflows/refresh-snapshot.yml`,
-   monthly) that re-pulls live values and opens a PR with the drift — see below.
+   `yahoo-finance2`, proxied through `/api/quotes` and `/api/fundamentals`. The
+   `/api/fundamentals` orchestrator (`lib/server/fundamentals.ts`) returns every
+   fundamental field for a stock (sector, beta, margins, growth, analyst,
+   insider, earnings), derives **realized volatility** from price history and
+   **ROIC / FCF growth** from Yahoo's statement modules, and pulls **ETF sector
+   look-through** from `topHoldings`. When `FMP_API_KEY` is set it also overlays
+   ROIC, FCF growth and **region mix** (region mix has no keyless source).
+   `lib/live/merge.ts` (`mergeFundamentals`/`fromPatch`) turns the patch into a
+   `Fundamentals`; with no patch the result is `null` (no data).
+3. **Market assumptions** (`lib/data/assumptions.ts`) — the irreducible
+   remainder with no live quote: the **equity risk premium**, the S&P
+   **dividend-growth anchor**, and the **S&P 500 / NASDAQ-100 profitability &
+   growth aggregates** (margins, ROIC, revenue/EPS/FCF growth — no keyless
+   index-level source exists). These are user-editable with reference-anchored
+   presets (Market today / 10-year average / Recession) on the Benchmark page;
+   defaults equal the figures the app previously hard-coded. Held in
+   `lib/assumptions/store.tsx` (localStorage), bridged to the pure analytics via
+   the `lib/live/assumptions.ts` singleton.
 
-When the live feed fails, the app falls back down the tiers. **The fallback is
-never silent**: `mergeFundamentals` records per-field provenance (live vs
-fallback) and a `live/partial/fallback` coverage roll-up on each
-`Fundamentals`, which `buildPortfolio` combines with the live-price flag into
-`Position.dataSource`. The UI surfaces this (provenance dot per holding on
-Overview, a coverage summary, a coverage-accurate Research badge) so a stale
-snapshot value is never shown as if it were live. Unknown tickers degrade
-gracefully: with live data they're promoted to full coverage via
-`mergeFundamentals`/`fromPatch` in `lib/live/merge.ts`; without it they keep
-allocation/P&L math on conservative defaults (β = 1.0, σ derived from beta).
+**No-data handling.** A holding whose live fundamentals fetch returns nothing
+gets `fundamentals: null` and is **excluded from the factor math** (risk,
+correlation, quality, factors, scenarios, optimizer) rather than imputed with a
+default β/σ — its weight shows up as a coverage gap (`coveragePct`). Allocation
+and P&L still work from the imported book. **Provenance is never silent**:
+`mergeFundamentals` records per-field source (live vs fallback) and a
+`live/partial/fallback` roll-up, which `buildPortfolio` combines with the
+live-price flag into `Position.dataSource` and the UI surfaces (provenance dot,
+coverage summary, Research badge).
 
-**Capital-market assumptions** (`lib/data/benchmarks.ts` `CMA`) and benchmark
-volatility are live too: the risk-free rate (13-week T-bill `^IRX`) and realized
-S&P 500 / NASDAQ-100 volatility are fetched via `/api/cma` (`lib/server/cma.ts`,
-6h-cached) and overlaid in `lib/live/cma.ts` (`getCMA`,
-`liveBenchmarkVolatility`), with the static values as fallback. The equity risk
-premium has no observable market quote, so it stays a fixed forward assumption.
-
-**The snapshot refresh job** (`scripts/refresh-snapshot.ts`) pulls the live
-patch for every `knownSymbols()` entry and overlays drifted values onto the
-source via the pure, idempotent serializer in `scripts/snapshot/serialize.ts`
-(numeric compare, textual replace only on real change → minimal diffs; curated
-identity fields and missing keys are never touched). The workflow opens a PR for
-review; it never commits to the snapshot directly.
+**Benchmark profiles & CMA are live too.** Risk-free rate (`^IRX`), realized
+S&P 500 / NASDAQ-100 volatility, and the benchmark **P/E, dividend yield, FCF
+yield and sector weights** (from the SPY/QQQ proxies) are fetched via `/api/cma`
+(`lib/server/cma.ts`, 6h-cached) and overlaid in `lib/live/cma.ts`. A full
+`BenchmarkProfile` is assembled by `resolveBenchmark` (static identity + live
+valuation/sector fields + assumption-driven profitability/growth);
+`liveBenchmarkProfiles()` is the resolved S&P 500 / NASDAQ-100 most pages
+consume. The equity risk premium is *not* derived (the trailing-earnings "Fed
+model" goes negative in a high-rate regime) — it's the editable assumption.
 
 ### Client state flow
 
@@ -125,8 +127,8 @@ review; it never commits to the snapshot directly.
   sorted into a stable key to keep the CDN cache hot.
 - **`lib/research/useResearch.ts`** (`useResearch`) backs the Research terminal:
   given a single symbol it polls `/api/quotes`, fetches the fundamentals patch,
-  and merges them onto the bundled snapshot via `lib/live/merge.ts` — the same
-  three-tier fallback as the main portfolio, scoped to one ticker.
+  and builds a `Fundamentals` from it via `lib/live/merge.ts` (`fromPatch`) —
+  live-only, scoped to one ticker, with no data when the provider has none.
 
 ### Accounts & persistence (optional)
 
@@ -313,10 +315,12 @@ with alpha, but otherwise has its own state, shell, and analytics:
   `$`/`,`/`%` formatting, parenthesized negatives, quoted names, duplicate-lot
   merging, `totalReturn` auto-detected as $ or %. A `CASH`/`USD` row sets the
   cash position. Sample at `public/sample-portfolio.csv`.
-- **Graceful degradation is a hard requirement**, not a nicety: the app must
-  stay fully usable on imported prices + the bundled snapshot when every
-  external provider is down. Preserve fallback paths when editing live/server
-  code.
+- **Graceful degradation is a hard requirement**, not a nicety: with every
+  external provider down, the app must stay usable on the imported book —
+  allocation, weights, and P&L from imported prices. Analytics that need
+  fundamentals degrade honestly to coverage gaps (no-data holdings are excluded,
+  never imputed with fake betas). Preserve these paths when editing live/server
+  code; never reintroduce a static per-ticker snapshot.
 - **No chart libraries** — extend the SVG components in `components/charts/`.
 - The AI brief uses Claude Haiku 4.5 (`claude-haiku-4-5`, `lib/server/brief.ts`)
   — the JSON schema does the heavy lifting, so the fastest/cheapest current model

@@ -1,7 +1,6 @@
-import { covarianceMatrix } from "@/lib/analytics/correlation";
+import { covarianceMatrix, coveredPositions } from "@/lib/analytics/correlation";
 import { getCMA } from "@/lib/live/cma";
-import { UNKNOWN_DEFAULTS } from "@/lib/data/fundamentals";
-import type { Fundamentals, Portfolio } from "@/lib/types";
+import type { Fundamentals, Portfolio, Position } from "@/lib/types";
 import type {
   FrontierPoint,
   ObjectiveId,
@@ -97,6 +96,7 @@ interface Ctx {
   rf: number;
   erp: number; // equity risk premium
   current: number[]; // current invested weights (sum 1)
+  positions: Position[]; // the covered positions, aligned to every array above
 }
 
 type Objective = (w: number[]) => number;
@@ -275,7 +275,9 @@ function qualityScore(f: Fundamentals | null): number {
 }
 
 function buildCtx(portfolio: Portfolio): Ctx | null {
-  const ps = portfolio.positions;
+  // The optimizer can only price positions with live fundamentals; the
+  // covariance is indexed parallel to this covered list (see covarianceMatrix).
+  const ps = coveredPositions(portfolio);
   const n = ps.length;
   if (n === 0) return null;
 
@@ -286,13 +288,12 @@ function buildCtx(portfolio: Portfolio): Ctx | null {
   const CMA = getCMA();
   const rf = CMA.riskFree;
 
+  // ps is covered → `p.fundamentals` is non-null; the `?? 1`/`?? 0.2` are only
+  // type-totality guards and never execute.
   const mu = ps.map(
-    (p) =>
-      rf + (p.fundamentals?.beta ?? UNKNOWN_DEFAULTS.beta) * CMA.equityRiskPremium
+    (p) => rf + (p.fundamentals?.beta ?? 1) * CMA.equityRiskPremium
   );
-  const vol = ps.map(
-    (p) => p.fundamentals?.volatility ?? UNKNOWN_DEFAULTS.volatility
-  );
+  const vol = ps.map((p) => p.fundamentals?.volatility ?? 0.2);
   const yld = ps.map((p) => p.fundamentals?.dividendYield ?? 0);
   const qual = ps.map((p) => qualityScore(p.fundamentals));
   // Current invested weights, normalized to sum to 1 across the equity book.
@@ -309,6 +310,7 @@ function buildCtx(portfolio: Portfolio): Ctx | null {
     rf,
     erp: CMA.equityRiskPremium,
     current,
+    positions: ps,
   };
 }
 
@@ -526,7 +528,7 @@ export function optimizePortfolio(
   const metricsAfter = metricsFor(target, ctx);
 
   const invFrac = 1 - ctx.cashWeight;
-  const ps = portfolio.positions;
+  const ps = ctx.positions;
   const totalValue = portfolio.totalValue;
 
   let buys = 0;

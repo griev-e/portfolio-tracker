@@ -108,11 +108,15 @@ describe("portfolioFactors", () => {
   });
 
   it("skips positions without fundamentals and tracks partial coverage", () => {
-    // ZZZZ is unknown to the snapshot → no fundamentals, excluded from the math.
-    const portfolio = makePortfolio([
-      holding({ symbol: "AAPL", shares: 10, price: 100 }),
-      holding({ symbol: "ZZZZ", shares: 10, price: 100 }),
-    ]);
+    // ZZZZ has no live fundamentals → excluded from the math.
+    const portfolio = makePortfolio(
+      [
+        holding({ symbol: "AAPL", shares: 10, price: 100 }),
+        holding({ symbol: "ZZZZ", shares: 10, price: 100 }),
+      ],
+      0,
+      { ZZZZ: null }
+    );
     const pf = portfolioFactors(portfolio);
     expect(pf.byPosition.map((b) => b.symbol)).toEqual(["AAPL"]);
     expect(pf.coveragePct).toBeLessThan(1);
@@ -120,7 +124,11 @@ describe("portfolioFactors", () => {
   });
 
   it("returns finite scores (no divide-by-zero) when nothing is covered", () => {
-    const portfolio = makePortfolio([holding({ symbol: "ZZZZ", shares: 10, price: 100 })]);
+    const portfolio = makePortfolio(
+      [holding({ symbol: "ZZZZ", shares: 10, price: 100 })],
+      0,
+      { ZZZZ: null }
+    );
     const pf = portfolioFactors(portfolio);
     expect(pf.coveragePct).toBe(0);
     expect(Number.isFinite(pf.growth)).toBe(true);

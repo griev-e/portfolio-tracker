@@ -8,6 +8,17 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.34",
+    date: "2026-06-30",
+    title: "Live-only data — the static fundamentals snapshot is gone",
+    changes: [
+      "Every fundamental you see is now live. The bundled ~90-ticker snapshot that used to backfill missing fields has been removed entirely: sector, beta, margins, growth, ROIC, analyst targets, insider flows, earnings dates and ETF sector look-through all come from the provider, with realized volatility derived from price history. No more frozen values quietly standing in for live data.",
+      "Holdings the provider has no data for are now handled honestly. Instead of being imputed with a placeholder beta and volatility, a no-data holding is excluded from the risk, correlation, quality, factor and scenario math and shown as a coverage gap — your allocation and P&L still work from the imported book, but the analytics never pretend to know a number they don't.",
+      "Benchmark valuation is live too: the S&P 500 and NASDAQ-100 P/E, dividend yield, FCF yield and sector weights are now pulled from the SPY/QQQ proxies, alongside the already-live risk-free rate and index volatility.",
+      "The handful of inputs with no live market quote — the equity risk premium, the S&P dividend-growth anchor, and the index profitability & growth aggregates (no keyless source exists for index-level margins/ROIC/growth) — are now explicit, editable assumptions on the Benchmark page. Snap to a reference preset (Market today / 10-year average / Recession) or fine-tune each with a slider; every analytics page reflects your choice. They're transparent assumptions now, not constants hidden in the code.",
+    ],
+  },
+  {
     version: "1.33",
     date: "2026-06-28",
     title: "theta — accurate income/spending, category filters, and bulk re-tagging",

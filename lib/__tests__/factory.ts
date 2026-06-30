@@ -25,11 +25,29 @@ export function holding(
   };
 }
 
+/**
+ * Build a portfolio with fundamentals attached. There is no bundled snapshot
+ * anymore, so tests supply fundamentals explicitly: every holding gets the
+ * neutral `fundamentals()` by default, overridable per symbol via `funds`
+ * (pass `null` to simulate a holding with no live data).
+ */
 export function makePortfolio(
   holdings: RawHolding[],
-  cash = 0
+  cash = 0,
+  funds?: Record<string, Partial<Fundamentals> | null>
 ): Portfolio {
-  return buildPortfolio(holdings, cash, "2026-06-10T00:00:00.000Z");
+  const fmap = new Map<string, Fundamentals | null>();
+  for (const h of holdings) {
+    if (funds && h.symbol in funds) {
+      const o = funds[h.symbol];
+      fmap.set(h.symbol, o === null ? null : fundamentals({ symbol: h.symbol, ...o }));
+    } else {
+      fmap.set(h.symbol, fundamentals({ symbol: h.symbol }));
+    }
+  }
+  return buildPortfolio(holdings, cash, "2026-06-10T00:00:00.000Z", {
+    fundamentals: fmap,
+  });
 }
 
 /**

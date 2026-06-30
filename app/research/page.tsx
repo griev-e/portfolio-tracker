@@ -17,7 +17,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { TickerLogo } from "@/components/ui/TickerLogo";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { factorScores } from "@/lib/analytics/factors";
-import { SPX } from "@/lib/data/benchmarks";
+import { liveBenchmarkProfiles } from "@/lib/live/cma";
 import {
   daysUntil,
   fmtDate,
@@ -222,6 +222,8 @@ function ResearchView({
   const target = useResearchTarget(symbol);
   const { data: history, loading: histLoading } = usePriceHistory(symbol, range);
   const f = target.fundamentals;
+  // S&P 500 reference: live valuation fields overlaid on the user's assumptions.
+  const spx = liveBenchmarkProfiles().spx;
 
   // Price resolution, most-trusted first: live quote → live-priced holding →
   // latest charted close. Lets research work even when one feed is down.
@@ -263,10 +265,10 @@ function ResearchView({
     : null;
   const scores = factorScores(f);
   const factorRows: [string, number, number, string][] = [
-    ["Growth", scores.growth, SPX.factorScores.growth, "var(--color-mint)"],
-    ["Value", scores.value, SPX.factorScores.value, "var(--color-vio)"],
-    ["Quality", scores.quality, SPX.factorScores.quality, "var(--color-sky)"],
-    ["Momentum", scores.momentum, SPX.factorScores.momentum, "var(--color-warn)"],
+    ["Growth", scores.growth, spx.factorScores.growth, "var(--color-mint)"],
+    ["Value", scores.value, spx.factorScores.value, "var(--color-vio)"],
+    ["Quality", scores.quality, spx.factorScores.quality, "var(--color-sky)"],
+    ["Momentum", scores.momentum, spx.factorScores.momentum, "var(--color-warn)"],
   ];
 
   return (
@@ -459,23 +461,23 @@ function ResearchView({
           i={3}
           title="Growth"
           rows={[
-            row("Revenue growth", f.revenueGrowth, SPX.revenueGrowth, true, pctSigned),
-            row("EPS growth", f.epsGrowth, SPX.epsGrowth, true, pctSigned),
-            row("FCF growth", f.fcfGrowth, SPX.fcfGrowth, true, pctSigned, !target.bundled),
-            row("12-month return", f.return12m, SPX.return12m, true, pctSigned),
+            row("Revenue growth", f.revenueGrowth, spx.revenueGrowth, true, pctSigned),
+            row("EPS growth", f.epsGrowth, spx.epsGrowth, true, pctSigned),
+            row("FCF growth", f.fcfGrowth, spx.fcfGrowth, true, pctSigned, f.provenance?.fields.fcfGrowth !== "live"),
+            row("12-month return", f.return12m, spx.return12m, true, pctSigned),
           ]}
         />
         <CompareCard
           i={4}
           title="Valuation"
           rows={[
-            row("Forward P/E", f.forwardPE, SPX.forwardPE, false, (v) => fmtMultiple(v)),
-            row("FCF yield", f.fcfYield, SPX.fcfYield, true, (v) => fmtPct(v, 1)),
-            row("Dividend yield", f.dividendYield, SPX.dividendYield, true, (v) => fmtPct(v, 2)),
+            row("Forward P/E", f.forwardPE, spx.forwardPE, false, (v) => fmtMultiple(v)),
+            row("FCF yield", f.fcfYield, spx.fcfYield, true, (v) => fmtPct(v, 1)),
+            row("Dividend yield", f.dividendYield, spx.dividendYield, true, (v) => fmtPct(v, 2)),
             row(
               "PEG ratio",
               peg(f.forwardPE, f.epsGrowth),
-              peg(SPX.forwardPE, SPX.epsGrowth) ?? 0,
+              peg(spx.forwardPE, spx.epsGrowth) ?? 0,
               false,
               (v) => v.toFixed(2)
             ),
@@ -485,10 +487,10 @@ function ResearchView({
           i={5}
           title="Quality"
           rows={[
-            row("ROIC", f.roic, SPX.roic, true, (v) => fmtPct(v, 1), !target.bundled),
-            row("Operating margin", f.operatingMargin, SPX.operatingMargin, true, (v) => fmtPct(v, 1)),
-            row("Gross margin", f.grossMargin, SPX.grossMargin, true, (v) => fmtPct(v, 1)),
-            row("Beta", f.beta, SPX.beta, false, (v) => v.toFixed(2)),
+            row("ROIC", f.roic, spx.roic, true, (v) => fmtPct(v, 1), f.provenance?.fields.roic !== "live"),
+            row("Operating margin", f.operatingMargin, spx.operatingMargin, true, (v) => fmtPct(v, 1)),
+            row("Gross margin", f.grossMargin, spx.grossMargin, true, (v) => fmtPct(v, 1)),
+            row("Beta", f.beta, spx.beta, false, (v) => v.toFixed(2)),
           ]}
         />
       </div>
@@ -760,6 +762,7 @@ function DividendCard({
   portfolioIncome: number;
   i: number;
 }) {
+  const spx = liveBenchmarkProfiles().spx;
   if (f.dividendYield <= 0) {
     return (
       <Card className="h-full px-6 py-5" i={i}>
@@ -789,9 +792,9 @@ function DividendCard({
     {
       label: "Dividend yield",
       value: fmtPct(f.dividendYield, 2),
-      sub: `S&P 500 ≈ ${fmtPct(SPX.dividendYield, 2)}`,
+      sub: `S&P 500 ≈ ${fmtPct(spx.dividendYield, 2)}`,
       subClass:
-        f.dividendYield >= SPX.dividendYield ? "text-pos" : "text-faint",
+        f.dividendYield >= spx.dividendYield ? "text-pos" : "text-faint",
     },
     {
       label: "Income / $10k",
@@ -894,14 +897,12 @@ function ProvenanceBadge({ target }: { target: ResearchTarget }) {
   const text = hasQuote
     ? fundLive
       ? `Live · ${target.asOf ? relativeTime(target.asOf) : "now"}`
-      : "Live price · snapshot fundamentals"
+      : "Live price · partial fundamentals"
     : target.live
       ? coverage === "partial"
         ? "Partial fundamentals"
         : "Live fundamentals"
-      : target.bundled
-        ? "Snapshot data"
-        : "Limited data";
+      : "Limited data";
 
   const stale =
     coverage === "live"
@@ -919,10 +920,10 @@ function ProvenanceBadge({ target }: { target: ResearchTarget }) {
           <div>
             {fullyLive
               ? "Price and the risk-critical fundamentals come from a live provider."
-              : "Some values fall back to the bundled snapshot and may be stale."}
+              : "Some values are estimated or unavailable from the live provider."}
           </div>
           {stale.length > 0 && (
-            <div className="text-faint">From snapshot: {stale.join(", ")}</div>
+            <div className="text-faint">Not live: {stale.join(", ")}</div>
           )}
         </div>
       }

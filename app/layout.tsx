@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
 import { PortfolioProvider } from "@/lib/store";
+import { AssumptionsProvider } from "@/lib/assumptions/store";
 import { AppShell } from "@/components/shell/AppShell";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { MotionProvider } from "@/components/motion/MotionProvider";
@@ -37,7 +38,9 @@ export default function RootLayout({
             authEnabled={!!process.env.AUTH_SECRET && !!process.env.DATABASE_URL}
           >
             <PortfolioProvider>
-              <AppShell>{children}</AppShell>
+              <AssumptionsProvider>
+                <AppShell>{children}</AppShell>
+              </AssumptionsProvider>
             </PortfolioProvider>
           </AuthProvider>
         </MotionProvider>

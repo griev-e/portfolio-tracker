@@ -16,6 +16,7 @@ import type {
 } from "@/lib/analytics/dividends/types";
 import { fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
+import { useAssumptions } from "@/lib/assumptions/store";
 
 const MONTHS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 const MONTH_FULL = [
@@ -109,6 +110,7 @@ function ScorePill({ label, score }: { label: string; score: number }) {
 
 export default function DividendsPage() {
   const { ready, portfolio } = usePortfolio();
+  const { version } = useAssumptions();
 
   const symbols = useMemo(
     () =>
@@ -121,7 +123,9 @@ export default function DividendsPage() {
 
   const report = useMemo(
     () => (portfolio && profiles ? dividendReport(portfolio, profiles) : null),
-    [portfolio, profiles]
+    // version: recompute on assumption edits (read via the analytics singleton).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [portfolio, profiles, version]
   );
 
   if (!ready) return null;

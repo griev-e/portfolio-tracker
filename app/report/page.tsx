@@ -12,8 +12,9 @@ import { portfolioFactors } from "@/lib/analytics/factors";
 import { qualityReport, type MetricFormat } from "@/lib/analytics/quality";
 import type { RegimeReport } from "@/lib/analytics/regime/types";
 import { riskReport } from "@/lib/analytics/risk";
-import { NDX, SPX } from "@/lib/data/benchmarks";
-import { liveBenchmarkVolatility } from "@/lib/live/cma";
+import { liveBenchmarkProfiles } from "@/lib/live/cma";
+import { useAssumptions } from "@/lib/assumptions/store";
+import type { BenchmarkProfile } from "@/lib/types";
 import {
   daysUntil,
   fmtMultiple,
@@ -32,18 +33,20 @@ const MONTHS = [
 ];
 
 /** NASDAQ-100 reference keyed by the quality scorecard's metric keys. */
-const NDX_BY_KEY: Record<string, number | null> = {
-  revenueGrowth: NDX.revenueGrowth,
-  epsGrowth: NDX.epsGrowth,
-  fcfGrowth: NDX.fcfGrowth,
-  roic: NDX.roic,
-  operatingMargin: NDX.operatingMargin,
-  grossMargin: NDX.grossMargin,
-  forwardPE: NDX.forwardPE,
-  peg: NDX.forwardPE / (NDX.epsGrowth * 100),
-  fcfYield: NDX.fcfYield,
-  dividendYield: NDX.dividendYield,
-};
+function ndxByKey(ndx: BenchmarkProfile): Record<string, number | null> {
+  return {
+    revenueGrowth: ndx.revenueGrowth,
+    epsGrowth: ndx.epsGrowth,
+    fcfGrowth: ndx.fcfGrowth,
+    roic: ndx.roic,
+    operatingMargin: ndx.operatingMargin,
+    grossMargin: ndx.grossMargin,
+    forwardPE: ndx.forwardPE,
+    peg: ndx.forwardPE / (ndx.epsGrowth * 100),
+    fcfYield: ndx.fcfYield,
+    dividendYield: ndx.dividendYield,
+  };
+}
 
 function fmtMetric(value: number | null, format: MetricFormat): string {
   if (value === null || !Number.isFinite(value)) return "—";
@@ -139,18 +142,22 @@ function useReportOverlays(portfolio: Portfolio | null): Overlays {
 
 export default function ReportPage() {
   const { ready, portfolio, isDemo } = usePortfolio();
+  const { version } = useAssumptions();
   const live = useLiveStatus();
   const overlays = useReportOverlays(portfolio);
+  const { spx, ndx } = liveBenchmarkProfiles();
 
   const analytics = useMemo(() => {
     if (!portfolio) return null;
     return {
-      risk: riskReport(portfolio, SPX.sectorWeights),
+      risk: riskReport(portfolio, liveBenchmarkProfiles().spx.sectorWeights),
       quality: qualityReport(portfolio),
       factors: portfolioFactors(portfolio),
       corr: correlationMatrix(portfolio),
     };
-  }, [portfolio]);
+    // version: recompute on assumption edits (read via the analytics singleton).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [portfolio, version]);
 
   if (!ready) {
     return (
@@ -534,20 +541,20 @@ export default function ReportPage() {
                   <td>{m.label}</td>
                   <td>{fmtMetric(m.value, m.format)}</td>
                   <td>{fmtMetric(m.benchmark, m.format)}</td>
-                  <td>{fmtMetric(NDX_BY_KEY[m.key] ?? null, m.format)}</td>
+                  <td>{fmtMetric(ndxByKey(ndx)[m.key] ?? null, m.format)}</td>
                 </tr>
               ))}
               <tr>
                 <td>Volatility (ann.)</td>
                 <td>{fmtPct(risk.volatility, 1)}</td>
-                <td>{fmtPct(liveBenchmarkVolatility(SPX), 1)}</td>
-                <td>{fmtPct(liveBenchmarkVolatility(NDX), 1)}</td>
+                <td>{fmtPct(spx.volatility, 1)}</td>
+                <td>{fmtPct(ndx.volatility, 1)}</td>
               </tr>
               <tr>
                 <td>Beta</td>
                 <td>{fmtNum(risk.beta, 2)}</td>
-                <td>{fmtNum(SPX.beta, 2)}</td>
-                <td>{fmtNum(NDX.beta, 2)}</td>
+                <td>{fmtNum(spx.beta, 2)}</td>
+                <td>{fmtNum(ndx.beta, 2)}</td>
               </tr>
             </tbody>
           </table>
@@ -566,26 +573,26 @@ export default function ReportPage() {
               <tr>
                 <td>Growth</td>
                 <td>{fmtNum(factors.growth, 0)}</td>
-                <td>{SPX.factorScores.growth}</td>
-                <td>{NDX.factorScores.growth}</td>
+                <td>{spx.factorScores.growth}</td>
+                <td>{ndx.factorScores.growth}</td>
               </tr>
               <tr>
                 <td>Value</td>
                 <td>{fmtNum(factors.value, 0)}</td>
-                <td>{SPX.factorScores.value}</td>
-                <td>{NDX.factorScores.value}</td>
+                <td>{spx.factorScores.value}</td>
+                <td>{ndx.factorScores.value}</td>
               </tr>
               <tr>
                 <td>Quality</td>
                 <td>{fmtNum(factors.quality, 0)}</td>
-                <td>{SPX.factorScores.quality}</td>
-                <td>{NDX.factorScores.quality}</td>
+                <td>{spx.factorScores.quality}</td>
+                <td>{ndx.factorScores.quality}</td>
               </tr>
               <tr>
                 <td>Momentum</td>
                 <td>{fmtNum(factors.momentum, 0)}</td>
-                <td>{SPX.factorScores.momentum}</td>
-                <td>{NDX.factorScores.momentum}</td>
+                <td>{spx.factorScores.momentum}</td>
+                <td>{ndx.factorScores.momentum}</td>
               </tr>
             </tbody>
           </table>

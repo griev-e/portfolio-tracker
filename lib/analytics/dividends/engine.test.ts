@@ -75,8 +75,8 @@ function quarterlyProfile(
 }
 
 describe("dividendReport — income source fallbacks", () => {
-  it("estimates income from the snapshot yield when no profile exists", () => {
-    // AAPL carries a snapshot dividend yield but gets no profile here.
+  it("estimates income from the fundamentals yield when no profile exists", () => {
+    // AAPL carries a live dividend yield but gets no profile here.
     const portfolio = makePortfolio([holding({ symbol: "AAPL", shares: 100, price: 200 })]);
     const report = dividendReport(portfolio, {});
     expect(report.payerCount).toBe(1);
@@ -88,8 +88,12 @@ describe("dividendReport — income source fallbacks", () => {
   });
 
   it("drops a position that pays nothing and has no yield", () => {
-    // Unknown ticker → null fundamentals (yield 0) and no profile → not a payer.
-    const portfolio = makePortfolio([holding({ symbol: "NODIV", shares: 10, price: 100 })]);
+    // Zero dividend yield and no profile → not a payer.
+    const portfolio = makePortfolio(
+      [holding({ symbol: "NODIV", shares: 10, price: 100 })],
+      0,
+      { NODIV: { dividendYield: 0 } }
+    );
     const report = dividendReport(portfolio, {});
     expect(report.payerCount).toBe(0);
     expect(report.holdings).toHaveLength(0);

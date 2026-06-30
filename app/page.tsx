@@ -17,7 +17,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
 import { TickerLogo } from "@/components/ui/TickerLogo";
 import { riskReport } from "@/lib/analytics/risk";
-import { SPX } from "@/lib/data/benchmarks";
+import { liveBenchmarkProfiles } from "@/lib/live/cma";
+import { useAssumptions } from "@/lib/assumptions/store";
 import {
   fmtNum,
   fmtPct,
@@ -32,13 +33,19 @@ type SortKey = "equity" | "returnPct" | "weight" | "symbol" | "today";
 
 export default function OverviewPage() {
   const { ready, portfolio } = usePortfolio();
+  const { version } = useAssumptions();
   const [sortKey, setSortKey] = useState<SortKey>("equity");
   const [asc, setAsc] = useState(false);
   const [mixView, setMixView] = useState<"holding" | "sector">("holding");
 
   const risk = useMemo(
-    () => (portfolio ? riskReport(portfolio, SPX.sectorWeights) : null),
-    [portfolio]
+    () =>
+      portfolio
+        ? riskReport(portfolio, liveBenchmarkProfiles().spx.sectorWeights)
+        : null,
+    // version: recompute when the user edits market assumptions (read via singleton).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [portfolio, version]
   );
 
   const sorted = useMemo(() => {

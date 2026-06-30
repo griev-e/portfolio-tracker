@@ -429,6 +429,81 @@ export async function searchSymbols(query: string): Promise<SymbolHit[]> {
   return out;
 }
 
+/**
+ * Live-available aggregate fields for a benchmark, sourced from its tradable
+ * ETF proxy (SPY for the S&P 500, QQQ for the NASDAQ-100). Yahoo publishes only
+ * *valuation* ratios for a fund — P/E, cash-flow yield, dividend yield, sector
+ * mix — never margins/ROIC/growth, so those stay assumptions (see
+ * `lib/data/assumptions.ts`). All fields are optional; absent ones fall back to
+ * the static benchmark profile.
+ */
+export interface BenchmarkLiveFields {
+  forwardPE?: number;
+  dividendYield?: number;
+  fcfYield?: number;
+  volatility?: number;
+  return12m?: number;
+  sectorWeights?: Partial<Record<Sector, number>>;
+}
+
+const benchmarkCache = new Map<string, { at: number; data: BenchmarkLiveFields }>();
+const BENCHMARK_TTL = 6 * 3600_000;
+
+/** Fetch the live-available benchmark aggregates from an ETF proxy. */
+export async function fetchBenchmarkFields(
+  symbol: string
+): Promise<BenchmarkLiveFields> {
+  const now = Date.now();
+  const hit = benchmarkCache.get(symbol);
+  if (hit && now - hit.at < BENCHMARK_TTL) return hit.data;
+
+  const out: BenchmarkLiveFields = {};
+  const [summary, series] = await Promise.allSettled([
+    yf.quoteSummary(symbol, { modules: ["topHoldings", "summaryDetail"] }),
+    fetchHistory(symbol, "1y"),
+  ]);
+
+  if (summary.status === "fulfilled") {
+    const s = summary.value;
+    const eh = s.topHoldings?.equityHoldings as
+      | Record<string, unknown>
+      | undefined;
+    // equityHoldings stores *yields* (earnings/price, cashflow/price), not ratios.
+    const earnYield = num(eh?.priceToEarnings);
+    if (earnYield && earnYield > 0) out.forwardPE = 1 / earnYield;
+    const cfYield = num(eh?.priceToCashflow);
+    if (cfYield && cfYield > 0) out.fcfYield = cfYield;
+
+    const divYield = num(s.summaryDetail?.yield);
+    if (divYield && divYield > 0) out.dividendYield = divYield;
+
+    if (s.topHoldings?.sectorWeightings) {
+      const weights: Partial<Record<Sector, number>> = {};
+      for (const entry of s.topHoldings.sectorWeightings) {
+        for (const [key, w] of Object.entries(entry)) {
+          const sector = ETF_SECTOR[key];
+          const weight = num(w);
+          if (sector && weight && weight > 0.001) weights[sector] = weight;
+        }
+      }
+      if (Object.keys(weights).length > 0) out.sectorWeights = weights;
+    }
+  }
+
+  if (series.status === "fulfilled" && series.value) {
+    const closes = series.value.points.map((p) => p.c);
+    const vol = annualizedVol(closes);
+    if (vol !== undefined) out.volatility = vol;
+    if (closes.length >= 2 && closes[0] > 0) {
+      const r = closes[closes.length - 1] / closes[0] - 1;
+      if (Number.isFinite(r)) out.return12m = r;
+    }
+  }
+
+  benchmarkCache.set(symbol, { at: now, data: out });
+  return out;
+}
+
 /** Lookback window + bar interval per range. */
 const RANGE_CFG: Record<HistoryRange, { days: number; interval: "1d" | "1wk" }> = {
   "1m": { days: 34, interval: "1d" },

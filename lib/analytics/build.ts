@@ -1,4 +1,3 @@
-import { getFundamentals } from "../data/fundamentals";
 import { mergeFundamentals } from "../live/merge";
 import type { FundamentalsPatch, LiveQuote } from "../live/types";
 import type {
@@ -23,9 +22,11 @@ export interface LiveInputs {
 }
 
 /**
- * Merge the bundled snapshot with any live patch, per symbol. Pure and keyed
- * only on the symbol set + patches, so the store can memoize it independently of
+ * Build fundamentals from the live patch alone, per symbol. Pure and keyed only
+ * on the symbol set + patches, so the store can memoize it independently of
  * quotes (which change every minute) — see `buildPortfolio`'s `fundamentals`.
+ * A symbol with no live patch resolves to `null` (no data) — there is no bundled
+ * snapshot to fall back to.
  */
 export function mergeAllFundamentals(
   symbols: string[],
@@ -34,7 +35,7 @@ export function mergeAllFundamentals(
   const out = new Map<string, Fundamentals | null>();
   for (const symbol of symbols) {
     if (out.has(symbol)) continue;
-    out.set(symbol, mergeFundamentals(getFundamentals(symbol), patches?.[symbol]));
+    out.set(symbol, mergeFundamentals(null, patches?.[symbol]));
   }
   return out;
 }
@@ -59,8 +60,8 @@ function dataSourceFor(
  *
  * With live quotes, the CSV stays the source of truth for shares and cost
  * basis while price / equity / P&L reprice from the market; without them the
- * imported values are used untouched. Live fundamentals overlay the bundled
- * snapshot field-by-field.
+ * imported values are used untouched. Fundamentals come from the live patch;
+ * a holding with no live data carries `fundamentals: null` (no snapshot).
  */
 export function buildPortfolio(
   holdings: RawHolding[],
@@ -92,8 +93,8 @@ export function buildPortfolio(
       const costBasis = h.shares * h.averageCost;
       const fundamentals = live?.fundamentals
         ? (live.fundamentals.get(h.symbol) ??
-           mergeFundamentals(getFundamentals(h.symbol), live?.patches?.[h.symbol]))
-        : mergeFundamentals(getFundamentals(h.symbol), live?.patches?.[h.symbol]);
+           mergeFundamentals(null, live?.patches?.[h.symbol]))
+        : mergeFundamentals(null, live?.patches?.[h.symbol]);
       return {
         ...h,
         weight: totalValue > 0 ? h.equity / totalValue : 0,

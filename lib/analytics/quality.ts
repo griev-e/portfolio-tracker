@@ -1,5 +1,8 @@
 import { SPX } from "../data/benchmarks";
-import type { Fundamentals, Portfolio } from "../types";
+import { resolveBenchmark } from "../data/assumptions";
+import { getAssumptions } from "../live/assumptions";
+import { liveBenchmark } from "../live/cma";
+import type { BenchmarkProfile, Fundamentals, Portfolio } from "../types";
 
 export type Grade =
   | "A+"
@@ -132,18 +135,26 @@ interface MetricMeta {
   weight: number;
 }
 
-const METRIC_META: MetricMeta[] = [
-  { key: "revenueGrowth", label: "Revenue Growth", benchmark: SPX.revenueGrowth, lowerIsBetter: false, format: "pct", description: "Weighted forward revenue growth across holdings", category: "growth", weight: 0.14 },
-  { key: "epsGrowth", label: "EPS Growth", benchmark: SPX.epsGrowth, lowerIsBetter: false, format: "pct", description: "Weighted forward earnings-per-share growth", category: "growth", weight: 0.14 },
-  { key: "fcfGrowth", label: "FCF Growth", benchmark: SPX.fcfGrowth, lowerIsBetter: false, format: "pct", description: "Weighted free-cash-flow growth", category: "growth", weight: 0.1 },
-  { key: "roic", label: "ROIC", benchmark: SPX.roic, lowerIsBetter: false, format: "pct", description: "Weighted return on invested capital", category: "profitability", weight: 0.16 },
-  { key: "operatingMargin", label: "Operating Margin", benchmark: SPX.operatingMargin, lowerIsBetter: false, format: "pct", description: "Weighted operating profitability", category: "profitability", weight: 0.12 },
-  { key: "grossMargin", label: "Gross Margin", benchmark: SPX.grossMargin, lowerIsBetter: false, format: "pct", description: "Weighted gross profitability — pricing power proxy", category: "profitability", weight: 0.08 },
-  { key: "forwardPE", label: "Forward P/E", benchmark: SPX.forwardPE, lowerIsBetter: true, format: "multiple", description: "Weighted harmonic-mean forward price/earnings", category: "valuation", weight: 0.1 },
-  { key: "peg", label: "PEG Ratio", benchmark: SPX.forwardPE / (SPX.epsGrowth * 100), lowerIsBetter: true, format: "ratio", description: "Forward P/E relative to EPS growth — growth-adjusted valuation", category: "valuation", weight: 0.06 },
-  { key: "fcfYield", label: "FCF Yield", benchmark: SPX.fcfYield, lowerIsBetter: false, format: "pct", description: "Weighted free-cash-flow yield", category: "income", weight: 0.07 },
-  { key: "dividendYield", label: "Dividend Yield", benchmark: SPX.dividendYield, lowerIsBetter: false, format: "pct", description: "Weighted dividend yield", category: "income", weight: 0.03 },
-];
+/**
+ * Build the scorecard yardsticks from a benchmark profile. The benchmark is the
+ * resolved S&P 500 — its valuation fields (P/E, FCF/dividend yield) come live
+ * from the SPY proxy, its profitability & growth fields from the user's market
+ * assumptions (no live index-level source exists; see lib/data/assumptions.ts).
+ */
+function buildMetricMeta(b: BenchmarkProfile): MetricMeta[] {
+  return [
+    { key: "revenueGrowth", label: "Revenue Growth", benchmark: b.revenueGrowth, lowerIsBetter: false, format: "pct", description: "Weighted forward revenue growth across holdings", category: "growth", weight: 0.14 },
+    { key: "epsGrowth", label: "EPS Growth", benchmark: b.epsGrowth, lowerIsBetter: false, format: "pct", description: "Weighted forward earnings-per-share growth", category: "growth", weight: 0.14 },
+    { key: "fcfGrowth", label: "FCF Growth", benchmark: b.fcfGrowth, lowerIsBetter: false, format: "pct", description: "Weighted free-cash-flow growth", category: "growth", weight: 0.1 },
+    { key: "roic", label: "ROIC", benchmark: b.roic, lowerIsBetter: false, format: "pct", description: "Weighted return on invested capital", category: "profitability", weight: 0.16 },
+    { key: "operatingMargin", label: "Operating Margin", benchmark: b.operatingMargin, lowerIsBetter: false, format: "pct", description: "Weighted operating profitability", category: "profitability", weight: 0.12 },
+    { key: "grossMargin", label: "Gross Margin", benchmark: b.grossMargin, lowerIsBetter: false, format: "pct", description: "Weighted gross profitability — pricing power proxy", category: "profitability", weight: 0.08 },
+    { key: "forwardPE", label: "Forward P/E", benchmark: b.forwardPE, lowerIsBetter: true, format: "multiple", description: "Weighted harmonic-mean forward price/earnings", category: "valuation", weight: 0.1 },
+    { key: "peg", label: "PEG Ratio", benchmark: b.forwardPE / (b.epsGrowth * 100), lowerIsBetter: true, format: "ratio", description: "Forward P/E relative to EPS growth — growth-adjusted valuation", category: "valuation", weight: 0.06 },
+    { key: "fcfYield", label: "FCF Yield", benchmark: b.fcfYield, lowerIsBetter: false, format: "pct", description: "Weighted free-cash-flow yield", category: "income", weight: 0.07 },
+    { key: "dividendYield", label: "Dividend Yield", benchmark: b.dividendYield, lowerIsBetter: false, format: "pct", description: "Weighted dividend yield", category: "income", weight: 0.03 },
+  ];
+}
 
 /** Build one scored metric from a raw value (Infinity → scored as 3× benchmark). */
 function scoreOne(meta: MetricMeta, raw: number): QualityMetric {
@@ -203,6 +214,8 @@ function holdingRaw(f: Fundamentals): Record<string, number> {
  * on its own with the identical scoring.
  */
 export function qualityReport(portfolio: Portfolio): QualityReport {
+  const benchmark = resolveBenchmark(SPX, getAssumptions(), liveBenchmark("spx"));
+  const META = buildMetricMeta(benchmark);
   const ps = portfolio.positions.filter((p) => p.fundamentals);
   const covered = ps.reduce((s, p) => s + p.equityWeight, 0);
   const norm = covered > 0 ? covered : 1;
@@ -231,7 +244,7 @@ export function qualityReport(portfolio: Portfolio): QualityReport {
     dividendYield: wavg((f) => f.dividendYield),
   };
 
-  const metrics = METRIC_META.map((m) => scoreOne(m, rawAgg[m.key]));
+  const metrics = META.map((m) => scoreOne(m, rawAgg[m.key]));
   const composite = compositeOf(metrics);
   const categories = categoriesOf(metrics);
 
@@ -252,7 +265,7 @@ export function qualityReport(portfolio: Portfolio): QualityReport {
 
   const holdings: HoldingQuality[] = ps
     .map((p) => {
-      const ms = METRIC_META.map((m) => scoreOne(m, holdingRaw(p.fundamentals!)[m.key]));
+      const ms = META.map((m) => scoreOne(m, holdingRaw(p.fundamentals!)[m.key]));
       const cats = categoriesOf(ms);
       const score = compositeOf(ms);
       return {

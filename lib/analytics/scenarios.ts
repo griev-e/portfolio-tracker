@@ -1,5 +1,5 @@
+import { liveBenchmark } from "../live/cma";
 import { SPX } from "../data/benchmarks";
-import { UNKNOWN_DEFAULTS } from "../data/fundamentals";
 import type {
   Portfolio,
   ScenarioImpact,
@@ -38,9 +38,22 @@ export function runScenario(
       ? ps.findIndex((x) => x.symbol === shock.symbol)
       : -1;
 
+  const benchPE = liveBenchmark("spx")?.forwardPE ?? SPX.forwardPE;
+
   const impacts: ScenarioImpact[] = ps.map((p, i) => {
     const f = p.fundamentals;
-    const beta = f?.beta ?? UNKNOWN_DEFAULTS.beta;
+    // No live fundamentals → no basis to estimate this holding's sensitivity.
+    if (!f) {
+      return {
+        symbol: p.symbol,
+        name: p.name,
+        weight: p.weight,
+        shockPct: 0,
+        dollarImpact: 0,
+        isDirect: false,
+      };
+    }
+    const beta = f.beta;
     let shockPct = 0;
     let isDirect = false;
 
@@ -60,13 +73,13 @@ export function runScenario(
       isDirect = true;
     } else {
       // rates
-      const pe = f?.forwardPE ?? null;
+      const pe = f.forwardPE ?? null;
       const valuationStretch =
         pe === null
           ? 1.7
-          : Math.pow(Math.max(pe, 5) / SPX.forwardPE, 0.85);
+          : Math.pow(Math.max(pe, 5) / benchPE, 0.85);
       let sectorAdj = 1;
-      const sector = f?.sector ?? "Unknown";
+      const sector = f.sector;
       if (sector === "Financials") sectorAdj = 0.25; // net beneficiaries
       if (sector === "Utilities" || sector === "Real Estate") sectorAdj = 1.6;
       if (sector === "Consumer Staples") sectorAdj = 0.8;

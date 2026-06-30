@@ -11,28 +11,32 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { portfolioFactors } from "@/lib/analytics/factors";
 import { qualityReport } from "@/lib/analytics/quality";
 import { riskReport } from "@/lib/analytics/risk";
-import { NDX, SPX } from "@/lib/data/benchmarks";
-import { liveBenchmarkVolatility } from "@/lib/live/cma";
+import { liveBenchmarkProfiles } from "@/lib/live/cma";
+import { useAssumptions } from "@/lib/assumptions/store";
+import { AssumptionsPanel } from "@/components/benchmark/AssumptionsPanel";
 import { fmtMultiple, fmtNum, fmtPct } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 
 export default function BenchmarkPage() {
   const { ready, portfolio } = usePortfolio();
+  const { version } = useAssumptions();
 
   const data = useMemo(() => {
     if (!portfolio) return null;
+    const { spx, ndx } = liveBenchmarkProfiles();
     const quality = qualityReport(portfolio);
-    const risk = riskReport(portfolio, SPX.sectorWeights);
+    const risk = riskReport(portfolio, spx.sectorWeights);
     const factors = portfolioFactors(portfolio);
     const get = (key: string) =>
       quality.metrics.find((m) => m.key === key)?.value ?? NaN;
-    return { quality, risk, factors, get };
-  }, [portfolio]);
+    return { quality, risk, factors, get, spx, ndx };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [portfolio, version]);
 
   if (!ready) return null;
   if (!portfolio || !data) return <EmptyState page="Benchmark comparison" />;
 
-  const { risk, factors, get } = data;
+  const { risk, factors, get, spx, ndx } = data;
 
   const rows: {
     label: string;
@@ -42,16 +46,16 @@ export default function BenchmarkPage() {
     format: (v: number) => string;
     lowerIsBetter?: boolean;
   }[] = [
-    { label: "Revenue growth", you: get("revenueGrowth"), spx: SPX.revenueGrowth, ndx: NDX.revenueGrowth, format: (v) => fmtPct(v, 1) },
-    { label: "EPS growth", you: get("epsGrowth"), spx: SPX.epsGrowth, ndx: NDX.epsGrowth, format: (v) => fmtPct(v, 1) },
-    { label: "FCF growth", you: get("fcfGrowth"), spx: SPX.fcfGrowth, ndx: NDX.fcfGrowth, format: (v) => fmtPct(v, 1) },
-    { label: "ROIC", you: get("roic"), spx: SPX.roic, ndx: NDX.roic, format: (v) => fmtPct(v, 1) },
-    { label: "Operating margin", you: get("operatingMargin"), spx: SPX.operatingMargin, ndx: NDX.operatingMargin, format: (v) => fmtPct(v, 1) },
-    { label: "Forward P/E", you: get("forwardPE"), spx: SPX.forwardPE, ndx: NDX.forwardPE, format: (v) => fmtMultiple(v), lowerIsBetter: true },
-    { label: "FCF yield", you: get("fcfYield"), spx: SPX.fcfYield, ndx: NDX.fcfYield, format: (v) => fmtPct(v, 1) },
-    { label: "Dividend yield", you: get("dividendYield"), spx: SPX.dividendYield, ndx: NDX.dividendYield, format: (v) => fmtPct(v, 2) },
-    { label: "Volatility (est.)", you: risk.volatility, spx: liveBenchmarkVolatility(SPX), ndx: liveBenchmarkVolatility(NDX), format: (v) => fmtPct(v, 1), lowerIsBetter: true },
-    { label: "Beta", you: risk.beta, spx: SPX.beta, ndx: NDX.beta, format: (v) => fmtNum(v, 2) },
+    { label: "Revenue growth", you: get("revenueGrowth"), spx: spx.revenueGrowth, ndx: ndx.revenueGrowth, format: (v) => fmtPct(v, 1) },
+    { label: "EPS growth", you: get("epsGrowth"), spx: spx.epsGrowth, ndx: ndx.epsGrowth, format: (v) => fmtPct(v, 1) },
+    { label: "FCF growth", you: get("fcfGrowth"), spx: spx.fcfGrowth, ndx: ndx.fcfGrowth, format: (v) => fmtPct(v, 1) },
+    { label: "ROIC", you: get("roic"), spx: spx.roic, ndx: ndx.roic, format: (v) => fmtPct(v, 1) },
+    { label: "Operating margin", you: get("operatingMargin"), spx: spx.operatingMargin, ndx: ndx.operatingMargin, format: (v) => fmtPct(v, 1) },
+    { label: "Forward P/E", you: get("forwardPE"), spx: spx.forwardPE, ndx: ndx.forwardPE, format: (v) => fmtMultiple(v), lowerIsBetter: true },
+    { label: "FCF yield", you: get("fcfYield"), spx: spx.fcfYield, ndx: ndx.fcfYield, format: (v) => fmtPct(v, 1) },
+    { label: "Dividend yield", you: get("dividendYield"), spx: spx.dividendYield, ndx: ndx.dividendYield, format: (v) => fmtPct(v, 2) },
+    { label: "Volatility (est.)", you: risk.volatility, spx: spx.volatility, ndx: ndx.volatility, format: (v) => fmtPct(v, 1), lowerIsBetter: true },
+    { label: "Beta", you: risk.beta, spx: spx.beta, ndx: ndx.beta, format: (v) => fmtNum(v, 2) },
   ];
 
   const scatterPoints: ScatterPoint[] = [
@@ -65,8 +69,8 @@ export default function BenchmarkPage() {
         size: p.equityWeight,
         color: PALETTE[i % PALETTE.length],
       })),
-    { id: "SPX", label: "S&P 500", x: SPX.revenueGrowth, y: SPX.forwardPE, size: 0, isBenchmark: true },
-    { id: "NDX", label: "NDX-100", x: NDX.revenueGrowth, y: NDX.forwardPE, size: 0, isBenchmark: true },
+    { id: "SPX", label: "S&P 500", x: spx.revenueGrowth, y: spx.forwardPE, size: 0, isBenchmark: true },
+    { id: "NDX", label: "NDX-100", x: ndx.revenueGrowth, y: ndx.forwardPE, size: 0, isBenchmark: true },
   ];
 
   return (
@@ -145,14 +149,14 @@ export default function BenchmarkPage() {
                 id: "spx",
                 label: "S&P 500",
                 color: "#A78BFA",
-                values: [SPX.factorScores.growth, SPX.factorScores.value, SPX.factorScores.quality, SPX.factorScores.momentum],
+                values: [spx.factorScores.growth, spx.factorScores.value, spx.factorScores.quality, spx.factorScores.momentum],
                 fillOpacity: 0.07,
               },
               {
                 id: "ndx",
                 label: "NASDAQ-100",
                 color: "#7DD3FC",
-                values: [NDX.factorScores.growth, NDX.factorScores.value, NDX.factorScores.quality, NDX.factorScores.momentum],
+                values: [ndx.factorScores.growth, ndx.factorScores.value, ndx.factorScores.quality, ndx.factorScores.momentum],
                 fillOpacity: 0.05,
               },
             ]}
@@ -180,6 +184,11 @@ export default function BenchmarkPage() {
             ))}
           </div>
         </Card>
+      </div>
+
+      {/* Editable market assumptions (the few inputs with no live source) */}
+      <div className="mb-5">
+        <AssumptionsPanel />
       </div>
 
       {/* Growth vs valuation map */}

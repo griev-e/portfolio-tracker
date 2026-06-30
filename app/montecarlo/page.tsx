@@ -24,13 +24,15 @@ import { Computing } from "@/components/ui/Computing";
 import type { MonteCarloInputs, MonteCarloResult } from "@/lib/analytics/montecarlo";
 import { useMonteCarlo } from "@/lib/analytics/useMonteCarlo";
 import { riskReport } from "@/lib/analytics/risk";
-import { SPX } from "@/lib/data/benchmarks";
+import { liveBenchmarkProfiles } from "@/lib/live/cma";
+import { useAssumptions } from "@/lib/assumptions/store";
 import { fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 
 export default function MonteCarloPage() {
   const { ready, portfolio } = usePortfolio();
+  const { version } = useAssumptions();
   const [years, setYears] = useState(10);
   const [contribution, setContribution] = useState(500);
   const [targetMultiple, setTargetMultiple] = useState(4);
@@ -44,8 +46,13 @@ export default function MonteCarloPage() {
   const dTargetMultiple = useDebouncedValue(targetMultiple, 140);
 
   const risk = useMemo(
-    () => (portfolio ? riskReport(portfolio, SPX.sectorWeights) : null),
-    [portfolio]
+    () =>
+      portfolio
+        ? riskReport(portfolio, liveBenchmarkProfiles().spx.sectorWeights)
+        : null,
+    // version: recompute on assumption edits (read via the analytics singleton).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [portfolio, version]
   );
 
   // Round to a clean figure, but never to $0 for small portfolios. Driven by

@@ -131,11 +131,15 @@ describe("correlationMatrix", () => {
     // is a tiny tail position. The equal-weighted mean dilutes the high
     // AAPL·MSFT correlation across the two low cross-sector pairs, but the
     // risk-weighted average — dominated by the big AAPL·MSFT pair — sits higher.
-    const skewed = makePortfolio([
-      holding({ symbol: "AAPL", shares: 100, price: 100 }),
-      holding({ symbol: "MSFT", shares: 100, price: 100 }),
-      holding({ symbol: "XOM", shares: 1, price: 10 }),
-    ]);
+    const skewed = makePortfolio(
+      [
+        holding({ symbol: "AAPL", shares: 100, price: 100 }),
+        holding({ symbol: "MSFT", shares: 100, price: 100 }),
+        holding({ symbol: "XOM", shares: 1, price: 10 }),
+      ],
+      0,
+      { XOM: { sector: "Energy", industry: "Oil & Gas Integrated", beta: 0.85 } }
+    );
     const { avgCorrelation, weightedAvgCorrelation } =
       correlationMatrix(skewed);
     expect(weightedAvgCorrelation).toBeGreaterThan(avgCorrelation);
@@ -151,10 +155,16 @@ describe("correlationMatrix", () => {
 
 describe("covarianceMatrix", () => {
   it("recovers each name's variance on the diagonal, inflating only when over-explained", () => {
-    const portfolio = makePortfolio([
-      holding({ symbol: "XOM", shares: 10, price: 100 }), // budget fits inside σ²
-      holding({ symbol: "SPY", shares: 10, price: 100 }), // β·σ_m already > σ_SPY
-    ]);
+    const portfolio = makePortfolio(
+      [
+        holding({ symbol: "XOM", shares: 10, price: 100 }), // budget fits inside σ²
+        holding({ symbol: "SPY", shares: 10, price: 100 }), // β·σ_m already > σ_SPY
+      ],
+      0,
+      // XOM keeps the neutral σ 0.28 (market+affinity fit inside); SPY's low σ
+      // makes β·σ_m exceed it so the PSD floor inflates its diagonal.
+      { SPY: { volatility: 0.15 } }
+    );
     const { symbols } = correlationMatrix(portfolio);
     const cov = covarianceMatrix(portfolio);
     symbols.forEach((sym, i) => {

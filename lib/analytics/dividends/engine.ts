@@ -1,4 +1,5 @@
 import { clamp, mean } from "@/lib/analytics/mathUtils";
+import { getAssumptions } from "@/lib/live/assumptions";
 import type { Portfolio, Position } from "@/lib/types";
 import type {
   DividendEvent,
@@ -28,8 +29,11 @@ const median = (xs: number[]): number => {
     : sorted[mid];
 };
 
-/** Long-run S&P 500 dividend growth, used only as a comparison anchor. */
-const SPX_DIV_GROWTH = 0.06;
+/**
+ * Long-run S&P 500 dividend-growth anchor, used only as a comparison reference.
+ * No live index source exists, so it's a user-editable market assumption.
+ */
+const spxDivGrowth = (): number => getAssumptions().dividendGrowth;
 
 /* ── Per-symbol history math ─────────────────────────────────────────── */
 
@@ -466,7 +470,7 @@ export function dividendReport(
         : growthBasis;
     growthScore = 40 + durable * 420;
     // Beating the benchmark is a real edge; lagging it is a real drag.
-    growthScore += clamp((growthBasis - SPX_DIV_GROWTH) * 80, -8, 8);
+    growthScore += clamp((growthBasis - spxDivGrowth()) * 80, -8, 8);
     if (accelerating === true) growthScore += 5;
     if (accelerating === false) growthScore -= 3;
     // A recent stall caps enthusiasm even when the multi-year trend is up.
@@ -602,7 +606,7 @@ export function dividendReport(
       "Forward income = shares × the declared forward rate, falling back to the trailing-12-month payment sum; positions with neither are estimated from the snapshot yield and marked.",
       "Growth, streaks, and cut detection use completed calendar years only, on each year's median payment × normalized payment count — so a half-finished year, a payment slipping across a year boundary, or a one-off special dividend never reads as a cut or a growth spike.",
       "Safety starts neutral at 50 and earns or loses points on earnings payout, graduated free-cash-flow coverage (covered twice over vs. barely covered scores differently), increase streaks — with a premium for 25-year records — past cuts weighted by how recent they are, the payout-versus-earnings-trajectory interaction, and yield sanity. Every adjustment is recorded on the holding.",
-      `The composite weighs safety 35%, growth 25%, stability 20%, and diversification 20% — sustainability over headline yield, growth over static income. Portfolio aggregates are income-weighted; the growth score blends the 3- and 5-year trends and is anchored to the S&P's long-run ~${Math.round(SPX_DIV_GROWTH * 100)}%/yr dividend growth, so matching the index reads as average and beating it scores up.`,
+      `The composite weighs safety 35%, growth 25%, stability 20%, and diversification 20% — sustainability over headline yield, growth over static income. Portfolio aggregates are income-weighted; the growth score blends the 3- and 5-year trends and is anchored to the S&P's long-run ~${Math.round(spxDivGrowth() * 100)}%/yr dividend growth, so matching the index reads as average and beating it scores up.`,
       "Calendar projection assigns each holding's forward income to the months it actually paid in over the last year.",
       "Reinvestment scenarios compound income at growth × (1 + current equity yield) — a standing DRIP at today's prices.",
       "ETF distributions are evaluated on payment history (consistency, streaks, cuts); payout ratios don't apply to funds. Sector income looks through fund holdings where the mix is known.",

@@ -3,13 +3,23 @@ import { holding, makePortfolio } from "../__tests__/factory";
 import type { ScenarioImpact } from "../types";
 import { runScenario, scenarioPresets } from "./scenarios";
 
-const book = makePortfolio([
-  holding({ symbol: "SPY", shares: 10, price: 100 }),
-  holding({ symbol: "NVDA", shares: 10, price: 100 }),
-  holding({ symbol: "TSLA", shares: 10, price: 100 }),
-  holding({ symbol: "NEE", shares: 10, price: 100 }),
-  holding({ symbol: "JPM", shares: 10, price: 100 }),
-]);
+const book = makePortfolio(
+  [
+    holding({ symbol: "SPY", shares: 10, price: 100 }),
+    holding({ symbol: "NVDA", shares: 10, price: 100 }),
+    holding({ symbol: "TSLA", shares: 10, price: 100 }),
+    holding({ symbol: "NEE", shares: 10, price: 100 }),
+    holding({ symbol: "JPM", shares: 10, price: 100 }),
+  ],
+  0,
+  {
+    SPY: { beta: 1.0 },
+    NVDA: { beta: 1.7, sector: "Technology" },
+    TSLA: { beta: 2.0, sector: "Consumer Discretionary" },
+    NEE: { beta: 0.6, sector: "Utilities" }, // bond proxy
+    JPM: { beta: 1.1, sector: "Financials" }, // rate beneficiary
+  }
+);
 
 const find = (impacts: ScenarioImpact[], symbol: string) =>
   impacts.find((i) => i.symbol === symbol)!;

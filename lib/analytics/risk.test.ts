@@ -3,14 +3,37 @@ import { holding, makePortfolio } from "../__tests__/factory";
 import { SPX } from "../data/benchmarks";
 import { riskReport } from "./risk";
 
-// SPY (β 1.0) + XOM (β 0.85), equal dollar, no cash.
+// SPY (β 1.0, broad fund) + XOM (β 0.85, Energy), equal dollar, no cash.
 function twoStock(cash = 0) {
   return makePortfolio(
     [
       holding({ symbol: "SPY", shares: 10, price: 100 }),
       holding({ symbol: "XOM", shares: 10, price: 100 }),
     ],
-    cash
+    cash,
+    {
+      SPY: {
+        beta: 1.0,
+        sector: "Diversified",
+        industry: "Fund / ETF",
+        fund: {
+          sectorWeights: {
+            Technology: 0.3,
+            Financials: 0.13,
+            "Health Care": 0.13,
+            "Consumer Discretionary": 0.11,
+            Industrials: 0.09,
+            "Communication Services": 0.09,
+            "Consumer Staples": 0.06,
+            Energy: 0.04,
+            Utilities: 0.025,
+            "Real Estate": 0.025,
+            Materials: 0.02,
+          },
+        },
+      },
+      XOM: { beta: 0.85, sector: "Energy", industry: "Oil & Gas Integrated" },
+    }
   );
 }
 
@@ -91,12 +114,16 @@ describe("riskReport", () => {
     expect(r.beta).toBeCloseTo(1.0, 6); // SPY β
   });
 
-  it("handles an unknown ticker on conservative defaults without throwing", () => {
+  it("excludes a no-data holding from the factor math without throwing", () => {
     const r = riskReport(
-      makePortfolio([
-        holding({ symbol: "SPY", shares: 10, price: 100 }),
-        holding({ symbol: "ZZZZ", shares: 10, price: 100 }),
-      ]),
+      makePortfolio(
+        [
+          holding({ symbol: "SPY", shares: 10, price: 100 }),
+          holding({ symbol: "ZZZZ", shares: 10, price: 100 }),
+        ],
+        0,
+        { ZZZZ: null } // no live fundamentals
+      ),
       SPX.sectorWeights
     );
     expect(r.coveragePct).toBeCloseTo(0.5, 6); // only SPY is covered
