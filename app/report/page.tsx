@@ -407,22 +407,29 @@ export default function ReportPage() {
           </table>
 
           <h3>Geographic Exposure (revenue-weighted)</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Region</th>
-                <th>Weight</th>
-              </tr>
-            </thead>
-            <tbody>
-              {risk.regions.map((r) => (
-                <tr key={r.region}>
-                  <td>{r.region}</td>
-                  <td>{fmtPct(r.weight, 1)}</td>
+          {risk.regions.reduce((s, r) => s + r.weight, 0) < 0.001 ? (
+            <p className="muted">
+              Region data unavailable — no live revenue-by-region source is
+              configured.
+            </p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Region</th>
+                  <th>Weight</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {risk.regions.map((r) => (
+                  <tr key={r.region}>
+                    <td>{r.region}</td>
+                    <td>{fmtPct(r.weight, 1)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
 
           <h3>Risk Contribution (share of portfolio variance)</h3>
           <table>

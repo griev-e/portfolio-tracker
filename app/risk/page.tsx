@@ -50,6 +50,10 @@ export default function RiskPage() {
   // Holdings with no live fundamentals are excluded from the factor math.
   const noData = portfolio.positions.filter((p) => !p.fundamentals);
 
+  // Revenue-by-region has no keyless source, so it's usually empty. Gauge how
+  // much of the book actually carries region data before drawing the geography.
+  const regionCovered = risk.regions.reduce((s, r) => s + r.weight, 0);
+
   return (
     <div>
       <PageHeader
@@ -301,6 +305,17 @@ export default function RiskPage() {
             title="Revenue-weighted geography"
             className="mb-2"
           />
+          {regionCovered < 0.001 ? (
+            <div className="py-10 text-center">
+              <p className="text-[13px] text-mute">Region data unavailable</p>
+              <p className="mx-auto mt-1.5 max-w-xs text-[12px] leading-relaxed text-faint">
+                No live revenue-by-region source is configured, so geographic
+                exposure can&rsquo;t be estimated. Allocation, concentration and
+                the rest of the risk analytics are unaffected.
+              </p>
+            </div>
+          ) : (
+            <>
           <p className="mb-5 text-[12px] leading-relaxed text-mute">
             Estimated from where each company earns revenue — not listing
             venue. A US-listed mega-cap is rarely a pure-US bet.
@@ -344,7 +359,9 @@ export default function RiskPage() {
             <div className="eyebrow mb-3">Revenue mix by holding</div>
             <div className="space-y-2">
               {portfolio.positions.map((p, i) => {
-                const regions = p.fundamentals?.regions ?? { US: 1 };
+                const regions = p.fundamentals?.regions ?? {};
+                const hasRegion =
+                  Object.values(regions).reduce((s, w) => s + (w ?? 0), 0) > 0.001;
                 const intl = 1 - (regions.US ?? 0);
                 return (
                   <m.div
@@ -377,7 +394,7 @@ export default function RiskPage() {
                       })}
                     </div>
                     <span className="w-20 shrink-0 text-right font-mono tnum text-[11px] text-faint">
-                      {fmtPct(intl, 0)} intl
+                      {hasRegion ? `${fmtPct(intl, 0)} intl` : "—"}
                     </span>
                     <span className="w-12 shrink-0 text-right font-mono tnum text-[11px] text-mute">
                       {fmtPct(p.equityWeight, 1)}
@@ -396,6 +413,8 @@ export default function RiskPage() {
               ? "Heavily US-centric. International diversification is mostly cosmetic here."
               : "Meaningful ex-US revenue exposure — currency and regional cycles will matter."}
           </div>
+            </>
+          )}
         </Card>
       </div>
     </div>
