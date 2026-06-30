@@ -101,13 +101,25 @@ export function riskReport(
 
   // Beta & volatility on total weights (cash has β = 0, σ = 0). Covariance is
   // indexed parallel to `covered`, so every weight vector here aligns to it.
-  const beta = covered.reduce(
-    (s, p) => s + p.weight * (p.fundamentals?.beta ?? 0),
-    0
-  );
+  //
+  // `covered` weights are still expressed as a fraction of the *whole* book
+  // (including any no-data holdings), so a raw weighted sum over `covered`
+  // alone would silently treat uncovered equity as if it were riskless cash —
+  // dragging beta/volatility/expectedReturn toward zero by exactly the
+  // uncovered weight instead of excluding it. `scale` renormalizes every such
+  // sum onto the priced sub-portfolio (cash + covered names), so these figures
+  // describe "what we can actually measure" with the gap reported separately
+  // via `coveragePct`, rather than quietly imputing zero risk for the rest.
+  const coverageWeight = covered.reduce((s, p) => s + p.weight, 0);
+  const priced = coverageWeight + portfolio.cashWeight;
+  const scale = priced > 0 ? 1 / priced : 0;
+
+  const beta =
+    scale *
+    covered.reduce((s, p) => s + p.weight * (p.fundamentals?.beta ?? 0), 0);
 
   const cov = covarianceMatrix(portfolio);
-  const w = covered.map((p) => p.weight);
+  const w = covered.map((p) => p.weight * scale);
   let variance = 0;
   for (let i = 0; i < w.length; i++) {
     for (let j = 0; j < w.length; j++) {
@@ -117,14 +129,15 @@ export function riskReport(
   const volatility = Math.sqrt(Math.max(variance, 0));
 
   const expectedReturn =
-    portfolio.cashWeight * CMA.riskFree +
-    covered.reduce(
-      (s, p) =>
-        s +
-        p.weight *
-          (CMA.riskFree + (p.fundamentals?.beta ?? 0) * CMA.equityRiskPremium),
-      0
-    );
+    scale *
+    (portfolio.cashWeight * CMA.riskFree +
+      covered.reduce(
+        (s, p) =>
+          s +
+          p.weight *
+            (CMA.riskFree + (p.fundamentals?.beta ?? 0) * CMA.equityRiskPremium),
+        0
+      ));
 
   const sharpe =
     volatility > 0 ? (expectedReturn - CMA.riskFree) / volatility : 0;
@@ -158,10 +171,7 @@ export function riskReport(
     })
     .sort((a, b) => b.share - a.share);
 
-  const coveragePct = ps.reduce(
-    (s, p) => s + (p.fundamentals ? p.weight : 0),
-    0
-  );
+  const coveragePct = coverageWeight;
 
   return {
     topWeight: sorted[0] ?? 0,

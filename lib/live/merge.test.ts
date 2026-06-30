@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Fundamentals } from "@/lib/types";
-import { mergeFundamentals } from "./merge";
+import { DEFAULT_BETA, estimatedVolatility, fromPatch, mergeFundamentals } from "./merge";
 import type { FundamentalsPatch } from "./types";
 
 const bundled: Fundamentals = {
@@ -126,5 +126,28 @@ describe("mergeFundamentals provenance", () => {
     const merged = mergeFundamentals(null, patch({ symbol: "XYZ", beta: 1.1 }));
     expect(merged!.fund).toBeUndefined();
     expect(merged!.provenance?.fields.fund).toBe("fallback");
+  });
+});
+
+describe("fromPatch (exported for display-only estimates)", () => {
+  it("synthesizes a fully-estimated profile from a near-empty patch, tagged fallback throughout", () => {
+    // This is exactly what the Research page does for a real (quoted) ticker
+    // whose fundamentals fetch returned nothing — display-only, never fed into
+    // a Position's `fundamentals`, so it can't affect the portfolio risk math.
+    const est = fromPatch({ symbol: "ZZZZ", asOf: "2026-06-30T00:00:00.000Z" });
+    expect(est.beta).toBe(DEFAULT_BETA);
+    expect(est.volatility).toBe(estimatedVolatility(DEFAULT_BETA));
+    expect(est.provenance?.coverage).toBe("fallback");
+    expect(est.provenance?.fields.beta).toBe("fallback");
+    expect(est.provenance?.fields.volatility).toBe("fallback");
+    expect(est.provenance?.fields.sector).toBe("fallback");
+  });
+
+  it("derives the volatility estimate from beta when only beta is supplied", () => {
+    const est = fromPatch({ symbol: "ZZZZ", asOf: "2026-06-30T00:00:00.000Z", beta: 1.6 });
+    expect(est.beta).toBe(1.6);
+    expect(est.volatility).toBeCloseTo(0.12 + 0.16 * 1.6, 6);
+    expect(est.provenance?.fields.beta).toBe("live");
+    expect(est.provenance?.fields.volatility).toBe("fallback");
   });
 });

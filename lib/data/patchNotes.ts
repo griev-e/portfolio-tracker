@@ -8,6 +8,25 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.36",
+    date: "2026-06-30",
+    title: "Surface the actual estimated number instead of hiding it",
+    changes: [
+      "Research now labels every metric — not just FCF growth and ROIC — as \"est\" when it's a model fallback rather than a live read, including Beta and a newly-added Volatility row that wasn't shown at all before. A ticker with a live price but a completely empty fundamentals fetch (rare, but happens for thin coverage) now shows a full estimated profile clearly marked \"Live price · estimated fundamentals\" instead of a dead-end \"no data\" page.",
+      "The Risk page's coverage banner now states the actual model default (β 1.0, ~28% volatility) that a no-data holding would carry if it were estimated, for reference — it's still excluded from the math exactly as before, this just makes clear what the number would be.",
+      "Fixed the Risk page's coverage banner firing on cash alone: holding any uninvested cash always pushed the headline coverage percentage below 100%, even with zero actual data gaps, so the banner claimed holdings were excluded when none were. It now only appears when a holding genuinely has no live fundamentals.",
+    ],
+  },
+  {
+    version: "1.35",
+    date: "2026-06-30",
+    title: "Fixed portfolio beta/volatility being diluted by no-data holdings",
+    changes: [
+      "Portfolio beta, volatility, expected return and Sharpe were silently understated whenever a holding had no live fundamentals: the no-data holding's weight dropped out of the math entirely instead of being excluded, which is mathematically identical to treating it as riskless cash. A 50% position with no data could cut your reported beta roughly in half. These figures are now renormalized over the priced portion of the book (cash + holdings with live data), with the excluded weight still reported honestly via the existing coverage gap.",
+      "This affected every page that reads portfolio beta/volatility/expected return — Overview, Risk, Correlation, Monte Carlo, Benchmark, Discover and the printable Report.",
+    ],
+  },
+  {
     version: "1.34",
     date: "2026-06-30",
     title: "Live-only data — the static fundamentals snapshot is gone",

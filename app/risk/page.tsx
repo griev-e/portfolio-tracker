@@ -11,6 +11,7 @@ import { Stat } from "@/components/ui/Stat";
 import { riskReport } from "@/lib/analytics/risk";
 import { SPX } from "@/lib/data/benchmarks";
 import { getCMA, liveBenchmarkVolatility, liveBenchmarkProfiles } from "@/lib/live/cma";
+import { DEFAULT_BETA, estimatedVolatility } from "@/lib/live/merge";
 import { useAssumptions } from "@/lib/assumptions/store";
 import { fmtNum, fmtPct } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
@@ -130,8 +131,13 @@ export default function RiskPage() {
         </div>
       </Card>
 
-      {/* Coverage banner — only when some of the book lacks live fundamentals. */}
-      {risk.coveragePct < 0.999 && (
+      {/* Coverage banner — only when a holding actually lacks live fundamentals.
+          risk.coveragePct is weighted against the *whole* book (cash included,
+          matching how beta/volatility apply their cash drag), so cash alone can
+          push it below 100% with zero real gaps — gate on the actual no-data
+          list, not the percentage, so the banner never claims an exclusion that
+          didn't happen. */}
+      {noData.length > 0 && (
         <Card className="mb-5 px-6 py-4" i={0}>
           <div className="flex items-start gap-3">
             <span className="mt-[5px] inline-block h-[7px] w-[7px] shrink-0 rounded-full border border-warn/70" />
@@ -147,8 +153,17 @@ export default function RiskPage() {
                   ({noData.map((p) => p.symbol).join(", ")})
                 </span>{" "}
                 {noData.length === 1 ? "is" : "are"} excluded from the beta,
-                volatility, correlation and factor math — never imputed with a
-                placeholder. Allocation, weights and P&amp;L still include them.
+                volatility, correlation and factor math — never silently
+                folded in. Allocation, weights and P&amp;L still include them.
+              </div>
+              <div className="mt-1.5 text-[11.5px] leading-relaxed text-faint">
+                If you did want a placeholder for these, the model&apos;s
+                neutral estimate (no information to differentiate names) would
+                be β{" "}
+                {DEFAULT_BETA.toFixed(1)} and{" "}
+                {fmtPct(estimatedVolatility(DEFAULT_BETA), 0)} volatility —
+                shown for reference only; it is not used in any calculation
+                above.
               </div>
             </div>
           </div>

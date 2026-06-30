@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { mergeFundamentals } from "@/lib/live/merge";
+import { fromPatch, mergeFundamentals } from "@/lib/live/merge";
 import type {
   FundamentalsResponse,
   LiveQuote,
@@ -86,12 +86,21 @@ export function useResearchTarget(symbol: string | null): ResearchTarget {
       const [q, patch] = await Promise.all([loadQuote(), loadFundamentals()]);
       if (cancelled || symRef.current !== symbol) return;
       const merged = mergeFundamentals(null, patch);
+      // A real, tradeable security (we have a live quote) whose fundamentals
+      // fetch came back completely empty still gets a fully-estimated profile
+      // for display — every field traces through provenance as "fallback", so
+      // the page shows a number instead of a dead end, never silently passing
+      // it off as live. This is display-only: it never feeds the portfolio's
+      // risk/correlation/quality math, which still treats the holding as a
+      // genuine no-data coverage gap.
+      const fundamentals =
+        merged ?? (q.quote ? fromPatch({ symbol, asOf: new Date().toISOString() }) : null);
       setState({
         symbol,
         loading: false,
         notFound: !q.quote && !merged,
         quote: q.quote,
-        fundamentals: merged,
+        fundamentals,
         live: patch !== undefined,
         asOf: q.asOf,
       });
