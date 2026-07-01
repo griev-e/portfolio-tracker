@@ -134,7 +134,7 @@ export const Treemap = memo(function Treemap({
               key={r.item.id}
               initial={{ opacity: 0, scale: 0.92 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: i * 0.035, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.5, delay: Math.min(i * 0.035, 0.5), ease: [0.22, 1, 0.36, 1] }}
               style={{ transformOrigin: `${r.x + r.w / 2}px ${r.y + r.h / 2}px` }}
               onMouseEnter={() => setActive(r.item.id)}
               onMouseLeave={() => setActive(null)}

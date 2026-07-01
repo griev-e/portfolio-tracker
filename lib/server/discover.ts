@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { AiCache, GenLimiter, mapAnthropicError } from "@/lib/server/aiEndpoint";
 import { usdCost } from "@/lib/server/cost";
 import {
   DISCOVER_MODE_IDS,
@@ -16,43 +17,27 @@ import {
  * runs with adaptive thinking at high effort for the deepest reasoning pass.
  * One generation per day per (mode + portfolio shape), cached in module scope.
  */
-const planCache = new Map<string, { at: number; data: DiscoverResponse }>();
 const PLAN_TTL = 24 * 3600_000;
-const CACHE_MAX = 40;
+const planCache = new AiCache<DiscoverResponse>(PLAN_TTL, 40);
 
 export const DISCOVER_MODEL = "claude-sonnet-4-6";
 export const DISCOVER_EFFORT = "high" as const;
 
-const GEN_WINDOW_MS = 3600_000;
-const GEN_MAX = 25;
-let genWindowStart = Date.now();
-let genCount = 0;
+const genLimiter = new GenLimiter(3600_000, 25);
 
-export function discoverRateLimited(): boolean {
-  const now = Date.now();
-  if (now - genWindowStart > GEN_WINDOW_MS) {
-    genWindowStart = now;
-    genCount = 0;
-  }
-  return genCount >= GEN_MAX;
-}
+export const discoverRateLimited = (): boolean => genLimiter.limited();
 
 export function discoverConfigured(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
-export function discoverErrorResponse(err: unknown): { status: number; error: string } {
-  if (err instanceof Anthropic.AuthenticationError)
-    return { status: 501, error: "discover not configured" };
-  if (err instanceof Anthropic.RateLimitError)
-    return { status: 429, error: "discover rate limited" };
-  if (
-    err instanceof Anthropic.APIConnectionTimeoutError ||
-    err instanceof Anthropic.APIUserAbortError
-  )
-    return { status: 504, error: "discover timed out — try again" };
-  return { status: 502, error: "discover unavailable" };
-}
+export const discoverErrorResponse = (err: unknown) =>
+  mapAnthropicError(err, {
+    notConfigured: "discover not configured",
+    rateLimited: "discover rate limited",
+    timedOut: "discover timed out — try again",
+    unavailable: "discover unavailable",
+  });
 
 /** Day + mode + weight-shape scoped: a quote tick doesn't bust it, an import does. */
 export function discoverFingerprint(req: DiscoverRequest): string {
@@ -63,19 +48,10 @@ export function discoverFingerprint(req: DiscoverRequest): string {
   return `${new Date().toISOString().slice(0, 10)}|${req.mode}|${shape}`;
 }
 
-export function getCachedDiscover(key: string): DiscoverResponse | null {
-  const hit = planCache.get(key);
-  if (hit && Date.now() - hit.at < PLAN_TTL) return hit.data;
-  return null;
-}
-
-export function setCachedDiscover(key: string, data: DiscoverResponse): void {
-  if (planCache.size >= CACHE_MAX) {
-    const oldest = planCache.keys().next().value;
-    if (oldest !== undefined) planCache.delete(oldest);
-  }
-  planCache.set(key, { at: Date.now(), data });
-}
+export const getCachedDiscover = (key: string): DiscoverResponse | null =>
+  planCache.get(key);
+export const setCachedDiscover = (key: string, data: DiscoverResponse): void =>
+  planCache.set(key, data);
 
 /** Stable system prompt — no per-request interpolation, so it's byte-identical
  *  across calls. (No `cache_control` is set: the per-day-per-shape module cache
@@ -220,7 +196,7 @@ export async function generateDiscover(
   // finalMessage keeps the connection warm while the model thinks. No retry
   // budget: a retry on a near-deadline request would blow the ceiling anyway.
   const client = new Anthropic({ timeout: 55_000, maxRetries: 0 });
-  genCount += 1;
+  genLimiter.record();
   const controller = new AbortController();
   const deadline = setTimeout(() => controller.abort(), DEADLINE_MS);
   try {

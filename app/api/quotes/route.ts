@@ -28,6 +28,9 @@ export async function GET(req: NextRequest) {
       }
     );
   } catch {
+    // Defensive backstop only: fetchQuotes degrades internally (partial-failure
+    // safe, returns whatever the warm cache holds), so it resolves even when the
+    // provider is down. This fires only on an unexpected throw.
     return NextResponse.json({ error: "quote provider unavailable" }, { status: 502 });
   }
 }

@@ -4,6 +4,7 @@ import type {
   AllocationResponse,
   AllocatorRequest,
 } from "@/lib/allocator/types";
+import { AiCache, GenLimiter, mapAnthropicError } from "@/lib/server/aiEndpoint";
 import { usdCost } from "@/lib/server/cost";
 
 /**
@@ -12,9 +13,8 @@ import { usdCost } from "@/lib/server/cost";
  * One generation per day per portfolio shape, cached in module scope like the
  * yahoo/brief caches (resets on cold start — accepted).
  */
-const planCache = new Map<string, { at: number; data: AllocationResponse }>();
 const PLAN_TTL = 24 * 3600_000; // memory backstop; the date in the key rolls daily
-const CACHE_MAX = 20;
+const planCache = new AiCache<AllocationResponse>(PLAN_TTL, 20);
 
 /**
  * Sonnet 4.6 with adaptive thinking. Unlike the morning brief — a constrained
@@ -34,41 +34,21 @@ export const ALLOCATOR_EFFORT = "high" as const;
  * instance per hour. Sonnet is pricier than the brief's Haiku, so this is tighter.
  * Resets on cold start — accepted, like the caches above.
  */
-const GEN_WINDOW_MS = 3600_000;
-const GEN_MAX = 20;
-let genWindowStart = Date.now();
-let genCount = 0;
+const genLimiter = new GenLimiter(3600_000, 20);
 
-export function allocatorRateLimited(): boolean {
-  const now = Date.now();
-  if (now - genWindowStart > GEN_WINDOW_MS) {
-    genWindowStart = now;
-    genCount = 0;
-  }
-  return genCount >= GEN_MAX;
-}
+export const allocatorRateLimited = (): boolean => genLimiter.limited();
 
 export function allocatorConfigured(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
-/**
- * Map a provider error to an HTTP outcome. Lives here so the route never has to
- * import the Anthropic SDK (it stays confined to lib/server/*).
- */
-export function allocatorErrorResponse(err: unknown): { status: number; error: string } {
-  // A key that fails auth behaves like no key at all.
-  if (err instanceof Anthropic.AuthenticationError)
-    return { status: 501, error: "allocator not configured" };
-  if (err instanceof Anthropic.RateLimitError)
-    return { status: 429, error: "allocator rate limited" };
-  if (
-    err instanceof Anthropic.APIConnectionTimeoutError ||
-    err instanceof Anthropic.APIUserAbortError
-  )
-    return { status: 504, error: "allocation timed out — try again" };
-  return { status: 502, error: "allocator unavailable" };
-}
+export const allocatorErrorResponse = (err: unknown) =>
+  mapAnthropicError(err, {
+    notConfigured: "allocator not configured",
+    rateLimited: "allocator rate limited",
+    timedOut: "allocation timed out — try again",
+    unavailable: "allocator unavailable",
+  });
 
 /** Day + weight-shape scoped: a quote tick doesn't bust it, an import does. */
 export function allocatorFingerprint(req: AllocatorRequest): string {
@@ -79,19 +59,10 @@ export function allocatorFingerprint(req: AllocatorRequest): string {
   return `${new Date().toISOString().slice(0, 10)}|${shape}`;
 }
 
-export function getCachedPlan(key: string): AllocationResponse | null {
-  const hit = planCache.get(key);
-  if (hit && Date.now() - hit.at < PLAN_TTL) return hit.data;
-  return null;
-}
-
-export function setCachedPlan(key: string, data: AllocationResponse): void {
-  if (planCache.size >= CACHE_MAX) {
-    const oldest = planCache.keys().next().value;
-    if (oldest !== undefined) planCache.delete(oldest);
-  }
-  planCache.set(key, { at: Date.now(), data });
-}
+export const getCachedPlan = (key: string): AllocationResponse | null =>
+  planCache.get(key);
+export const setCachedPlan = (key: string, data: AllocationResponse): void =>
+  planCache.set(key, data);
 
 /** Stable system prompt — no per-request interpolation, so it's byte-identical
  *  across calls. (No `cache_control` is set: the per-day-per-shape module cache
@@ -233,7 +204,7 @@ export async function generateAllocation(
   // reads ANTHROPIC_API_KEY; caller checks allocatorConfigured() first. Stream +
   // finalMessage keeps the connection alive while the model thinks.
   const client = new Anthropic({ timeout: 55_000, maxRetries: 0 });
-  genCount += 1;
+  genLimiter.record();
   const controller = new AbortController();
   const deadline = setTimeout(() => controller.abort(), DEADLINE_MS);
   try {

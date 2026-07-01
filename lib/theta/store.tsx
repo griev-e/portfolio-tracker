@@ -89,6 +89,13 @@ function uid(prefix: string): string {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+/** Local midnight today as a timestamp — a stable per-day key for re-derivation. */
+const startOfDay = (): number => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+};
+
 export function ThetaProvider({ children }: { children: ReactNode }) {
   const { enabled, status } = useAuth();
   // Server-backed when real auth is on and a user is signed in; otherwise the
@@ -105,11 +112,23 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
     serverModeRef.current = serverMode;
   }, [serverMode]);
 
+  // Latest ledger, readable synchronously so `mutate` can compute the next
+  // state without running side effects inside a setState updater.
+  const ledgerRef = useRef(ledger);
+  useEffect(() => {
+    ledgerRef.current = ledger;
+  }, [ledger]);
+
+  // True once it's safe to write to the server: only after a successful hydrate.
+  // A failed hydrate leaves this false so an edit can't overwrite the saved
+  // ledger with the empty state we fall back to on that failure.
+  const serverWritableRef = useRef(false);
+
   // Persist the ledger to the active backend: server mode pushes the blob to
   // the user's row; open mode writes localStorage (with the sample flag).
   const writeThrough = useCallback((next: Ledger | null, sample: boolean) => {
     if (serverModeRef.current) {
-      void putLedger(next);
+      if (serverWritableRef.current) void putLedger(next);
       return;
     }
     try {
@@ -128,6 +147,7 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
   // sample stays in the open/anonymous mode only.
   useEffect(() => {
     if (!enabled) {
+      serverWritableRef.current = true; // open mode writes localStorage, never the server
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
@@ -157,9 +177,22 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
     if (status === "authenticated") {
       let alive = true;
       setReady(false);
+      serverWritableRef.current = false;
       getServerState().then((s) => {
         if (!alive) return;
-        setLedger((s?.ledger as Ledger | null) ?? EMPTY_LEDGER);
+        if (s === null) {
+          // Hydrate failed after retries. Surface an empty ledger but keep
+          // server writes disabled, so an edit can't overwrite the (possibly
+          // non-empty) saved ledger; the next load retries. In-memory edits
+          // still work, degrading like private-mode localStorage.
+          serverWritableRef.current = false;
+          setLedger(EMPTY_LEDGER);
+          setIsSample(false);
+          setReady(true);
+          return;
+        }
+        serverWritableRef.current = true;
+        setLedger((s.ledger as Ledger | null) ?? EMPTY_LEDGER);
         setIsSample(false);
         setReady(true);
       });
@@ -174,6 +207,7 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
 
   const persist = useCallback(
     (next: Ledger | null, sample: boolean) => {
+      ledgerRef.current = next;
       setLedger(next);
       setIsSample(sample);
       writeThrough(next, sample);
@@ -181,15 +215,16 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
     [writeThrough]
   );
 
-  /** Apply a pure update to the ledger; any edit drops the "sample" badge. */
+  /** Apply a pure update to the ledger; any edit drops the "sample" badge.
+   *  Next state is computed from the ref (not inside the updater), so no side
+   *  effect runs during render — safe under StrictMode / concurrent rendering. */
   const mutate = useCallback(
     (fn: (l: Ledger) => Ledger) => {
-      setLedger((cur) => {
-        const next = fn(cur ?? EMPTY_LEDGER);
-        writeThrough(next, false);
-        return next;
-      });
+      const next = fn(ledgerRef.current ?? EMPTY_LEDGER);
+      ledgerRef.current = next; // keep current for rapid successive mutations
+      setLedger(next);
       setIsSample(false);
+      writeThrough(next, false);
     },
     [writeThrough]
   );
@@ -264,15 +299,9 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
     [mutate]
   );
 
-  const addBudget = useCallback(
-    (category: Category, limit: number) =>
-      mutate((l) =>
-        l.budgets.some((b) => b.category === category)
-          ? { ...l, budgets: l.budgets.map((b) => (b.category === category ? { ...b, limit } : b)) }
-          : { ...l, budgets: [...l.budgets, { category, limit }] }
-      ),
-    [mutate]
-  );
+  // addBudget is an upsert too — identical to setBudgetLimit — so it just aliases
+  // it rather than duplicating the branch.
+  const addBudget = setBudgetLimit;
 
   const removeBudget = useCallback(
     (category: Category) =>
@@ -421,7 +450,32 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
   );
   const clear = useCallback(() => persist(EMPTY_LEDGER, false), [persist]);
 
-  const view = useMemo(() => (ledger ? deriveTheta(ledger) : null), [ledger]);
+  // Re-derive when the calendar day rolls over, so "this month" buckets stay
+  // correct even if the tab is left open across midnight. `dayStart` is local
+  // midnight as a timestamp — passed into deriveTheta so it's a genuine input,
+  // and it only changes on an actual day boundary (cheap).
+  const [dayStart, setDayStart] = useState(startOfDay);
+  useEffect(() => {
+    const check = () =>
+      setDayStart((prev) => {
+        const s = startOfDay();
+        return prev === s ? prev : s;
+      });
+    const onVis = () => {
+      if (document.visibilityState === "visible") check();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const id = setInterval(check, 5 * 60_000);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      clearInterval(id);
+    };
+  }, []);
+
+  const view = useMemo(
+    () => (ledger ? deriveTheta(ledger, new Date(dayStart)) : null),
+    [ledger, dayStart]
+  );
 
   const value = useMemo<ThetaStore>(
     () => ({

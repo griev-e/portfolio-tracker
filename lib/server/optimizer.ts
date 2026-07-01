@@ -4,6 +4,7 @@ import type {
   OptimizerRequest,
   OptimizerResponse,
 } from "@/lib/optimizer/types";
+import { AiCache, GenLimiter, mapAnthropicError } from "@/lib/server/aiEndpoint";
 import { usdCost } from "@/lib/server/cost";
 
 /**
@@ -15,9 +16,8 @@ import { usdCost } from "@/lib/server/cost";
  * module scope like the yahoo/brief/allocator caches (resets on cold start —
  * accepted).
  */
-const planCache = new Map<string, { at: number; data: OptimizerResponse }>();
 const PLAN_TTL = 24 * 3600_000; // memory backstop; the date in the key rolls daily
-const CACHE_MAX = 24;
+const planCache = new AiCache<OptimizerResponse>(PLAN_TTL, 24);
 
 /**
  * Claude Sonnet 4.6 with adaptive thinking at `low` effort. Reviewing an
@@ -40,44 +40,21 @@ export const OPTIMIZER_EFFORT = "low" as const;
  * Cost backstop: cap fresh generations (cache misses that hit the API) per warm
  * instance per hour. Resets on cold start — accepted, like the caches above.
  */
-const GEN_WINDOW_MS = 3600_000;
-const GEN_MAX = 30;
-let genWindowStart = Date.now();
-let genCount = 0;
+const genLimiter = new GenLimiter(3600_000, 30);
 
-export function optimizerRateLimited(): boolean {
-  const now = Date.now();
-  if (now - genWindowStart > GEN_WINDOW_MS) {
-    genWindowStart = now;
-    genCount = 0;
-  }
-  return genCount >= GEN_MAX;
-}
+export const optimizerRateLimited = (): boolean => genLimiter.limited();
 
 export function optimizerConfigured(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
-/**
- * Map a provider error to an HTTP outcome. Lives here so the route never has to
- * import the Anthropic SDK (it stays confined to lib/server/*).
- */
-export function optimizerErrorResponse(err: unknown): {
-  status: number;
-  error: string;
-} {
-  // A key that fails auth behaves like no key at all.
-  if (err instanceof Anthropic.AuthenticationError)
-    return { status: 501, error: "optimizer not configured" };
-  if (err instanceof Anthropic.RateLimitError)
-    return { status: 429, error: "optimizer rate limited" };
-  if (
-    err instanceof Anthropic.APIConnectionTimeoutError ||
-    err instanceof Anthropic.APIUserAbortError
-  )
-    return { status: 504, error: "optimizer review timed out — try again" };
-  return { status: 502, error: "optimizer unavailable" };
-}
+export const optimizerErrorResponse = (err: unknown) =>
+  mapAnthropicError(err, {
+    notConfigured: "optimizer not configured",
+    rateLimited: "optimizer rate limited",
+    timedOut: "optimizer review timed out — try again",
+    unavailable: "optimizer unavailable",
+  });
 
 /** Day + objective + constraint + shape scoped: a quote tick doesn't bust it. */
 export function optimizerFingerprint(req: OptimizerRequest): string {
@@ -89,19 +66,10 @@ export function optimizerFingerprint(req: OptimizerRequest): string {
   return `${new Date().toISOString().slice(0, 10)}|${req.objective.id}|${c}|${shape}`;
 }
 
-export function getCachedOptimization(key: string): OptimizerResponse | null {
-  const hit = planCache.get(key);
-  if (hit && Date.now() - hit.at < PLAN_TTL) return hit.data;
-  return null;
-}
-
-export function setCachedOptimization(key: string, data: OptimizerResponse): void {
-  if (planCache.size >= CACHE_MAX) {
-    const oldest = planCache.keys().next().value;
-    if (oldest !== undefined) planCache.delete(oldest);
-  }
-  planCache.set(key, { at: Date.now(), data });
-}
+export const getCachedOptimization = (key: string): OptimizerResponse | null =>
+  planCache.get(key);
+export const setCachedOptimization = (key: string, data: OptimizerResponse): void =>
+  planCache.set(key, data);
 
 /** Stable system prompt — no per-request interpolation, so it's byte-identical
  *  across calls. (No `cache_control` is set: the per-day-per-shape module cache
@@ -260,7 +228,7 @@ export async function generateOptimization(
   // retry budget: a retry on a near-deadline request would blow through the
   // ceiling anyway.
   const client = new Anthropic({ timeout: 45_000, maxRetries: 0 });
-  genCount += 1;
+  genLimiter.record();
   const controller = new AbortController();
   const deadline = setTimeout(() => controller.abort(), DEADLINE_MS);
   try {

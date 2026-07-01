@@ -1,15 +1,16 @@
 /**
- * Brute-force protection for the PIN gate.
+ * Brute-force protection for the login gate.
  *
- * A 4-digit PIN is a 10,000-code space — without throttling it's guessable in
- * seconds. This is a tiny fixed-window limiter that locks a client out after a
- * handful of wrong PINs. It lives in module scope like the other server caches
- * (`lib/server/*`): a warm-lambda guard that resets on cold start — accepted,
- * and not a substitute for an edge WAF, but it turns online brute force from
- * trivial into impractical.
+ * Without throttling, an online password-guessing attack can run unbounded.
+ * This is a tiny fixed-window limiter that locks a client (keyed by IP +
+ * username) out after a handful of failed sign-ins. It lives in module scope
+ * like the other server caches (`lib/server/*`): a warm-lambda guard that resets
+ * on cold start — accepted, and not a substitute for an edge WAF, but it turns
+ * online brute force from trivial into impractical.
  *
- * The gate itself is enforced by `middleware.ts`; PIN validation (and therefore
- * this limiter) lives in `/api/auth`, the only route that sees raw attempts.
+ * The gate itself is enforced by `middleware.ts`; credential validation (and
+ * therefore this limiter) lives in the NextAuth Credentials provider (`auth.ts`),
+ * the only place that sees raw attempts.
  */
 
 interface Attempt {
@@ -20,7 +21,7 @@ interface Attempt {
 
 const ATTEMPTS = new Map<string, Attempt>();
 
-/** Wrong PINs tolerated inside a window before lockout. */
+/** Failed sign-ins tolerated inside a window before lockout. */
 const MAX_FAILS = 5;
 /** Failures are counted within this rolling window. */
 const WINDOW_MS = 15 * 60_000;
@@ -42,13 +43,13 @@ const lockedState = (lockedUntil: number, now: number): RateLimitState => ({
 
 const OK: RateLimitState = { limited: false, retryAfter: 0 };
 
-/** Is this client currently locked out? Call before checking the PIN. */
+/** Is this client currently locked out? Call before verifying credentials. */
 export function checkLock(key: string, now = Date.now()): RateLimitState {
   const a = ATTEMPTS.get(key);
   return a && a.lockedUntil > now ? lockedState(a.lockedUntil, now) : OK;
 }
 
-/** Record a wrong PIN; returns the (possibly now-locked) state. */
+/** Record a failed sign-in; returns the (possibly now-locked) state. */
 export function recordFailure(key: string, now = Date.now()): RateLimitState {
   let a = ATTEMPTS.get(key);
   if (!a || now - a.windowStart > WINDOW_MS) {
@@ -61,7 +62,7 @@ export function recordFailure(key: string, now = Date.now()): RateLimitState {
   return a.lockedUntil > now ? lockedState(a.lockedUntil, now) : OK;
 }
 
-/** Clear a client's record after a correct PIN. */
+/** Clear a client's record after a successful sign-in. */
 export function recordSuccess(key: string): void {
   ATTEMPTS.delete(key);
 }

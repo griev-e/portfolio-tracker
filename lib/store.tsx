@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -84,6 +85,11 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [stored, setStored] = useState<Stored | null>(null);
   const [ready, setReady] = useState(false);
 
+  // True once it's safe to write to the server: only after a successful hydrate.
+  // A failed hydrate leaves this false so an edit can't overwrite the (possibly
+  // non-empty) saved portfolio with the empty state we fall back to on failure.
+  const serverWritableRef = useRef(false);
+
   useEffect(() => {
     primeLiveCMA();
   }, []);
@@ -93,6 +99,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   // to the next person who signs in on the same machine.
   useEffect(() => {
     if (!enabled) {
+      serverWritableRef.current = true; // open mode writes localStorage, never the server
       try {
         let raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) {
@@ -119,9 +126,20 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     if (status === "authenticated") {
       let alive = true;
       setReady(false);
+      serverWritableRef.current = false;
       getServerState().then((s) => {
         if (!alive) return;
-        setStored((s?.portfolio as Stored | null) ?? null);
+        if (s === null) {
+          // Hydrate failed after retries. Surface no portfolio but keep server
+          // writes disabled, so an import/edit can't overwrite the saved book;
+          // the next load retries. In-memory edits still work (private-mode-like).
+          serverWritableRef.current = false;
+          setStored(null);
+          setReady(true);
+          return;
+        }
+        serverWritableRef.current = true;
+        setStored((s.portfolio as Stored | null) ?? null);
         setReady(true);
       });
       return () => {
@@ -137,7 +155,9 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     (next: Stored | null) => {
       setStored(next);
       if (serverMode) {
-        void putPortfolio(next);
+        // Skip the server write until a successful hydrate, so a failed load
+        // (shown as empty) can't clobber the saved portfolio.
+        if (serverWritableRef.current) void putPortfolio(next);
         return;
       }
       try {

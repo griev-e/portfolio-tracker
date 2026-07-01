@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { DiscoverPosition, DiscoverRequest } from "@/lib/discover/types";
+import { aiRequestAllowed } from "@/lib/server/aiEndpoint";
 import {
   discoverConfigured,
   discoverErrorResponse,
@@ -12,7 +13,7 @@ import {
 } from "@/lib/server/discover";
 
 export const dynamic = "force-dynamic";
-// Opus with adaptive thinking can run longer; streaming keeps the connection warm.
+// Sonnet with adaptive thinking can run longer; streaming keeps the connection warm.
 export const maxDuration = 60;
 
 const SYMBOL_RE = /[^A-Z0-9.\-]/g;
@@ -119,7 +120,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (discoverRateLimited()) {
+  // Per-IP throttle + hourly cost backstop before a fresh generation.
+  if (!aiRequestAllowed(req, "discover", 8) || discoverRateLimited()) {
     return NextResponse.json(
       { error: "discover rate limited" },
       { status: 429, headers: { "Cache-Control": "no-store" } }

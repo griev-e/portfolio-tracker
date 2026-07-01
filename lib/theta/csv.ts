@@ -4,6 +4,7 @@
  * quoted fields. Maps category/account text onto known values where it can.
  */
 
+import { splitCsvLine } from "../csvCore";
 import {
   type Account,
   type Category,
@@ -21,25 +22,9 @@ export type ParseResult = {
 
 const CATEGORY_BY_LOWER = new Map(CATEGORIES.map((c) => [c.toLowerCase(), c]));
 
-function splitCSVLine(line: string): string[] {
-  const out: string[] = [];
-  let cur = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else inQuotes = !inQuotes;
-    } else if (ch === "," && !inQuotes) {
-      out.push(cur);
-      cur = "";
-    } else cur += ch;
-  }
-  out.push(cur);
-  return out.map((s) => s.trim());
-}
+/** Shared RFC-4180 splitter, with theta's per-cell trim applied on top. */
+const splitCSVLine = (line: string): string[] =>
+  splitCsvLine(line).map((s) => s.trim());
 
 function parseAmount(raw: string): number | null {
   let s = raw.trim();
