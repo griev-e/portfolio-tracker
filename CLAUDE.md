@@ -37,8 +37,13 @@ and PR, so all four must be green. Linting also runs during `next build`, so a
 lint **error** fails the production build (warnings don't).
 Tests live next to the code as `*.test.ts` (Vitest, `node` environment — see
 `vitest.config.ts`); shared fixtures are in `lib/__tests__/factory.ts`. The
-suite covers the pure analytics (risk, correlation, quality, scenarios, Monte
-Carlo, the regime engine and its `mathx` helpers, CSV parsing, fundamentals).
+suite covers the pure analytics (risk, correlation, quality, factors,
+scenarios, rebalance, dividends, the optimizer, the regime engine and its
+`mathx` helpers, `buildPortfolio`), CSV parsing (both apps), the live-data
+merge layer (`lib/live/merge.ts`, `lib/live/cma.ts`), theta's compute/csv/
+categorize/simplefin modules, and server-side correctness (fundamentals
+sanitization, Yahoo/Finnhub provider math, the SimpleFIN mapper, and the
+AI-model contract guard in `lib/server/aiModels.test.ts`).
 
 ### Environment variables (all optional, see `.env.example`)
 
@@ -200,6 +205,24 @@ which turns an Anthropic `usage` object into a USD estimate (cache writes at
 as `costUSD` in their response so the UI can show what each AI call cost.
 When adding a new Anthropic-backed model, add its pricing here too.
 
+**Shared AI-endpoint plumbing & security hardening.** `lib/server/aiEndpoint.ts`
+holds what the five Anthropic-backed routes (`brief`, `allocator`, `optimizer`,
+`discover`, `thetaBrief`) used to duplicate: `AiCache` (the day/shape response
+cache), `GenLimiter` (an hourly per-warm-instance generation cap — a cost
+backstop), and `mapAnthropicError` (provider errors → user-facing status).
+`lib/server/rateLimit.ts` does double duty: a fixed-window brute-force lock on
+login attempts (keyed by IP + username, enforced in `auth.ts`) **and** a
+per-IP request limiter in front of the AI + search routes, since those are
+reachable pre-auth in open mode and are cost-incurring (the daily shape cache
+alone can't stop request churn). `next.config.ts` applies a framework-safe CSP
+subset (`base-uri`/`object-src`/`frame-ancestors`/`form-action` — deliberately
+no `script-src`/`style-src`, so App Router hydration and Framer Motion's inline
+styles stay untouched) plus HSTS/`X-Frame-Options`/`nosniff`/Permissions-Policy
+to every route via `headers()`. `lib/server/simplefin.ts` guards against SSRF:
+before the claim/sync fetches it requires `https` and rejects hosts that
+resolve to private/loopback/link-local ranges (including the `169.254.169.254`
+cloud-metadata address).
+
 ### Analytics modules (`lib/analytics/*`)
 
 All pure, client-side, model-based estimates. Methodology notes live next to the
@@ -211,7 +234,9 @@ GBM — deterministic per portfolio), `rebalance.ts`, `dividends/`. The
 solver (projected gradient ascent on a capped simplex, plus cyclical coordinate
 descent for risk parity) over the same factor covariance and CAPM expected
 returns, producing optimal weights, an efficient frontier, and a trade list for
-eight objectives.
+eight objectives. Monte Carlo and the optimizer's multistart share a seeded PRNG
+(`mulberry32` in `lib/analytics/mathUtils.ts`) so both draw reproducible
+sequences without duplicating the generator.
 
 **The market regime engine (`lib/analytics/regime/`)** is the most involved
 subsystem. It turns ~23 daily index series into 8 analytical layers
@@ -315,7 +340,10 @@ with alpha, but otherwise has its own state, shell, and analytics:
 - **CSV import** (`lib/csv.ts`) is intentionally forgiving: any column order,
   `$`/`,`/`%` formatting, parenthesized negatives, quoted names, duplicate-lot
   merging, `totalReturn` auto-detected as $ or %. A `CASH`/`USD` row sets the
-  cash position. Sample at `public/sample-portfolio.csv`.
+  cash position. Sample at `public/sample-portfolio.csv`. The quoted-field row
+  splitter is shared with theta's importer via `lib/csvCore.ts`; each app keeps
+  its own number parsing (alpha returns `NaN` and strips `%`, theta returns
+  `null` and keeps it), since that contract genuinely differs.
 - **Graceful degradation is a hard requirement**, not a nicety: with every
   external provider down, the app must stay usable on the imported book —
   allocation, weights, and P&L from imported prices. Analytics that need
