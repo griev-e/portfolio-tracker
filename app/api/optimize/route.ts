@@ -4,6 +4,7 @@ import type {
   OptimizerRequest,
   OptimizerShift,
 } from "@/lib/optimizer/types";
+import { aiRequestAllowed } from "@/lib/server/aiEndpoint";
 import {
   generateOptimization,
   getCachedOptimization,
@@ -172,8 +173,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Cost backstop: refuse a fresh generation once the hourly cap is hit.
-  if (optimizerRateLimited()) {
+  // Per-IP throttle + hourly cost backstop before a fresh generation.
+  if (!aiRequestAllowed(req, "optimize", 8) || optimizerRateLimited()) {
     return NextResponse.json(
       { error: "optimizer rate limited" },
       { status: 429, headers: { "Cache-Control": "no-store" } }

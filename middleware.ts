@@ -9,9 +9,10 @@ import { authConfig } from "@/auth.config";
 /**
  * Auth gate. Real username/password sessions (NextAuth) replace the old PIN.
  *
- * Gated only when AUTH_SECRET is set. When it's unset the app is fully open
- * (single-user, localStorage), exactly as before — so local dev and first
- * deploys never lock anyone out, honoring the app's graceful-degradation rule.
+ * Gated only when accounts are fully configured (AUTH_SECRET + DATABASE_URL).
+ * When either is unset the app is fully open (single-user, localStorage),
+ * exactly as before — so local dev and first deploys never lock anyone out,
+ * honoring the app's graceful-degradation rule.
  * We short-circuit to `next()` *before* touching NextAuth, which would throw
  * without a secret.
  *

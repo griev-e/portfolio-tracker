@@ -4,6 +4,7 @@ import type {
   ThetaBriefRequest,
   ThetaBriefResponse,
 } from "@/lib/theta/intelligence";
+import { AiCache, GenLimiter, mapAnthropicError } from "@/lib/server/aiEndpoint";
 import { usdCost } from "@/lib/server/cost";
 
 /**
@@ -19,35 +20,21 @@ import { usdCost } from "@/lib/server/cost";
 const BRIEF_MODEL = "claude-sonnet-4-6";
 const BRIEF_EFFORT = "high" as const;
 
-const cache = new Map<string, { at: number; data: ThetaBriefResponse }>();
-const TTL = 24 * 3600_000;
-const CACHE_MAX = 20;
+const cache = new AiCache<ThetaBriefResponse>(24 * 3600_000, 20);
+const genLimiter = new GenLimiter(3600_000, 40);
 
-const GEN_WINDOW_MS = 3600_000;
-const GEN_MAX = 40;
-let genWindowStart = Date.now();
-let genCount = 0;
-
-export function thetaBriefRateLimited(): boolean {
-  const now = Date.now();
-  if (now - genWindowStart > GEN_WINDOW_MS) {
-    genWindowStart = now;
-    genCount = 0;
-  }
-  return genCount >= GEN_MAX;
-}
+export const thetaBriefRateLimited = (): boolean => genLimiter.limited();
 
 export function thetaBriefConfigured(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
-export function thetaBriefErrorResponse(err: unknown): { status: number; error: string } {
-  if (err instanceof Anthropic.AuthenticationError)
-    return { status: 501, error: "brief not configured" };
-  if (err instanceof Anthropic.RateLimitError)
-    return { status: 429, error: "brief provider rate limited" };
-  return { status: 502, error: "brief provider unavailable" };
-}
+export const thetaBriefErrorResponse = (err: unknown) =>
+  mapAnthropicError(err, {
+    notConfigured: "brief not configured",
+    rateLimited: "brief provider rate limited",
+    unavailable: "brief provider unavailable",
+  });
 
 /** Day-scoped + ledger-shape-scoped so an edit refreshes it, a re-render doesn't. */
 export function thetaBriefFingerprint(req: ThetaBriefRequest): string {
@@ -62,19 +49,10 @@ export function thetaBriefFingerprint(req: ThetaBriefRequest): string {
   return `${new Date().toISOString().slice(0, 10)}|${shape}`;
 }
 
-export function getCachedThetaBrief(key: string): ThetaBriefResponse | null {
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < TTL) return hit.data;
-  return null;
-}
-
-export function setCachedThetaBrief(key: string, data: ThetaBriefResponse): void {
-  if (cache.size >= CACHE_MAX) {
-    const oldest = cache.keys().next().value;
-    if (oldest !== undefined) cache.delete(oldest);
-  }
-  cache.set(key, { at: Date.now(), data });
-}
+export const getCachedThetaBrief = (key: string): ThetaBriefResponse | null =>
+  cache.get(key);
+export const setCachedThetaBrief = (key: string, data: ThetaBriefResponse): void =>
+  cache.set(key, data);
 
 const SYSTEM = `You are the money-brief writer for theta, a private personal-finance terminal. You receive a JSON snapshot of one person's finances this month: net worth and its change, income, spending, savings rate, spending by category, budgets (limit vs spent), savings goals, and upcoming recurring charges.
 
@@ -126,7 +104,7 @@ export async function generateThetaBrief(
   // thinks, so a slow adaptive-thinking turn doesn't trip the SDK timeout; the
   // route caps total duration.
   const client = new Anthropic({ timeout: 55_000, maxRetries: 1 });
-  genCount += 1;
+  genLimiter.record();
   const stream = client.messages.stream({
     model: BRIEF_MODEL,
     max_tokens: 4000,

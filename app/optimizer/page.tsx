@@ -20,6 +20,7 @@ import type {
   PortfolioMetrics,
   ShiftAction,
 } from "@/lib/optimizer/types";
+import { useAssumptions } from "@/lib/assumptions/store";
 import { usePortfolio } from "@/lib/store";
 import type { Portfolio } from "@/lib/types";
 import { useAsyncCompute } from "@/lib/useAsyncCompute";
@@ -111,6 +112,7 @@ const SHIFT_META: Record<ShiftAction, { label: string; cls: string }> = {
 
 export default function OptimizerPage() {
   const { ready, portfolio } = usePortfolio();
+  const { version } = useAssumptions();
 
   const [objective, setObjective] = useState<ObjectiveId>("sharpe");
   const [maxWeight, setMaxWeight] = useState(0.1);
@@ -125,7 +127,8 @@ export default function OptimizerPage() {
 
   const { value: result, pending } = useAsyncCompute(
     () => (portfolio ? optimizePortfolio(portfolio, objective, constraints) : null),
-    [portfolio, objective, constraints]
+    // version: recompute on assumption edits (ERP feeds CAPM via the singleton).
+    [portfolio, objective, constraints, version]
   );
 
   if (!ready) return null;

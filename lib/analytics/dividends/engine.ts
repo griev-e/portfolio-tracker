@@ -1,5 +1,7 @@
 import { clamp, mean } from "@/lib/analytics/mathUtils";
+import { NDX, SPX } from "@/lib/data/benchmarks";
 import { getAssumptions } from "@/lib/live/assumptions";
+import { liveBenchmark } from "@/lib/live/cma";
 import type { Portfolio, Position } from "@/lib/types";
 import type {
   DividendEvent,
@@ -597,9 +599,11 @@ export function dividendReport(
     scenarios,
     dripBoost5y,
     riskFlags,
+    // Reference yields from the live SPY/QQQ proxies when primed, falling back
+    // to the static benchmark profile — not a frozen constant.
     benchmarks: [
-      { label: "S&P 500", yield: 0.0125 },
-      { label: "NASDAQ-100", yield: 0.005 },
+      { label: "S&P 500", yield: liveBenchmark("spx")?.dividendYield ?? SPX.dividendYield },
+      { label: "NASDAQ-100", yield: liveBenchmark("ndx")?.dividendYield ?? NDX.dividendYield },
     ],
     holdings,
     methodology: [

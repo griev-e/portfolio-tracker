@@ -1,3 +1,4 @@
+import { splitCsvLine } from "./csvCore";
 import type { RawHolding } from "./types";
 
 export interface ParseResult {
@@ -18,37 +19,6 @@ const REQUIRED = [
 ] as const;
 
 const CASH_SYMBOLS = new Set(["CASH", "USD", "$CASH", "MONEY", "SWEEP"]);
-
-/** RFC-4180-ish CSV row splitter with quoted-field support. */
-function splitRow(line: string): string[] {
-  const out: string[] = [];
-  let cur = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (inQuotes) {
-      if (ch === '"') {
-        if (line[i + 1] === '"') {
-          cur += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        cur += ch;
-      }
-    } else if (ch === '"') {
-      inQuotes = true;
-    } else if (ch === ",") {
-      out.push(cur);
-      cur = "";
-    } else {
-      cur += ch;
-    }
-  }
-  out.push(cur);
-  return out;
-}
 
 function parseNumber(raw: string): number {
   const cleaned = raw.replace(/[$,%\s]/g, "").replace(/^\((.*)\)$/, "-$1");
@@ -85,7 +55,7 @@ export function parsePortfolioCSV(text: string): ParseResult {
     };
   }
 
-  const header = splitRow(lines[0]).map(normalizeHeader);
+  const header = splitCsvLine(lines[0]).map(normalizeHeader);
   const idx: Record<string, number> = {};
   for (const col of REQUIRED) {
     const i = header.indexOf(col);
@@ -102,7 +72,7 @@ export function parsePortfolioCSV(text: string): ParseResult {
   let cash: number | null = null;
 
   for (let r = 1; r < lines.length; r++) {
-    const cells = splitRow(lines[r]);
+    const cells = splitCsvLine(lines[r]);
     const get = (col: (typeof REQUIRED)[number]) =>
       (cells[idx[col]] ?? "").trim();
 

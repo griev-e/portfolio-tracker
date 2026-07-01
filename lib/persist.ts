@@ -16,17 +16,28 @@ let inflight: Promise<ServerState | null> | null = null;
  * GET both blobs. The alpha and theta providers both call this on mount; while
  * a request is in flight they share it, so we fetch once per load. The cache
  * clears as soon as it settles, so a later reload fetches fresh.
+ *
+ * A resolved `ServerState` (possibly `{ portfolio: null, ledger: null }` for a
+ * new user) is the "loaded" signal; `null` means the load genuinely FAILED.
+ * Callers must not treat a failed load as "empty" — that could let a later save
+ * overwrite good server data. Transient (network / 5xx) failures are retried a
+ * couple of times before giving up; a 4xx (401 unauth, 404 disabled) is not
+ * retried, since it won't be fixed by trying again.
  */
 export function getServerState(): Promise<ServerState | null> {
   if (!inflight) {
     inflight = (async () => {
-      try {
-        const res = await fetch("/api/state", { credentials: "same-origin" });
-        if (!res.ok) return null;
-        return (await res.json()) as ServerState;
-      } catch {
-        return null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const res = await fetch("/api/state", { credentials: "same-origin" });
+          if (res.ok) return (await res.json()) as ServerState;
+          if (res.status >= 400 && res.status < 500) return null;
+        } catch {
+          // network blip — fall through to the retry
+        }
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
       }
+      return null;
     })();
     void inflight.finally(() => {
       inflight = null;

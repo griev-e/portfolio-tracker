@@ -15,13 +15,17 @@ const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 export { yf };
 
 /** Module-scope caches survive between invocations on warm lambdas. */
-const quoteCache = new Map<string, { at: number; data: LiveQuote }>();
+// `data: null` is a negative-cache entry — a symbol Yahoo returned nothing for
+// (delisted / unknown), backed off longer so it doesn't re-hit the provider on
+// every 60s poll the way an uncached miss would.
+const quoteCache = new Map<string, { at: number; data: LiveQuote | null }>();
 const fundCache = new Map<string, { at: number; data: FundamentalsPatch | null }>();
 const searchCache = new Map<string, { at: number; data: SymbolHit[] }>();
 const historyCache = new Map<string, { at: number; data: HistorySeries | null }>();
 // Slightly longer than the client's 60s poll (lib/live/useLiveData.ts) so the
 // steady-state poll can hit this warm-lambda cache instead of always missing.
 const QUOTE_TTL = 65_000;
+const QUOTE_NEG_TTL = 10 * 60_000;
 const FUND_TTL = 12 * 3600_000;
 const SEARCH_TTL = 6 * 3600_000;
 const HISTORY_TTL = 10 * 60_000;
@@ -49,16 +53,23 @@ export async function fetchQuotes(
   const missing: string[] = [];
   for (const s of symbols) {
     const hit = quoteCache.get(s);
-    if (!force && hit && now - hit.at < QUOTE_TTL) out[s] = hit.data;
-    else missing.push(s);
+    const ttl = hit?.data === null ? QUOTE_NEG_TTL : QUOTE_TTL;
+    if (!force && hit && now - hit.at < ttl) {
+      if (hit.data) out[s] = hit.data; // else a fresh negative hit — skip, don't re-request
+    } else {
+      missing.push(s);
+    }
   }
   if (missing.length > 0) {
     // Partial-failure safe: a single bad/delisted ticker makes yf.quote reject
     // for the whole batch. Swallow that here so symbols already served from the
     // warm cache (in `out`) survive and the unresolved ones degrade individually
     // to the snapshot, rather than 502-ing live prices for the entire book.
+    let batchOk = false;
+    const resolved = new Set<string>();
     try {
       const results = await yf.quote(missing);
+      batchOk = true;
       const list = Array.isArray(results) ? results : [results];
       for (const q of list) {
         if (!q?.symbol || typeof q.regularMarketPrice !== "number") continue;
@@ -92,9 +103,19 @@ export async function fetchQuotes(
         };
         out[q.symbol] = quote;
         quoteCache.set(q.symbol, { at: now, data: quote });
+        resolved.add(q.symbol);
       }
     } catch {
       // Provider error for the batch — keep whatever the cache already gave us.
+    }
+    // Only when the batch call itself succeeded: negative-cache the symbols it
+    // returned nothing for, so a delisted/unknown ticker backs off instead of
+    // re-hitting the provider every poll. A thrown batch (transient outage) is
+    // left uncached so a recovered provider is retried immediately.
+    if (batchOk) {
+      for (const s of missing) {
+        if (!resolved.has(s)) quoteCache.set(s, { at: now, data: null });
+      }
     }
   }
   return out;

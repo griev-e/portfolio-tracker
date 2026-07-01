@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 
 /**
  * Route-level error boundary (App Router). Catches render errors anywhere in a
@@ -9,11 +10,18 @@ import Link from "next/link";
  * `reset()` re-renders the segment.
  */
 export default function Error({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Surface the cause so a render crash is diagnosable (digest points at the
+  // matching server-side log entry) rather than swallowed silently.
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
+
   return (
     <div
       role="alert"

@@ -1,4 +1,5 @@
 import { covarianceMatrix, coveredPositions } from "@/lib/analytics/correlation";
+import { mulberry32 } from "@/lib/analytics/mathUtils";
 import { getCMA } from "@/lib/live/cma";
 import type { Fundamentals, Portfolio, Position } from "@/lib/types";
 import type {
@@ -48,18 +49,6 @@ const quad = (w: number[], cov: number[][]): number => dot(w, matVec(cov, w));
 
 const clamp01 = (x: number): number => Math.max(0, Math.min(1, x));
 
-/** Tiny seeded PRNG so the random restarts are deterministic. */
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 /**
  * Euclidean projection of v onto { w : Σwᵢ = 1, 0 ≤ wᵢ ≤ cap }.
  * The KKT solution is wᵢ = clip(vᵢ − τ, 0, cap); since Σ clip(vᵢ − τ, …) is
@@ -88,6 +77,7 @@ function projectCappedSimplex(v: number[], cap: number): number[] {
 interface Ctx {
   n: number;
   mu: number[]; // CAPM expected return per name
+  beta: number[]; // market beta per name
   vol: number[]; // standalone annualized volatility
   yld: number[]; // dividend yield
   qual: number[]; // 0..1 quality score
@@ -290,9 +280,8 @@ function buildCtx(portfolio: Portfolio): Ctx | null {
 
   // ps is covered → `p.fundamentals` is non-null; the `?? 1`/`?? 0.2` are only
   // type-totality guards and never execute.
-  const mu = ps.map(
-    (p) => rf + (p.fundamentals?.beta ?? 1) * CMA.equityRiskPremium
-  );
+  const beta = ps.map((p) => p.fundamentals?.beta ?? 1);
+  const mu = beta.map((b) => rf + b * CMA.equityRiskPremium);
   const vol = ps.map((p) => p.fundamentals?.volatility ?? 0.2);
   const yld = ps.map((p) => p.fundamentals?.dividendYield ?? 0);
   const qual = ps.map((p) => qualityScore(p.fundamentals));
@@ -302,6 +291,7 @@ function buildCtx(portfolio: Portfolio): Ctx | null {
   return {
     n,
     mu,
+    beta,
     vol,
     yld,
     qual,
@@ -354,11 +344,12 @@ function metricsFor(w: number[], ctx: Ctx): PortfolioMetrics {
   };
 }
 
-/** Total-book beta — cash contributes 0. Recovered from μ = rf + β·ERP. */
+/** Total-book beta — cash contributes 0. Uses the per-name betas directly, so
+ *  it stays finite even if the equity-risk-premium assumption is set to 0. */
 function ps_beta(total: number[], ctx: Ctx): number {
   let b = 0;
   for (let i = 0; i < total.length; i++) {
-    b += total[i] * ((ctx.mu[i] - ctx.rf) / ctx.erp);
+    b += total[i] * ctx.beta[i];
   }
   return b;
 }

@@ -5,15 +5,15 @@ import type {
   BriefResponse,
 } from "@/lib/intelligence/types";
 import { fetchNews } from "@/lib/server/news";
+import { AiCache, GenLimiter, mapAnthropicError } from "@/lib/server/aiEndpoint";
 import { usdCost } from "@/lib/server/cost";
 
 /**
  * AI morning brief: one Claude call per day per portfolio shape, cached in
  * module scope like the yahoo caches (resets on cold start — accepted).
  */
-const briefCache = new Map<string, { at: number; data: BriefResponse }>();
 const BRIEF_TTL = 24 * 3600_000; // memory backstop; the date in the key rolls daily
-const CACHE_MAX = 20;
+const briefCache = new AiCache<BriefResponse>(BRIEF_TTL, 20);
 
 /**
  * Haiku 4.5 — the brief is a constrained, structured task (the JSON schema does
@@ -28,36 +28,20 @@ export const BRIEF_MODEL = "claude-haiku-4-5";
  * normal use; this bounds the bill if someone churns portfolio shapes to force
  * regeneration. Resets on cold start — accepted, like the caches above.
  */
-const GEN_WINDOW_MS = 3600_000;
-const GEN_MAX = 40;
-let genWindowStart = Date.now();
-let genCount = 0;
+const genLimiter = new GenLimiter(3600_000, 40);
 
-export function briefRateLimited(): boolean {
-  const now = Date.now();
-  if (now - genWindowStart > GEN_WINDOW_MS) {
-    genWindowStart = now;
-    genCount = 0;
-  }
-  return genCount >= GEN_MAX;
-}
+export const briefRateLimited = (): boolean => genLimiter.limited();
 
 export function briefConfigured(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
-/**
- * Map a provider error to an HTTP outcome. Lives here so the route never has to
- * import the Anthropic SDK (it stays confined to lib/server/*).
- */
-export function briefErrorResponse(err: unknown): { status: number; error: string } {
-  // A key that fails auth behaves like no key at all.
-  if (err instanceof Anthropic.AuthenticationError)
-    return { status: 501, error: "brief not configured" };
-  if (err instanceof Anthropic.RateLimitError)
-    return { status: 429, error: "brief provider rate limited" };
-  return { status: 502, error: "brief provider unavailable" };
-}
+export const briefErrorResponse = (err: unknown) =>
+  mapAnthropicError(err, {
+    notConfigured: "brief not configured",
+    rateLimited: "brief provider rate limited",
+    unavailable: "brief provider unavailable",
+  });
 
 /** Day-scoped + weight-shape-scoped: a quote tick doesn't bust it, an import does. */
 export function briefFingerprint(req: BriefRequest): string {
@@ -68,19 +52,10 @@ export function briefFingerprint(req: BriefRequest): string {
   return `${new Date().toISOString().slice(0, 10)}|${shape}`;
 }
 
-export function getCachedBrief(key: string): BriefResponse | null {
-  const hit = briefCache.get(key);
-  if (hit && Date.now() - hit.at < BRIEF_TTL) return hit.data;
-  return null;
-}
-
-export function setCachedBrief(key: string, data: BriefResponse): void {
-  if (briefCache.size >= CACHE_MAX) {
-    const oldest = briefCache.keys().next().value;
-    if (oldest !== undefined) briefCache.delete(oldest);
-  }
-  briefCache.set(key, { at: Date.now(), data });
-}
+export const getCachedBrief = (key: string): BriefResponse | null =>
+  briefCache.get(key);
+export const setCachedBrief = (key: string, data: BriefResponse): void =>
+  briefCache.set(key, data);
 
 /** Stable system prompt — no per-request interpolation, so it's byte-identical
  *  across calls. (No `cache_control` is set: the per-day-per-shape module cache
@@ -223,7 +198,7 @@ export async function generateBrief(
   // timeout means a slow provider fails fast instead of holding the lambda open
   // for the full maxDuration.
   const client = new Anthropic({ timeout: 30_000, maxRetries: 1 });
-  genCount += 1;
+  genLimiter.record();
   const response = await client.messages.create({
     model: BRIEF_MODEL,
     max_tokens: 1500,
