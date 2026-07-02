@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sectorFromIndustry } from "./finnhub";
 import { sanitizeImplausibleFields } from "./fundamentals";
-import { annualizedVol, fcfGrowthFromStatements, roicFrom } from "./yahoo";
+import { annualizedVol, roicFrom, yoyGrowth } from "./yahoo";
 
 describe("annualizedVol", () => {
   it("returns undefined for short series", () => {
@@ -22,20 +22,20 @@ describe("annualizedVol", () => {
   });
 });
 
-describe("fcfGrowthFromStatements", () => {
-  it("computes YoY FCF growth (CFO + capex), newest first", () => {
-    const g = fcfGrowthFromStatements([
-      { cfo: 120, capex: -20 }, // FCF 100
-      { cfo: 100, capex: -20 }, // FCF 80
-    ]);
-    expect(g).toBeCloseTo(0.25);
+describe("yoyGrowth", () => {
+  it("computes a simple year-over-year growth rate", () => {
+    expect(yoyGrowth(100, 80)).toBeCloseTo(0.25);
   });
 
-  it("is undefined without two usable years", () => {
-    expect(fcfGrowthFromStatements([{ cfo: 100, capex: -10 }])).toBeUndefined();
-    expect(
-      fcfGrowthFromStatements([{ cfo: 100 }, { cfo: 90, capex: -10 }])
-    ).toBeUndefined();
+  it("is undefined when either value or the prior base is missing/zero", () => {
+    expect(yoyGrowth(100, undefined)).toBeUndefined();
+    expect(yoyGrowth(undefined, 80)).toBeUndefined();
+    expect(yoyGrowth(100, 0)).toBeUndefined();
+  });
+
+  it("handles a negative prior value via the absolute-value base", () => {
+    // -50 -> 100 is a genuine swing to profitability, not a 300% "loss".
+    expect(yoyGrowth(100, -50)).toBeCloseTo(3);
   });
 });
 
