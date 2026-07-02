@@ -34,7 +34,7 @@
     "@eslint/eslintrc": "^3.3.5",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.1.0",
-    "@types/bcryptjs": "^2.4.6",
+    "@types/bcryptjs": "^3.0.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
