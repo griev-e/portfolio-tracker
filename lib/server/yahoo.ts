@@ -10,8 +10,19 @@ import type { HistoryRange, HistorySeries, SymbolHit } from "@/lib/research/type
 /**
  * Server-side Yahoo Finance client (unofficial API via yahoo-finance2).
  * Only ever imported from route handlers — never ships to the browser.
+ *
+ * The library serializes every HTTP call it makes (across all modules, and
+ * all concurrent requests on a warm lambda) through one process-wide queue,
+ * default concurrency 4. `/api/fundamentals` fans out `CONCURRENCY = 6`
+ * symbols at a time expecting that much real parallelism (each symbol itself
+ * costs 2-3 further calls — quoteSummary, chart, fundamentalsTimeSeries) —
+ * raise the queue to match so that chunking isn't silently throttled back
+ * down to the library default.
  */
-const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
+const yf = new YahooFinance({
+  suppressNotices: ["yahooSurvey"],
+  queue: { concurrency: 6 },
+});
 export { yf };
 
 /** Module-scope caches survive between invocations on warm lambdas. */
