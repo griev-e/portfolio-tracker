@@ -206,15 +206,8 @@ async function fetchVolatility(symbol: string): Promise<number | undefined> {
   return annualizedVol(series.points.map((p) => p.c));
 }
 
-/** YoY free-cash-flow growth from statements newest-first; FCF = CFO + capex. */
-export function fcfGrowthFromStatements(
-  rows: { cfo?: number; capex?: number }[]
-): number | undefined {
-  if (rows.length < 2) return undefined;
-  const fcf = (r: { cfo?: number; capex?: number }) =>
-    r.cfo !== undefined && r.capex !== undefined ? r.cfo + r.capex : undefined;
-  const cur = fcf(rows[0]);
-  const prev = fcf(rows[1]);
+/** Simple YoY growth rate; undefined when either value is missing or the base is zero. */
+export function yoyGrowth(cur: number | undefined, prev: number | undefined): number | undefined {
   if (cur === undefined || prev === undefined || prev === 0) return undefined;
   const g = (cur - prev) / Math.abs(prev);
   return Number.isFinite(g) ? g : undefined;
@@ -245,42 +238,46 @@ export function roicFrom(p: {
   return Number.isFinite(roic) ? roic : undefined;
 }
 
-/** Best-effort ROIC / FCF growth from Yahoo's statement modules (separately guarded). */
+/**
+ * Best-effort ROIC / FCF growth from Yahoo's per-period fundamentals time
+ * series, newest annual period first. This replaces `quoteSummary`'s
+ * `cashflowStatementHistory` / `incomeStatementHistory` / `balanceSheetHistory`
+ * modules, which have returned almost no data since Nov 2024 (a known
+ * upstream Yahoo API change — see the yahoo-finance2 deprecation notice).
+ * `fundamentalsTimeSeries` is the library's current replacement and — unlike
+ * those modules — still returns real statement data.
+ */
 async function deriveStatementMetrics(
   symbol: string
-): Promise<{ roic?: number; fcfGrowth?: number }> {
+): Promise<{ roic?: number; fcfGrowth?: number; fcfTTM?: number }> {
   try {
-    const s = await yf.quoteSummary(symbol, {
-      modules: [
-        "cashflowStatementHistory",
-        "incomeStatementHistory",
-        "balanceSheetHistory",
-      ],
+    const raw = await yf.fundamentalsTimeSeries(symbol, {
+      period1: new Date(Date.now() - 4 * 365 * 86_400_000),
+      type: "annual",
+      module: "all",
     });
-    const cf = s.cashflowStatementHistory?.cashflowStatements ?? [];
-    const fcfGrowth = fcfGrowthFromStatements(
-      cf.map((r) => {
-        const row = r as unknown as Record<string, unknown>;
-        return {
-          cfo: num(row.totalCashFromOperatingActivities),
-          capex: num(row.capitalExpenditures),
-        };
-      })
-    );
+    const rows = (raw as unknown as Record<string, unknown>[])
+      .slice()
+      .sort((a, b) => {
+        const ad = a.date instanceof Date ? a.date.getTime() : 0;
+        const bd = b.date instanceof Date ? b.date.getTime() : 0;
+        return bd - ad; // newest first
+      });
 
-    const inc = (s.incomeStatementHistory?.incomeStatementHistory ?? [])[0] as
-      | unknown as Record<string, unknown> | undefined;
-    const bal = (s.balanceSheetHistory?.balanceSheetStatements ?? [])[0] as
-      | unknown as Record<string, unknown> | undefined;
+    const fcfGrowth = yoyGrowth(num(rows[0]?.freeCashFlow), num(rows[1]?.freeCashFlow));
+
+    const latest = rows[0];
     const roic = roicFrom({
-      ebit: num(inc?.ebit) ?? num(inc?.operatingIncome),
-      incomeBeforeTax: num(inc?.incomeBeforeTax),
-      incomeTaxExpense: num(inc?.incomeTaxExpense),
-      equity: num(bal?.totalStockholderEquity),
-      debt: (num(bal?.shortLongTermDebt) ?? 0) + (num(bal?.longTermDebt) ?? 0),
-      cash: (num(bal?.cash) ?? 0) + (num(bal?.shortTermInvestments) ?? 0),
+      ebit: num(latest?.EBIT) ?? num(latest?.operatingIncome),
+      incomeBeforeTax: num(latest?.pretaxIncome),
+      incomeTaxExpense: num(latest?.taxProvision),
+      equity: num(latest?.stockholdersEquity),
+      debt: num(latest?.totalDebt),
+      cash:
+        num(latest?.cashCashEquivalentsAndShortTermInvestments) ??
+        num(latest?.cashAndCashEquivalents),
     });
-    return { roic, fcfGrowth };
+    return { roic, fcfGrowth, fcfTTM: num(latest?.freeCashFlow) };
   } catch {
     return {};
   }
@@ -382,7 +379,14 @@ export async function fetchYahooPatch(
         const de = num(fin?.debtToEquity);
         return de !== undefined && de >= 0 ? de / 100 : undefined;
       })(),
-      dividendYield: num(detail?.dividendYield) ?? num(detail?.yield),
+      // `trailingAnnualDividendYield` is always populated (0 for non-payers),
+      // unlike `dividendYield`/`yield`, which Yahoo omits entirely rather than
+      // reporting 0 when there's no active dividend — without this fallback a
+      // non-payer's true (live) 0% reads as an unsourced "estimated" value.
+      dividendYield:
+        num(detail?.dividendYield) ??
+        num(detail?.yield) ??
+        num(detail?.trailingAnnualDividendYield),
       return12m: num(stats?.["52WeekChange"]),
       analyst:
         targetMean || RATING[ratingKey]
@@ -415,7 +419,7 @@ export async function fetchYahooPatch(
 
   // Enrich, each independently guarded so a failure never voids the core patch:
   // realized volatility from price history, plus best-effort ROIC / FCF growth
-  // from the statement modules.
+  // from the statement time series.
   if (patch && !isFundType(patch)) {
     const [vol, stmt] = await Promise.all([
       fetchVolatility(symbol),
@@ -424,6 +428,11 @@ export async function fetchYahooPatch(
     if (vol !== undefined) patch.volatility = vol;
     if (stmt.roic !== undefined) patch.roic = stmt.roic;
     if (stmt.fcfGrowth !== undefined) patch.fcfGrowth = stmt.fcfGrowth;
+    // `financialData.freeCashflow` (used above) is absent for some tickers;
+    // fall back to the statement time series' latest annual FCF.
+    if (patch.fcfYield === undefined && stmt.fcfTTM !== undefined && patch.marketCap) {
+      patch.fcfYield = stmt.fcfTTM / patch.marketCap;
+    }
   } else if (patch) {
     const vol = await fetchVolatility(symbol);
     if (vol !== undefined) patch.volatility = vol;
