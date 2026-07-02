@@ -97,7 +97,7 @@ const IP_WINDOW_MS = 60_000;
 const IP_MAX_ENTRIES = 5000;
 const ipHits = new Map<string, { at: number; count: number }>();
 
-export function aiRequestAllowed(req: Request, endpoint: string, max: number): boolean {
+export function requestAllowed(req: Request, endpoint: string, max: number): boolean {
   let ip = "unknown";
   try {
     ip = clientKey(req);

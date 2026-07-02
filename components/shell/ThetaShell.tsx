@@ -1,5 +1,6 @@
 "use client";
 
+import { SyncBanner } from "@/components/ui/SyncBanner";
 import { m } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -269,6 +270,7 @@ export function ThetaShell({ children }: { children: ReactNode }) {
         </header>
 
         <main className="mx-auto w-full max-w-[1380px] min-w-0 px-4 py-6 sm:px-8 sm:py-8">
+          <SyncBanner />
           <m.div
             key={pathname}
             initial={{ opacity: 0, y: 8 }}

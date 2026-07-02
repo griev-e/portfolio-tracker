@@ -119,3 +119,18 @@ describe("sanitizeImplausibleFields", () => {
     expect(sanitizeImplausibleFields(patch)).toEqual(patch);
   });
 });
+
+describe("roicFrom invested capital", () => {
+  it("subtracts cash from invested capital (cash-rich names aren't penalized)", () => {
+    // EBIT 100, 21% default tax → NOPAT 79. Equity 500 + debt 300 − cash 300
+    // = invested 500 → ROIC 15.8%; leaving cash in would misreport 9.9%.
+    const withCash = roicFrom({ ebit: 100, equity: 500, debt: 300, cash: 300 })!;
+    const withoutCash = roicFrom({ ebit: 100, equity: 500, debt: 300 })!;
+    expect(withCash).toBeCloseTo(79 / 500, 10);
+    expect(withCash).toBeGreaterThan(withoutCash);
+  });
+
+  it("returns undefined when cash exceeds the capital base", () => {
+    expect(roicFrom({ ebit: 50, equity: 100, debt: 0, cash: 200 })).toBeUndefined();
+  });
+});

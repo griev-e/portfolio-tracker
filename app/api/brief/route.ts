@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { BriefPosition, BriefRequest } from "@/lib/intelligence/types";
-import { aiRequestAllowed } from "@/lib/server/aiEndpoint";
+import { requestAllowed } from "@/lib/server/aiEndpoint";
 import {
   briefConfigured,
   briefErrorResponse,
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Per-IP throttle + hourly cost backstop before a fresh generation.
-  if (!aiRequestAllowed(req, "brief", 10) || briefRateLimited()) {
+  if (!requestAllowed(req, "brief", 10) || briefRateLimited()) {
     return NextResponse.json(
       { error: "brief provider rate limited" },
       { status: 429, headers: { "Cache-Control": "no-store" } }

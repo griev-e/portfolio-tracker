@@ -18,6 +18,7 @@ const bundled: Fundamentals = {
   forwardPE: 25,
   fcfYield: 0.03,
   roic: 0.2,
+  debtToEquity: 0.6,
   operatingMargin: 0.25,
   grossMargin: 0.6,
   dividendYield: 0,

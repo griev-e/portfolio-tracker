@@ -21,8 +21,7 @@ import { factorScores } from "./factors";
 export type TargetBasis = "holding" | "sector" | "style";
 export type RebalanceMode = "deploy" | "full";
 
-const STYLES = ["Growth", "Value", "Dividend", "Momentum", "Low Vol"] as const;
-export type Style = (typeof STYLES)[number];
+export type Style = "Growth" | "Value" | "Dividend" | "Momentum" | "Low Vol";
 
 export interface RebalanceGroup {
   id: string;
@@ -65,7 +64,9 @@ export interface RebalancePlan {
   buyTotal: number;
   sellTotal: number;
   tradeCount: number;
-  turnover: number; // two-way notional / invested book
+  /** One-way turnover: Σ|trades| / 2 / invested book — matches the optimizer's
+   *  definition so the two pages report the same convention. */
+  turnover: number;
   driftBefore: number; // Σ|groupWeight − target|
   driftAfter: number;
   groups: GroupResult[];
@@ -277,7 +278,7 @@ export function planRebalance(
     buyTotal,
     sellTotal,
     tradeCount: orders.filter((o) => o.action !== "hold").length,
-    turnover: equityValue > 0 ? (buyTotal + sellTotal) / equityValue : 0,
+    turnover: equityValue > 0 ? (buyTotal + sellTotal) / 2 / equityValue : 0,
     driftBefore,
     driftAfter,
     groups: groupResults,

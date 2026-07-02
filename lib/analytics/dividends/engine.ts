@@ -235,6 +235,16 @@ function evaluateHolding(
       bump(-8, "free cash flow is shrinking");
       flags.push("Declining free cash flow behind the payout");
     }
+    // A stretched balance sheet competes with the dividend for cash — debt
+    // service is senior to the payout. Financials excluded (structural D/E);
+    // no reading = no adjustment, never a fabricated one.
+    const de = sector === "Financials" ? null : (p.fundamentals?.debtToEquity ?? null);
+    if (de !== null && de > 3) {
+      bump(-12, `debt is ${de.toFixed(1)}× equity — the balance sheet competes with the payout`);
+      flags.push(`Heavy leverage (${de.toFixed(1)}× debt/equity) behind the dividend`);
+    } else if (de !== null && de > 2) {
+      bump(-6, `elevated ${de.toFixed(1)}× debt/equity — debt service is senior to the dividend`);
+    }
     // Earnings trajectory interacts with how much of those earnings is already
     // committed: a falling line matters more when the payout already eats most
     // of it, and a low payout with rising earnings buys room to keep raising.

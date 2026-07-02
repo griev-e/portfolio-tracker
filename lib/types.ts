@@ -76,6 +76,9 @@ export interface Fundamentals {
   forwardPE: number | null; // null when unprofitable
   fcfYield: number; // decimal
   roic: number; // decimal
+  /** Total debt / shareholder equity ratio; null when the provider has none
+   *  (never fabricated — leverage is scored neutral without data). */
+  debtToEquity: number | null;
   operatingMargin: number; // decimal
   grossMargin: number; // decimal
   dividendYield: number; // decimal

@@ -1,5 +1,6 @@
 "use client";
 
+import { SyncBanner } from "@/components/ui/SyncBanner";
 import { m } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -384,6 +385,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               re-render. A keyed m.div remounts per route and always runs
               its initial→animate, so the new page is mounted and visible at
               once. */}
+          <SyncBanner />
           <m.div
             key={pathname}
             initial={{ opacity: 0, y: 8 }}

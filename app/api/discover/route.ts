@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { DiscoverPosition, DiscoverRequest } from "@/lib/discover/types";
-import { aiRequestAllowed } from "@/lib/server/aiEndpoint";
+import { requestAllowed } from "@/lib/server/aiEndpoint";
 import {
   discoverConfigured,
   discoverErrorResponse,
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Per-IP throttle + hourly cost backstop before a fresh generation.
-  if (!aiRequestAllowed(req, "discover", 8) || discoverRateLimited()) {
+  if (!requestAllowed(req, "discover", 8) || discoverRateLimited()) {
     return NextResponse.json(
       { error: "discover rate limited" },
       { status: 429, headers: { "Cache-Control": "no-store" } }

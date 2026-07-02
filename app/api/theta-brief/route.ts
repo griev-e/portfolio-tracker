@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ThetaBriefRequest, ThetaSnapshot } from "@/lib/theta/intelligence";
-import { aiRequestAllowed } from "@/lib/server/aiEndpoint";
+import { requestAllowed } from "@/lib/server/aiEndpoint";
 import {
   thetaBriefConfigured,
   thetaBriefErrorResponse,
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Per-IP throttle before a fresh generation (cached hits already returned).
-  if (!aiRequestAllowed(req, "theta-brief", 10) || thetaBriefRateLimited()) {
+  if (!requestAllowed(req, "theta-brief", 10) || thetaBriefRateLimited()) {
     return NextResponse.json(
       { error: "brief provider rate limited" },
       { status: 429, headers: { "Cache-Control": "no-store" } }

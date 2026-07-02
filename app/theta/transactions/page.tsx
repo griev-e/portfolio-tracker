@@ -40,7 +40,7 @@ export default function TransactionsPage() {
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState<Category | "All">("All");
 
-  const transactions = ledger?.transactions ?? [];
+  const transactions = useMemo(() => ledger?.transactions ?? [], [ledger]);
   const accounts = useMemo(() => ledger?.accounts ?? [], [ledger]);
   const hiddenAccounts = useMemo(() => ledger?.hiddenAccounts ?? [], [ledger]);
   const hiddenCategories = useMemo(() => ledger?.hiddenCategories ?? [], [ledger]);

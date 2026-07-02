@@ -102,6 +102,13 @@ export async function fetchFinnhubPatch(
     grossMargin: pct(m.grossMarginTTM) ?? pct(m.grossMarginAnnual),
     operatingMargin: pct(m.operatingMarginTTM) ?? pct(m.operatingMarginAnnual),
     roic: pct(m.roiTTM) ?? pct(m.roiAnnual),
+    // Finnhub reports D/E as a plain ratio, not a percentage.
+    debtToEquity: (() => {
+      const de =
+        num(m["totalDebt/totalEquityQuarterly"]) ??
+        num(m["totalDebt/totalEquityAnnual"]);
+      return de !== undefined && de >= 0 ? de : undefined;
+    })(),
     dividendYield:
       pct(m.currentDividendYieldTTM) ?? pct(m.dividendYieldIndicatedAnnual),
     revenueGrowth: pct(m.revenueGrowthTTMYoy) ?? pct(m.revenueGrowthQuarterlyYoy),

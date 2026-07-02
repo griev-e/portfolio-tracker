@@ -161,3 +161,25 @@ describe("runMonteCarlo", () => {
     expect(r.p95).toBeCloseTo(expected, 0);
   });
 });
+
+describe("tail-risk metrics", () => {
+  it("reports CVaR95 at or below the p5 terminal", () => {
+    const r = runMonteCarlo(baseInputs);
+    // Expected shortfall averages the tail *below* p5, so it can't exceed it.
+    expect(r.cvar95).toBeLessThanOrEqual(r.p5);
+    expect(r.cvar95).toBeGreaterThan(0);
+  });
+
+  it("orders drawdown percentiles and bounds them in [0, 1)", () => {
+    const r = runMonteCarlo(baseInputs);
+    expect(r.maxDrawdown.median).toBeGreaterThan(0);
+    expect(r.maxDrawdown.p90).toBeGreaterThanOrEqual(r.maxDrawdown.median);
+    expect(r.maxDrawdown.p90).toBeLessThan(1);
+  });
+
+  it("reports zero drawdown when volatility is zero and drift is positive", () => {
+    const r = runMonteCarlo({ ...baseInputs, sigma: 0, targetValue: 0 });
+    expect(r.maxDrawdown.median).toBe(0);
+    expect(r.maxDrawdown.p90).toBe(0);
+  });
+});

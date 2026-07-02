@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { holding, makePortfolio } from "../__tests__/factory";
+import { ASSUMPTION_PRESETS, DEFAULT_ASSUMPTIONS } from "../data/assumptions";
+import { setAssumptions } from "../live/assumptions";
 import { CATEGORY_ORDER, type Grade, qualityReport } from "./quality";
 
 const VALID_GRADES: Grade[] = [
@@ -20,9 +22,9 @@ describe("qualityReport", () => {
     expect(VALID_GRADES).toContain(r.compositeGrade);
   });
 
-  it("scores all ten metrics across four categories", () => {
+  it("scores all eleven metrics across four categories", () => {
     const r = qualityReport(portfolio);
-    expect(r.metrics).toHaveLength(10);
+    expect(r.metrics).toHaveLength(11);
     expect(r.categories.map((c) => c.id)).toEqual(CATEGORY_ORDER);
   });
 
@@ -70,5 +72,76 @@ describe("qualityReport", () => {
       expect(m.score).toBeGreaterThanOrEqual(0);
       expect(m.score).toBeLessThanOrEqual(100);
     }
+  });
+});
+
+describe("scoring under a negative-growth benchmark (Recession preset)", () => {
+  const recession = ASSUMPTION_PRESETS.find((p) => p.id === "recession")!.values;
+
+  afterEach(() => setAssumptions(DEFAULT_ASSUMPTIONS));
+
+  it("orders growth scores correctly against a negative index benchmark", () => {
+    setAssumptions(recession); // SPX epsGrowth −10%
+    // Beats the −10% benchmark (−5%) vs misses it (−20%): the better holding
+    // must score higher. The old ratio-based curve inverted this ordering.
+    const better = makePortfolio(
+      [holding({ symbol: "AAA", shares: 10, price: 100 })],
+      0,
+      { AAA: { epsGrowth: -0.05 } }
+    );
+    const worse = makePortfolio(
+      [holding({ symbol: "BBB", shares: 10, price: 100 })],
+      0,
+      { BBB: { epsGrowth: -0.2 } }
+    );
+    const sBetter = qualityReport(better).metrics.find((m) => m.key === "epsGrowth")!;
+    const sWorse = qualityReport(worse).metrics.find((m) => m.key === "epsGrowth")!;
+    expect(sBetter.score).toBeGreaterThan(50);
+    expect(sWorse.score).toBeLessThan(50);
+  });
+
+  it("scores PEG neutral when the growth benchmark makes it meaningless", () => {
+    setAssumptions(recession);
+    const r = qualityReport(portfolio);
+    expect(r.metrics.find((m) => m.key === "peg")!.score).toBe(50);
+  });
+});
+
+describe("leverage metric", () => {
+  it("rewards a light balance sheet and punishes a heavy one", () => {
+    const light = makePortfolio(
+      [holding({ symbol: "LOW", shares: 10, price: 100 })],
+      0,
+      { LOW: { debtToEquity: 0.3 } }
+    );
+    const heavy = makePortfolio(
+      [holding({ symbol: "HIGH", shares: 10, price: 100 })],
+      0,
+      { HIGH: { debtToEquity: 3.5 } }
+    );
+    const sLight = qualityReport(light).metrics.find((m) => m.key === "leverage")!;
+    const sHeavy = qualityReport(heavy).metrics.find((m) => m.key === "leverage")!;
+    expect(sLight.score).toBeGreaterThan(50);
+    expect(sHeavy.score).toBeLessThan(50);
+  });
+
+  it("scores neutral with no reading and excludes financials", () => {
+    const unknown = makePortfolio(
+      [holding({ symbol: "UNK", shares: 10, price: 100 })],
+      0,
+      { UNK: { debtToEquity: null } }
+    );
+    expect(
+      qualityReport(unknown).metrics.find((m) => m.key === "leverage")!.score
+    ).toBe(50);
+    // A bank's structural 9× D/E must not tank the grade — excluded, neutral.
+    const bank = makePortfolio(
+      [holding({ symbol: "BANK", shares: 10, price: 100 })],
+      0,
+      { BANK: { sector: "Financials", debtToEquity: 9 } }
+    );
+    expect(
+      qualityReport(bank).metrics.find((m) => m.key === "leverage")!.score
+    ).toBe(50);
   });
 });

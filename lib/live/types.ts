@@ -33,6 +33,8 @@ export interface FundamentalsPatch {
   grossMargin?: number;
   /** Return on invested capital (derived from Yahoo statements, or Finnhub). */
   roic?: number;
+  /** Total debt / shareholder equity, as a ratio (1.5 = 150%). */
+  debtToEquity?: number;
   dividendYield?: number;
   return12m?: number;
   /** Revenue-by-region mix, normalized to 1. No keyless source — usually empty. */
@@ -62,4 +64,7 @@ export interface QuotesResponse {
 export interface FundamentalsResponse {
   patches: Record<string, FundamentalsPatch>;
   asOf: string;
+  /** Set when the server hit its fetch deadline before covering every symbol —
+   *  the client schedules a follow-up to finish the overlay. */
+  partial?: boolean;
 }

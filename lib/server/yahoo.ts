@@ -62,56 +62,40 @@ export async function fetchQuotes(
   }
   if (missing.length > 0) {
     // Partial-failure safe: a single bad/delisted ticker makes yf.quote reject
-    // for the whole batch. Swallow that here so symbols already served from the
-    // warm cache (in `out`) survive and the unresolved ones degrade individually
-    // to the snapshot, rather than 502-ing live prices for the entire book.
+    // for the whole batch. When that happens, fall back to per-symbol fetches
+    // so one poison pill can't black out live prices for the entire book (the
+    // old behavior on a cold cache), and the bad symbol itself gets negative-
+    // cached so the book heals instead of re-failing every poll.
     let batchOk = false;
     const resolved = new Set<string>();
+    const ingest = (q: unknown): void => {
+      const quote = toLiveQuote(q);
+      if (!quote) return;
+      out[quote.symbol] = quote;
+      quoteCache.set(quote.symbol, { at: now, data: quote });
+      resolved.add(quote.symbol);
+    };
     try {
       const results = await yf.quote(missing);
       batchOk = true;
       const list = Array.isArray(results) ? results : [results];
-      for (const q of list) {
-        if (!q?.symbol || typeof q.regularMarketPrice !== "number") continue;
-
-        // Extended-hours aware: outside the regular session, the latest pre- or
-        // post-market trade is the price. Day change stays anchored to the
-        // prior regular close, so it captures the full move since yesterday.
-        const state = q.marketState ?? "REGULAR";
-        let price = q.regularMarketPrice;
-        let time: Date | undefined = q.regularMarketTime;
-        if (state.startsWith("PRE") && typeof q.preMarketPrice === "number") {
-          price = q.preMarketPrice;
-          time = q.preMarketTime ?? time;
-        } else if (
-          state !== "REGULAR" &&
-          typeof q.postMarketPrice === "number"
-        ) {
-          price = q.postMarketPrice;
-          time = q.postMarketTime ?? time;
-        }
-
-        const quote: LiveQuote = {
-          symbol: q.symbol,
-          price,
-          prevClose:
-            typeof q.regularMarketPreviousClose === "number"
-              ? q.regularMarketPreviousClose
-              : null,
-          asOf:
-            time instanceof Date ? time.toISOString() : new Date().toISOString(),
-        };
-        out[q.symbol] = quote;
-        quoteCache.set(q.symbol, { at: now, data: quote });
-        resolved.add(q.symbol);
-      }
+      for (const q of list) ingest(q);
     } catch {
-      // Provider error for the batch — keep whatever the cache already gave us.
+      // Batch rejected — isolate the poison pill: resolve each symbol on its
+      // own (bounded fan-out; `missing` is already capped by sanitizeSymbols).
+      // Negative-caching below only kicks in when at least one single call got
+      // through, so a full provider outage (every single rejects) stays
+      // uncached and is retried on the next poll instead of blacking out the
+      // book for the negative-cache TTL.
+      const singles = await Promise.allSettled(missing.map((s) => yf.quote(s)));
+      batchOk = singles.some((r) => r.status === "fulfilled");
+      singles.forEach((r) => {
+        if (r.status === "fulfilled") ingest(r.value);
+      });
     }
-    // Only when the batch call itself succeeded: negative-cache the symbols it
-    // returned nothing for, so a delisted/unknown ticker backs off instead of
-    // re-hitting the provider every poll. A thrown batch (transient outage) is
-    // left uncached so a recovered provider is retried immediately.
+    // Negative-cache the symbols the provider conclusively returned nothing
+    // for, so a delisted/unknown ticker backs off instead of re-hitting the
+    // provider every poll.
     if (batchOk) {
       for (const s of missing) {
         if (!resolved.has(s)) quoteCache.set(s, { at: now, data: null });
@@ -119,6 +103,48 @@ export async function fetchQuotes(
     }
   }
   return out;
+}
+
+/**
+ * Map one raw Yahoo quote to a LiveQuote, extended-hours aware: outside the
+ * regular session the latest pre-/post-market trade is the price, while day
+ * change stays anchored to the prior regular close so it captures the full
+ * move since yesterday. Null when the row is unusable.
+ */
+function toLiveQuote(raw: unknown): LiveQuote | null {
+  const q = raw as {
+    symbol?: string;
+    regularMarketPrice?: number;
+    regularMarketPreviousClose?: number;
+    regularMarketTime?: Date;
+    marketState?: string;
+    preMarketPrice?: number;
+    preMarketTime?: Date;
+    postMarketPrice?: number;
+    postMarketTime?: Date;
+  } | null;
+  if (!q?.symbol || typeof q.regularMarketPrice !== "number") return null;
+
+  const state = q.marketState ?? "REGULAR";
+  let price = q.regularMarketPrice;
+  let time: Date | undefined = q.regularMarketTime;
+  if (state.startsWith("PRE") && typeof q.preMarketPrice === "number") {
+    price = q.preMarketPrice;
+    time = q.preMarketTime ?? time;
+  } else if (state !== "REGULAR" && typeof q.postMarketPrice === "number") {
+    price = q.postMarketPrice;
+    time = q.postMarketTime ?? time;
+  }
+
+  return {
+    symbol: q.symbol,
+    price,
+    prevClose:
+      typeof q.regularMarketPreviousClose === "number"
+        ? q.regularMarketPreviousClose
+        : null,
+    asOf: time instanceof Date ? time.toISOString() : new Date().toISOString(),
+  };
 }
 
 const YAHOO_SECTOR: Record<string, Sector> = {
@@ -194,16 +220,22 @@ export function fcfGrowthFromStatements(
   return Number.isFinite(g) ? g : undefined;
 }
 
-/** ROIC = NOPAT / invested capital, from the latest income + balance sheet. */
+/**
+ * ROIC = NOPAT / invested capital, from the latest income + balance sheet.
+ * Invested capital = equity + debt − cash: idle cash isn't capital deployed in
+ * operations, so leaving it in the denominator systematically understates ROIC
+ * for cash-rich balance sheets (the AAPL/GOOG shape).
+ */
 export function roicFrom(p: {
   ebit?: number;
   incomeBeforeTax?: number;
   incomeTaxExpense?: number;
   equity?: number;
   debt?: number;
+  cash?: number;
 }): number | undefined {
   if (p.ebit === undefined || p.equity === undefined) return undefined;
-  const invested = p.equity + (p.debt ?? 0);
+  const invested = p.equity + (p.debt ?? 0) - (p.cash ?? 0);
   if (invested <= 0) return undefined;
   let taxRate = 0.21;
   if (p.incomeBeforeTax && p.incomeBeforeTax > 0 && p.incomeTaxExpense !== undefined)
@@ -246,6 +278,7 @@ async function deriveStatementMetrics(
       incomeTaxExpense: num(inc?.incomeTaxExpense),
       equity: num(bal?.totalStockholderEquity),
       debt: (num(bal?.shortLongTermDebt) ?? 0) + (num(bal?.longTermDebt) ?? 0),
+      cash: (num(bal?.cash) ?? 0) + (num(bal?.shortTermInvestments) ?? 0),
     });
     return { roic, fcfGrowth };
   } catch {
@@ -344,6 +377,11 @@ export async function fetchYahooPatch(
       fcfYield: fcf && marketCap ? fcf / marketCap : undefined,
       operatingMargin: num(fin?.operatingMargins),
       grossMargin: num(fin?.grossMargins),
+      // Yahoo reports D/E as a percentage (150.2 = 1.5×) — normalize to a ratio.
+      debtToEquity: (() => {
+        const de = num(fin?.debtToEquity);
+        return de !== undefined && de >= 0 ? de / 100 : undefined;
+      })(),
       dividendYield: num(detail?.dividendYield) ?? num(detail?.yield),
       return12m: num(stats?.["52WeekChange"]),
       analyst:

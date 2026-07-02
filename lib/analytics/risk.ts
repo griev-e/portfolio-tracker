@@ -1,16 +1,11 @@
 import { getCMA } from "../live/cma";
-import type { Portfolio, Region, Sector } from "../types";
+import type { Portfolio, Sector } from "../types";
 import { covarianceMatrix, coveredPositions } from "./correlation";
 
 export interface SectorExposure {
   sector: Sector;
   weight: number; // of total portfolio (look-through for funds)
   benchmarkWeight: number;
-}
-
-export interface RegionExposure {
-  region: Region;
-  weight: number;
 }
 
 export interface RiskContribution {
@@ -30,7 +25,6 @@ export interface RiskReport {
   hhi: number;
   effectiveN: number;
   sectors: SectorExposure[];
-  regions: RegionExposure[];
   beta: number; // total portfolio incl. cash drag
   volatility: number; // annualized, total portfolio
   /**
@@ -101,21 +95,6 @@ export function riskReport(
       benchmarkWeight: benchmarkSectors[sector] ?? 0,
     }))
     .sort((a, b) => b.weight - a.weight);
-
-  const regionMap = new Map<Region, number>();
-  for (const p of ps) {
-    const regions = p.fundamentals?.regions;
-    if (!regions) continue;
-    for (const [region, w] of Object.entries(regions)) {
-      regionMap.set(
-        region as Region,
-        (regionMap.get(region as Region) ?? 0) + p.equityWeight * (w ?? 0)
-      );
-    }
-  }
-  const regions: RegionExposure[] = (
-    ["US", "Europe", "Asia-Pacific", "Emerging"] as Region[]
-  ).map((region) => ({ region, weight: regionMap.get(region) ?? 0 }));
 
   // Beta & volatility on total weights (cash has β = 0, σ = 0). Covariance is
   // indexed parallel to `covered`, so every weight vector here aligns to it.
@@ -231,7 +210,6 @@ export function riskReport(
     hhi,
     effectiveN: hhi > 0 ? 1 / hhi : 0,
     sectors,
-    regions,
     beta,
     volatility,
     equityBeta,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { aiRequestAllowed } from "@/lib/server/aiEndpoint";
+import { requestAllowed } from "@/lib/server/aiEndpoint";
 import { searchSymbols } from "@/lib/server/yahoo";
 import type { SearchResponse } from "@/lib/research/types";
 
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get("q") ?? "").slice(0, 40);
   // Empty query, or a client exceeding the per-IP budget → empty list (never a
   // 5xx): the autocomplete just shows "no matches" and the provider is spared.
-  if (q.trim().length === 0 || !aiRequestAllowed(req, "search", 40)) {
+  if (q.trim().length === 0 || !requestAllowed(req, "search", 40)) {
     return NextResponse.json<SearchResponse>({ results: [] });
   }
   const results = await searchSymbols(q);
