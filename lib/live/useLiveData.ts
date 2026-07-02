@@ -87,19 +87,30 @@ export function useLiveData(symbols: string[]): LiveData {
     [key]
   );
 
-  const fetchFundamentals = useCallback(async () => {
-    if (!key) return;
-    try {
-      const res = await fetch(`/api/fundamentals?symbols=${key}`);
-      if (!res.ok) throw new Error();
-      const data = (await res.json()) as FundamentalsResponse;
-      if (keyRef.current !== key) return;
-      setPatches(data.patches);
-      setFundamentalsAt(data.asOf);
-    } catch {
-      // snapshot fallback — nothing to do
-    }
-  }, [key]);
+  const fetchFundamentals = useCallback(
+    async (attempt = 0) => {
+      if (!key) return;
+      try {
+        const res = await fetch(`/api/fundamentals?symbols=${key}`);
+        if (!res.ok) throw new Error();
+        const data = (await res.json()) as FundamentalsResponse;
+        if (keyRef.current !== key) return;
+        setPatches(data.patches);
+        setFundamentalsAt(data.asOf);
+        // A cold server can hit its fetch deadline and return a partial
+        // overlay; the fetched symbols are now warm-cached there, so a
+        // follow-up finishes the rest. Bounded so a dead provider can't loop.
+        if (data.partial && attempt < 3) {
+          setTimeout(() => {
+            if (keyRef.current === key) void fetchFundamentals(attempt + 1);
+          }, 8_000);
+        }
+      } catch {
+        // snapshot fallback — nothing to do
+      }
+    },
+    [key]
+  );
 
   useEffect(() => {
     if (!key) {

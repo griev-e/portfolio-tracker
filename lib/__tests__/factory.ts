@@ -66,6 +66,7 @@ export function fundamentals(
     marketCap: 5e10,
     beta: 1.0,
     volatility: 0.28,
+    debtToEquity: 0.8,
     revenueGrowth: 0.07,
     epsGrowth: 0.1,
     fcfGrowth: 0.08,

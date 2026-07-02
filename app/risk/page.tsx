@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { m } from "framer-motion";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Gauge } from "@/components/ui/Gauge";
@@ -15,13 +14,6 @@ import { DEFAULT_BETA, estimatedVolatility } from "@/lib/live/merge";
 import { useAssumptions } from "@/lib/assumptions/store";
 import { fmtNum, fmtPct } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
-
-const REGION_COLORS: Record<string, string> = {
-  US: "#5EEAD4",
-  Europe: "#A78BFA",
-  "Asia-Pacific": "#7DD3FC",
-  Emerging: "#FCD34D",
-};
 
 export default function RiskPage() {
   const { ready, portfolio } = usePortfolio();
@@ -51,9 +43,6 @@ export default function RiskPage() {
   // Holdings with no live fundamentals are excluded from the factor math.
   const noData = portfolio.positions.filter((p) => !p.fundamentals);
 
-  // Revenue-by-region has no keyless source, so it's usually empty. Gauge how
-  // much of the book actually carries region data before drawing the geography.
-  const regionCovered = risk.regions.reduce((s, r) => s + r.weight, 0);
 
   return (
     <div>
@@ -322,124 +311,6 @@ export default function RiskPage() {
           </div>
         </Card>
 
-        {/* Geography */}
-        <Card className="px-6 py-5" i={4}>
-          <CardHeader
-            eyebrow="Geographic exposure"
-            title="Revenue-weighted geography"
-            className="mb-2"
-          />
-          {regionCovered < 0.001 ? (
-            <div className="py-10 text-center">
-              <p className="text-[13px] text-mute">Region data unavailable</p>
-              <p className="mx-auto mt-1.5 max-w-xs text-[12px] leading-relaxed text-faint">
-                No live revenue-by-region source is configured, so geographic
-                exposure can&rsquo;t be estimated. Allocation, concentration and
-                the rest of the risk analytics are unaffected.
-              </p>
-            </div>
-          ) : (
-            <>
-          <p className="mb-5 text-[12px] leading-relaxed text-mute">
-            Estimated from where each company earns revenue — not listing
-            venue. A US-listed mega-cap is rarely a pure-US bet.
-          </p>
-          <div className="mb-6 flex h-10 w-full overflow-hidden rounded-xl">
-            {risk.regions
-              .filter((r) => r.weight > 0.001)
-              .map((r, i) => (
-                <m.div
-                  key={r.region}
-                  className="relative h-full"
-                  style={{ background: `${REGION_COLORS[r.region]}2e` }}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${r.weight * 100}%` }}
-                  transition={{ duration: 0.9, delay: 0.15 + i * 0.08, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  <div
-                    className="absolute inset-y-0 left-0 w-[3px]"
-                    style={{ background: REGION_COLORS[r.region] }}
-                  />
-                </m.div>
-              ))}
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            {risk.regions.map((r) => (
-              <div key={r.region} className="flex items-center gap-3">
-                <span
-                  className="h-2.5 w-2.5 rounded-sm"
-                  style={{ background: REGION_COLORS[r.region] }}
-                />
-                <span className="flex-1 text-[12px] text-mute">{r.region}</span>
-                <span className="font-mono tnum text-[13px] text-ink">
-                  {fmtPct(r.weight, 1)}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Per-holding revenue mix */}
-          <div className="mt-5 border-t border-edge pt-4">
-            <div className="eyebrow mb-3">Revenue mix by holding</div>
-            <div className="space-y-2">
-              {portfolio.positions.map((p, i) => {
-                const regions = p.fundamentals?.regions ?? {};
-                const hasRegion =
-                  Object.values(regions).reduce((s, w) => s + (w ?? 0), 0) > 0.001;
-                const intl = 1 - (regions.US ?? 0);
-                return (
-                  <m.div
-                    key={p.symbol}
-                    initial={{ opacity: 0, x: -6 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 + i * 0.03 }}
-                    className="flex items-center gap-3"
-                  >
-                    <span className="w-12 shrink-0 font-mono text-[11px] text-mute">
-                      {p.symbol}
-                    </span>
-                    <div className="flex h-[8px] flex-1 overflow-hidden rounded-full bg-white/[0.04]">
-                      {(
-                        ["US", "Europe", "Asia-Pacific", "Emerging"] as const
-                      ).map((region) => {
-                        const w = regions[region] ?? 0;
-                        if (w <= 0.001) return null;
-                        return (
-                          <div
-                            key={region}
-                            className="h-full"
-                            style={{
-                              width: `${w * 100}%`,
-                              background: `color-mix(in srgb, ${REGION_COLORS[region]} 60%, transparent)`,
-                            }}
-                            title={`${region} ${fmtPct(w, 0)}`}
-                          />
-                        );
-                      })}
-                    </div>
-                    <span className="w-20 shrink-0 text-right font-mono tnum text-[11px] text-faint">
-                      {hasRegion ? `${fmtPct(intl, 0)} intl` : "—"}
-                    </span>
-                    <span className="w-12 shrink-0 text-right font-mono tnum text-[11px] text-mute">
-                      {fmtPct(p.equityWeight, 1)}
-                    </span>
-                  </m.div>
-                );
-              })}
-            </div>
-            <div className="mt-2 flex justify-end font-mono text-[10px] text-faint">
-              intl revenue share · portfolio weight
-            </div>
-          </div>
-
-          <div className="mt-4 border-t border-edge pt-4 text-[12px] text-mute">
-            {risk.regions[0].weight > 0.85
-              ? "Heavily US-centric. International diversification is mostly cosmetic here."
-              : "Meaningful ex-US revenue exposure — currency and regional cycles will matter."}
-          </div>
-            </>
-          )}
-        </Card>
       </div>
     </div>
   );

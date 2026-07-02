@@ -1,7 +1,8 @@
 import { covarianceMatrix, coveredPositions } from "@/lib/analytics/correlation";
 import { mulberry32 } from "@/lib/analytics/mathUtils";
+import { capWeightsOf, impliedExcessReturns } from "./impliedReturns";
 import { getCMA } from "@/lib/live/cma";
-import type { Fundamentals, Portfolio, Position } from "@/lib/types";
+import type { Fundamentals, Portfolio } from "@/lib/types";
 import type {
   FrontierPoint,
   ObjectiveId,
@@ -18,10 +19,13 @@ import type {
  * for a long-only weight vector w on the equity positions that sums to 1 and
  * respects a per-name cap, then map back to total weights with the existing cash
  * sleeve. Co-movement comes from the same positive-semi-definite factor
- * covariance Σ the Risk and Correlation pages use (`covarianceMatrix`), and
- * expected returns are CAPM (rf + β·ERP) on the shared capital-market
- * assumptions (`CMA`) — so the optimizer never invents a number the rest of the
- * app doesn't already stand behind.
+ * covariance Σ the Risk and Correlation pages use (`covarianceMatrix`).
+ * Expected returns are Black–Litterman *implied* returns (reverse-optimized
+ * from the universe's market-cap weights against that same Σ — see
+ * `impliedReturns.ts`) when every covered name has a market cap, falling back
+ * to CAPM (rf + β·ERP) otherwise — so the optimizer never invents a number the
+ * rest of the app doesn't already stand behind, and μ and Σ agree by
+ * construction instead of "maximize return" degenerating into a beta sort.
  *
  * Solver: projected gradient ascent on the capped simplex with an arc line
  * search, run from several deterministic starts (current mix, equal weight, a
@@ -74,9 +78,28 @@ function projectCappedSimplex(v: number[], cap: number): number[] {
 
 /* ─────────────────────────────── solver core ────────────────────────────── */
 
-interface Ctx {
+/** The slice of a Position the solver's result assembly needs — plain data,
+ *  so the whole input bundle is structured-cloneable into a Web Worker. */
+export interface SolverPosition {
+  symbol: string;
+  name: string;
+  price: number;
+  /** Total-book weight (incl. cash). */
+  weight: number;
+  equity: number;
+  sector: string | null;
+}
+
+/**
+ * Everything the solver needs, fully serializable. Built on the main thread
+ * (where the live CMA / assumptions / return-history singletons are primed —
+ * a worker's module scope has its own, unprimed copies) and shipped to the
+ * worker, which runs only the pure, expensive part.
+ */
+export interface OptimizerInputs {
   n: number;
-  mu: number[]; // CAPM expected return per name
+  mu: number[]; // expected return per name (implied-equilibrium or CAPM)
+  muSource: "implied" | "capm";
   beta: number[]; // market beta per name
   vol: number[]; // standalone annualized volatility
   yld: number[]; // dividend yield
@@ -86,8 +109,11 @@ interface Ctx {
   rf: number;
   erp: number; // equity risk premium
   current: number[]; // current invested weights (sum 1)
-  positions: Position[]; // the covered positions, aligned to every array above
+  positions: SolverPosition[]; // covered positions, aligned to every array above
+  totalValue: number;
 }
+
+type Ctx = OptimizerInputs;
 
 type Objective = (w: number[]) => number;
 type Gradient = (w: number[]) => number[];
@@ -98,15 +124,24 @@ interface Solved {
   converged: boolean;
 }
 
-/** Projected gradient ascent with an arc (projected) line search. */
+/**
+ * Projected gradient ascent with an arc (projected) line search. When `lo` is
+ * present every iterate is projected onto the *floored* capped simplex, so a
+ * hold-floor is a real constraint of the optimization — not a post-hoc
+ * projection of the unconstrained optimum, which lands somewhere feasible but
+ * generally not at the constrained maximum.
+ */
 function ascend(
   start: number[],
   f: Objective,
   grad: Gradient,
   cap: number,
-  iters: number
+  iters: number,
+  lo?: number[]
 ): Solved {
-  let w = projectCappedSimplex(start, cap);
+  const project = (v: number[]) =>
+    lo ? projectBoxedSimplex(v, lo, cap) : projectCappedSimplex(v, cap);
+  let w = project(start);
   let fw = f(w);
   // Converged when we hit a stationary point (tiny gradient) or no line-search
   // step improves the objective; not converged if we exhaust `iters` while still
@@ -123,10 +158,7 @@ function ascend(
     let step = 1 / gmax; // scale the first probe to ~unit move
     let improved = false;
     for (let ls = 0; ls < 40; ls++) {
-      const wn = projectCappedSimplex(
-        w.map((x, i) => x + step * g[i]),
-        cap
-      );
+      const wn = project(w.map((x, i) => x + step * g[i]));
       const fn = f(wn);
       if (fn > fw + 1e-10) {
         w = wn;
@@ -150,7 +182,8 @@ function maximize(
   f: Objective,
   grad: Gradient,
   cap: number,
-  iters = 250
+  iters = 250,
+  lo?: number[]
 ): Solved {
   const { n } = ctx;
   const starts: number[][] = [
@@ -165,7 +198,7 @@ function maximize(
   let bestF = -Infinity;
   let bestConverged = false;
   for (const st of starts) {
-    const { w, converged } = ascend(st, f, grad, cap, iters);
+    const { w, converged } = ascend(st, f, grad, cap, iters, lo);
     const fv = f(w);
     if (fv > bestF) {
       bestF = fv;
@@ -176,10 +209,18 @@ function maximize(
   return { w: best, converged: bestConverged };
 }
 
-/** Risk parity via cyclical coordinate descent → equal risk contributions. */
-function riskParity(cov: number[][], cap: number): Solved {
+/**
+ * Risk parity via cyclical coordinate descent → equal risk contributions.
+ * The cap is enforced *inside* the iteration (projected fixed point), so the
+ * uncapped names re-equalize their risk contributions around a binding cap
+ * instead of the cap being slapped on after convergence and breaking the
+ * equal-RC property the loop just reached.
+ */
+function riskParity(cov: number[][], cap: number, lo?: number[]): Solved {
   const n = cov.length;
-  const w = new Array(n).fill(1 / n);
+  let w: number[] = new Array(n).fill(1 / n);
+  const project = (v: number[]) =>
+    lo ? projectBoxedSimplex(v, lo, cap) : projectCappedSimplex(v, cap);
   let converged = false;
   for (let it = 0; it < 300; it++) {
     const prev = w.slice();
@@ -191,11 +232,9 @@ function riskParity(cov: number[][], cap: number): Solved {
       // wᵢ solves a·wᵢ² + b·wᵢ − 1 = 0 (the equal-RC fixed point, c = 1).
       w[i] = (-b + Math.sqrt(b * b + 4 * a)) / (2 * a);
     }
-    let sum = 0;
-    for (const x of w) sum += x;
-    for (let i = 0; i < n; i++) w[i] /= sum;
-    // Measure settling on the normalized weight vector (the inline per-coordinate
-    // delta plateaus at the normalization floor and never reaches the tolerance).
+    w = project(w);
+    // Measure settling on the projected weight vector (the inline per-coordinate
+    // delta plateaus at the projection and never reaches the tolerance).
     let maxChange = 0;
     for (let i = 0; i < n; i++) maxChange = Math.max(maxChange, Math.abs(w[i] - prev[i]));
     if (maxChange < 1e-9) {
@@ -203,7 +242,7 @@ function riskParity(cov: number[][], cap: number): Solved {
       break;
     }
   }
-  return { w: projectCappedSimplex(w, cap), converged };
+  return { w, converged };
 }
 
 /**
@@ -232,25 +271,24 @@ function projectBoxedSimplex(v: number[], lo: number[], cap: number): number[] {
 }
 
 /**
- * Keep the optimizer from fully exiting names you already hold: enforce a floor
- * of `minHold` on every currently-held position, then re-project so the vector
- * still sums to 1 under the cap. The floor is clamped so the floors can always
- * fit inside a full portfolio.
+ * Per-name lower bounds that keep the optimizer from fully exiting names you
+ * already hold: a floor of `minHold` on every currently-held position, clamped
+ * so the floors can always fit inside a full portfolio. Fed into the solver's
+ * projection (see `ascend`) so the floor is optimized *under*, not projected
+ * onto after the fact. Null when no floor applies.
  */
-function applyHoldFloor(
-  w: number[],
+function holdFloors(
   current: number[],
   minHold: number,
   cap: number
-): number[] {
-  if (minHold <= 0) return w;
+): number[] | null {
+  if (minHold <= 0) return null;
   let heldCount = 0;
   for (const c of current) if (c > 1e-9) heldCount++;
-  if (heldCount === 0) return w;
+  if (heldCount === 0) return null;
   // Floors must leave room to sum to 1 (with a little slack for the others).
-  const effFloor = Math.min(minHold, (0.95 / heldCount), cap);
-  const lo = current.map((c) => (c > 1e-9 ? effFloor : 0));
-  return projectBoxedSimplex(w, lo, cap);
+  const effFloor = Math.min(minHold, 0.95 / heldCount, cap);
+  return current.map((c) => (c > 1e-9 ? effFloor : 0));
 }
 
 /* ───────────────────────────── inputs & metrics ─────────────────────────── */
@@ -264,7 +302,7 @@ function qualityScore(f: Fundamentals | null): number {
   return 0.4 * roic + 0.35 * margin + 0.25 * growth;
 }
 
-function buildCtx(portfolio: Portfolio): Ctx | null {
+export function buildOptimizerInputs(portfolio: Portfolio): OptimizerInputs | null {
   // The optimizer can only price positions with live fundamentals; the
   // covariance is indexed parallel to this covered list (see covarianceMatrix).
   const ps = coveredPositions(portfolio);
@@ -281,7 +319,24 @@ function buildCtx(portfolio: Portfolio): Ctx | null {
   // ps is covered → `p.fundamentals` is non-null; the `?? 1`/`?? 0.2` are only
   // type-totality guards and never execute.
   const beta = ps.map((p) => p.fundamentals?.beta ?? 1);
-  const mu = beta.map((b) => rf + b * CMA.equityRiskPremium);
+  // Black–Litterman implied returns when the whole universe carries market
+  // caps; CAPM otherwise (see impliedReturns.ts for why not a partial mix).
+  const capW = capWeightsOf(ps.map((p) => p.fundamentals?.marketCap));
+  let mu: number[];
+  let muSource: Ctx["muSource"];
+  if (capW) {
+    const pi = impliedExcessReturns(
+      cov,
+      capW,
+      CMA.equityRiskPremium,
+      CMA.marketVolatility ** 2
+    );
+    mu = pi.map((x) => rf + x);
+    muSource = "implied";
+  } else {
+    mu = beta.map((b) => rf + b * CMA.equityRiskPremium);
+    muSource = "capm";
+  }
   const vol = ps.map((p) => p.fundamentals?.volatility ?? 0.2);
   const yld = ps.map((p) => p.fundamentals?.dividendYield ?? 0);
   const qual = ps.map((p) => qualityScore(p.fundamentals));
@@ -291,6 +346,7 @@ function buildCtx(portfolio: Portfolio): Ctx | null {
   return {
     n,
     mu,
+    muSource,
     beta,
     vol,
     yld,
@@ -300,7 +356,15 @@ function buildCtx(portfolio: Portfolio): Ctx | null {
     rf,
     erp: CMA.equityRiskPremium,
     current,
-    positions: ps,
+    positions: ps.map((p) => ({
+      symbol: p.symbol,
+      name: p.name,
+      price: p.price,
+      weight: p.weight,
+      equity: p.equity,
+      sector: p.fundamentals?.sector ?? null,
+    })),
+    totalValue: portfolio.totalValue,
   };
 }
 
@@ -359,7 +423,8 @@ function ps_beta(total: number[], ctx: Ctx): number {
 function solveObjective(
   ctx: Ctx,
   objective: ObjectiveId,
-  cap: number
+  cap: number,
+  lo?: number[]
 ): Solved {
   const { mu, vol, yld, qual, cov } = ctx;
   const Sw = (w: number[]) => matVec(cov, w);
@@ -370,7 +435,9 @@ function solveObjective(
         ctx,
         (w) => -quad(w, cov),
         (w) => Sw(w).map((x) => -2 * x),
-        cap
+        cap,
+        250,
+        lo
       );
 
     case "max-return":
@@ -378,7 +445,9 @@ function solveObjective(
         ctx,
         (w) => dot(w, mu),
         () => mu.slice(),
-        cap
+        cap,
+        250,
+        lo
       );
 
     case "sharpe":
@@ -396,7 +465,9 @@ function solveObjective(
           // ∇ = μ/√v − excess·Σw / v^{3/2}
           return mu.map((m, i) => m / root - (excess * sw[i]) / (v * root));
         },
-        cap
+        cap,
+        250,
+        lo
       );
 
     case "max-div":
@@ -414,7 +485,9 @@ function solveObjective(
           // ∇ = σ/√v − (wᵀσ)·Σw / v^{3/2}
           return vol.map((s, i) => s / root - (wv * sw[i]) / (v * root));
         },
-        cap
+        cap,
+        250,
+        lo
       );
 
     case "income": {
@@ -428,7 +501,9 @@ function solveObjective(
           const sw = Sw(w);
           return yld.map((y, i) => y - lambda * 2 * sw[i]);
         },
-        cap
+        cap,
+        250,
+        lo
       );
     }
 
@@ -441,16 +516,20 @@ function solveObjective(
           const sw = Sw(w);
           return qual.map((q, i) => q - lambda * 2 * sw[i]);
         },
-        cap
+        cap,
+        250,
+        lo
       );
     }
 
     case "risk-parity":
-      return riskParity(cov, cap);
+      return riskParity(cov, cap, lo);
 
     case "equal":
       return {
-        w: projectCappedSimplex(new Array(ctx.n).fill(1 / ctx.n), cap),
+        w: lo
+          ? projectBoxedSimplex(new Array(ctx.n).fill(1 / ctx.n), lo, cap)
+          : projectCappedSimplex(new Array(ctx.n).fill(1 / ctx.n), cap),
         converged: true,
       };
 
@@ -499,28 +578,42 @@ export function optimizePortfolio(
   objective: ObjectiveId,
   constraints: OptimizerConstraints
 ): OptimizerResult | null {
-  const ctx = buildCtx(portfolio);
+  const ctx = buildOptimizerInputs(portfolio);
   if (!ctx) return null;
+  return solveOptimization(ctx, objective, constraints);
+}
 
+/**
+ * The pure, expensive half — multistart solve + efficient frontier over an
+ * already-built input bundle. Runs identically on the main thread or inside
+ * `optimize.worker.ts` (it touches no module singletons, so the worker's
+ * unprimed CMA/assumptions/returns copies are never consulted).
+ */
+export function solveOptimization(
+  ctx: OptimizerInputs,
+  objective: ObjectiveId,
+  constraints: OptimizerConstraints
+): OptimizerResult {
   const cap = Math.min(1, Math.max(constraints.maxWeight, 1 / ctx.n + 1e-9));
   // Trades below this dollar value are reported as `hold` (odd-lot noise);
   // defaults to $1, the previous hard-coded threshold.
   const minTrade = Math.max(1, constraints.minTradeSize ?? 0);
 
-  const solved = solveObjective(ctx, objective, cap);
-  let target = solved.w;
-  // Unless full exits are allowed, keep currently-held names above the floor so
-  // the optimizer trims rather than zeroes them out.
-  if (!constraints.allowExit) {
-    target = applyHoldFloor(target, ctx.current, constraints.minWeight, cap);
-  }
+  // Unless full exits are allowed, currently-held names carry a lower bound —
+  // enforced inside the solver's projection so the result is the optimum *of
+  // the constrained problem*, not a feasible projection of an unconstrained one.
+  const lo = constraints.allowExit
+    ? null
+    : holdFloors(ctx.current, constraints.minWeight, cap);
+  const solved = solveObjective(ctx, objective, cap, lo ?? undefined);
+  const target = solved.w;
 
   const metricsBefore = metricsFor(ctx.current, ctx);
   const metricsAfter = metricsFor(target, ctx);
 
   const invFrac = 1 - ctx.cashWeight;
   const ps = ctx.positions;
-  const totalValue = portfolio.totalValue;
+  const totalValue = ctx.totalValue;
 
   let buys = 0;
   let sells = 0;
@@ -554,7 +647,7 @@ export function optimizePortfolio(
       dollarDelta,
       shares,
       price: p.price,
-      sector: p.fundamentals?.sector ?? null,
+      sector: p.sector,
       action,
     };
   });
@@ -577,5 +670,6 @@ export function optimizePortfolio(
     sells,
     cashWeight: ctx.cashWeight,
     converged: solved.converged,
+    muSource: ctx.muSource,
   };
 }

@@ -8,6 +8,23 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.40",
+    date: "2026-07-02",
+    title: "Full-codebase review: 20 fixes across math, data, sync, and security",
+    changes: [
+      "Live prices can no longer be blacked out by one dead ticker. A delisted symbol used to make the whole quote batch fail — on a cold start that meant no live prices at all, every poll, forever. The fetcher now isolates the bad symbol, prices everything else individually, and backs the dead one off so the book heals.",
+      "Quality grades are now correct under the Recession preset. Scoring was ratio-based, which inverts ordering against a negative benchmark — beating a −10% index EPS-growth assumption scored *worse* than missing it. Scores now use signed distance, PEG goes neutral when the growth benchmark makes it meaningless, and a new Debt/Equity metric grades balance-sheet resilience (financials excluded, unknown scores neutral — never fabricated). Dividend safety also now penalizes heavy leverage, and ROIC correctly excludes idle cash from invested capital.",
+      "The optimizer's expected returns are no longer a beta sort. When every holding has a market cap, returns are Black–Litterman equilibrium returns — reverse-optimized from cap weights against the same covariance the risk pages use — so μ and Σ agree by construction (CAPM fallback otherwise). Hold-floors are now solved *under* as real constraints rather than projected onto afterwards, risk parity respects the position cap inside its iteration, and the whole solve + frontier runs in a Web Worker so constraint sliders stay smooth.",
+      "Monte Carlo now reports tail risk properly: CVaR 95 (the average of the worst 5% of outcomes, not just where they start) and the median / 1-in-10 maximum drawdown a path suffers on the way — the number that tells you what you'd have to sit through.",
+      "Two devices signed into the same account can no longer silently overwrite each other. Saves are revision-checked (compare-and-swap): a save that lost the race is rejected, and a banner explains what happened instead of the console quietly eating it. Failed saves surface in the same banner.",
+      "Security hardening: bank-sync credentials are now encrypted at rest (AES-256-GCM) so a leaked database backup exposes nothing; unknown-username logins burn the same bcrypt time as wrong-password ones (no timing-based user enumeration); and the history / forced-refresh endpoints are rate-limited like search and the AI routes.",
+      "Recurring charges anchored on the 29th–31st no longer drift: advancing a Jan 31 monthly charge now lands Feb 28, not Mar 3.",
+      "The geographic-exposure card is gone. No revenue-by-region source exists without API keys, so it could never render real data — an honest empty state, but dead weight. It can return when a real source does.",
+      "One-way turnover is now the single convention across Rebalance and the Optimizer (they previously disagreed by 2×).",
+      "New end-to-end smoke suite boots the production build and walks every page with a seeded portfolio — with live providers unreachable — so the graceful-degradation promise is now tested, not just intended.",
+    ],
+  },
+  {
     version: "1.39",
     date: "2026-07-02",
     title: "Modeled numbers now show their uncertainty instead of false precision",

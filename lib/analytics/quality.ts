@@ -101,12 +101,22 @@ function gradeFromScore(score: number): Grade {
   return "F";
 }
 
-/** Score vs benchmark: 50 = in line, saturating toward 0/100 at ±2× the scale. */
+/**
+ * Score vs benchmark: 50 = in line, saturating toward 0/100 at ±2× the scale.
+ *
+ * Scored on the signed distance `(value − benchmark) / |benchmark|` rather than
+ * the raw ratio: for a positive benchmark this equals `ratio − 1` (identical to
+ * the previous curve), but it stays correctly ordered when the benchmark is
+ * negative or zero — e.g. under the Recession preset (index EPS growth −10%), a
+ * holding at −5% must score *above* 50 and one at −20% *below*, which a
+ * ratio-based score inverts. The scale floor keeps a near-zero benchmark from
+ * exploding the distance while still letting genuine outperformance register.
+ */
 function relScore(value: number, benchmark: number, lowerIsBetter: boolean): number {
-  if (benchmark === 0) return 50;
-  const ratio = value / benchmark;
-  const x = lowerIsBetter ? 2 - ratio : ratio;
-  return Math.round(100 / (1 + Math.exp(-(x - 1) * 2.6)));
+  const scale = Math.max(Math.abs(benchmark), 0.01);
+  let x = (value - benchmark) / scale;
+  if (lowerIsBetter) x = -x;
+  return Math.round(100 / (1 + Math.exp(-x * 2.6)));
 }
 
 const CATEGORY_LABEL: Record<QualityCategoryId, string> = {
@@ -133,6 +143,12 @@ interface MetricMeta {
   category: QualityCategoryId;
   /** Composite weight — durable quality & growth lead; valuation is a check. */
   weight: number;
+  /**
+   * Score 50 (neutral) when the raw value is missing/non-finite instead of
+   * penalizing as 3× benchmark. Used for leverage, where no provider reading
+   * means "unknown balance sheet", not "terrible balance sheet".
+   */
+  missingNeutral?: boolean;
 }
 
 /**
@@ -141,16 +157,25 @@ interface MetricMeta {
  * from the SPY proxy, its profitability & growth fields from the user's market
  * assumptions (no live index-level source exists; see lib/data/assumptions.ts).
  */
+/**
+ * S&P 500 aggregate debt/equity yardstick (ex-financials). No keyless index
+ * source publishes this; ~1.2× is the long-run non-financial aggregate. Banks
+ * are excluded from the leverage metric entirely — a 10× D/E is their business
+ * model, not distress — so this benchmark never meets a financial's ratio.
+ */
+const SPX_DEBT_TO_EQUITY = 1.2;
+
 function buildMetricMeta(b: BenchmarkProfile): MetricMeta[] {
   return [
-    { key: "revenueGrowth", label: "Revenue Growth", benchmark: b.revenueGrowth, lowerIsBetter: false, format: "pct", description: "Weighted forward revenue growth across holdings", category: "growth", weight: 0.14 },
-    { key: "epsGrowth", label: "EPS Growth", benchmark: b.epsGrowth, lowerIsBetter: false, format: "pct", description: "Weighted forward earnings-per-share growth", category: "growth", weight: 0.14 },
-    { key: "fcfGrowth", label: "FCF Growth", benchmark: b.fcfGrowth, lowerIsBetter: false, format: "pct", description: "Weighted free-cash-flow growth", category: "growth", weight: 0.1 },
+    { key: "revenueGrowth", label: "Revenue Growth", benchmark: b.revenueGrowth, lowerIsBetter: false, format: "pct", description: "Weighted forward revenue growth across holdings", category: "growth", weight: 0.13 },
+    { key: "epsGrowth", label: "EPS Growth", benchmark: b.epsGrowth, lowerIsBetter: false, format: "pct", description: "Weighted forward earnings-per-share growth", category: "growth", weight: 0.13 },
+    { key: "fcfGrowth", label: "FCF Growth", benchmark: b.fcfGrowth, lowerIsBetter: false, format: "pct", description: "Weighted free-cash-flow growth", category: "growth", weight: 0.09 },
     { key: "roic", label: "ROIC", benchmark: b.roic, lowerIsBetter: false, format: "pct", description: "Weighted return on invested capital", category: "profitability", weight: 0.16 },
     { key: "operatingMargin", label: "Operating Margin", benchmark: b.operatingMargin, lowerIsBetter: false, format: "pct", description: "Weighted operating profitability", category: "profitability", weight: 0.12 },
-    { key: "grossMargin", label: "Gross Margin", benchmark: b.grossMargin, lowerIsBetter: false, format: "pct", description: "Weighted gross profitability — pricing power proxy", category: "profitability", weight: 0.08 },
-    { key: "forwardPE", label: "Forward P/E", benchmark: b.forwardPE, lowerIsBetter: true, format: "multiple", description: "Weighted harmonic-mean forward price/earnings", category: "valuation", weight: 0.1 },
-    { key: "peg", label: "PEG Ratio", benchmark: b.forwardPE / (b.epsGrowth * 100), lowerIsBetter: true, format: "ratio", description: "Forward P/E relative to EPS growth — growth-adjusted valuation", category: "valuation", weight: 0.06 },
+    { key: "grossMargin", label: "Gross Margin", benchmark: b.grossMargin, lowerIsBetter: false, format: "pct", description: "Weighted gross profitability — pricing power proxy", category: "profitability", weight: 0.07 },
+    { key: "leverage", label: "Debt / Equity", benchmark: SPX_DEBT_TO_EQUITY, lowerIsBetter: true, format: "ratio", description: "Weighted debt-to-equity vs the non-financial index aggregate — balance-sheet resilience (financials excluded; unknown scores neutral)", category: "profitability", weight: 0.06, missingNeutral: true },
+    { key: "forwardPE", label: "Forward P/E", benchmark: b.forwardPE, lowerIsBetter: true, format: "multiple", description: "Weighted harmonic-mean forward price/earnings", category: "valuation", weight: 0.09 },
+    { key: "peg", label: "PEG Ratio", benchmark: b.forwardPE / (b.epsGrowth * 100), lowerIsBetter: true, format: "ratio", description: "Forward P/E relative to EPS growth — growth-adjusted valuation", category: "valuation", weight: 0.05 },
     { key: "fcfYield", label: "FCF Yield", benchmark: b.fcfYield, lowerIsBetter: false, format: "pct", description: "Weighted free-cash-flow yield", category: "income", weight: 0.07 },
     { key: "dividendYield", label: "Dividend Yield", benchmark: b.dividendYield, lowerIsBetter: false, format: "pct", description: "Weighted dividend yield", category: "income", weight: 0.03 },
   ];
@@ -158,8 +183,17 @@ function buildMetricMeta(b: BenchmarkProfile): MetricMeta[] {
 
 /** Build one scored metric from a raw value (Infinity → scored as 3× benchmark). */
 function scoreOne(meta: MetricMeta, raw: number): QualityMetric {
-  const forScoring = Number.isFinite(raw) ? raw : meta.benchmark * 3;
-  const score = relScore(forScoring, meta.benchmark, meta.lowerIsBetter);
+  // A valuation multiple against a non-positive benchmark (e.g. PEG when the
+  // index EPS-growth assumption is negative) has no meaningful ordering —
+  // score it neutral instead of letting a nonsense yardstick move the grade.
+  // Same for a missing reading on a metric that opted into missingNeutral.
+  const meaningless =
+    (meta.lowerIsBetter && meta.benchmark <= 0) ||
+    (!!meta.missingNeutral && !Number.isFinite(raw));
+  const forScoring = Number.isFinite(raw) ? raw : Math.abs(meta.benchmark) * 3;
+  const score = meaningless
+    ? 50
+    : relScore(forScoring, meta.benchmark, meta.lowerIsBetter);
   return {
     key: meta.key,
     label: meta.label,
@@ -199,11 +233,20 @@ function holdingRaw(f: Fundamentals): Record<string, number> {
     roic: f.roic,
     operatingMargin: f.operatingMargin,
     grossMargin: f.grossMargin,
+    // Leverage: NaN (→ neutral via missingNeutral) for financials, whose D/E
+    // is structural, and for names the provider has no reading on.
+    leverage: leverageOf(f) ?? NaN,
     forwardPE: fpe,
     peg,
     fcfYield: f.fcfYield,
     dividendYield: f.dividendYield,
   };
+}
+
+/** The D/E reading the leverage metric scores, or null when not meaningful. */
+function leverageOf(f: Fundamentals): number | null {
+  if (f.sector === "Financials") return null;
+  return f.debtToEquity;
 }
 
 /**
@@ -231,6 +274,19 @@ export function qualityReport(portfolio: Portfolio): QualityReport {
   const peg =
     epsGrowth > 0 && Number.isFinite(forwardPE) ? forwardPE / (epsGrowth * 100) : Infinity;
 
+  // Leverage aggregates only over names with a meaningful reading (non-null,
+  // non-financial), renormalized to their own weight — NaN when none qualify,
+  // which the metric's missingNeutral maps to a 50.
+  let levW = 0;
+  let levSum = 0;
+  for (const p of ps) {
+    const de = leverageOf(p.fundamentals!);
+    if (de === null) continue;
+    levW += p.equityWeight;
+    levSum += p.equityWeight * de;
+  }
+  const leverage = levW > 0 ? levSum / levW : NaN;
+
   const rawAgg: Record<string, number> = {
     revenueGrowth: wavg((f) => f.revenueGrowth),
     epsGrowth,
@@ -238,6 +294,7 @@ export function qualityReport(portfolio: Portfolio): QualityReport {
     roic: wavg((f) => f.roic),
     operatingMargin: wavg((f) => f.operatingMargin),
     grossMargin: wavg((f) => f.grossMargin),
+    leverage,
     forwardPE,
     peg,
     fcfYield: wavg((f) => f.fcfYield),

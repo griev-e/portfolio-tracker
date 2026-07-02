@@ -35,6 +35,7 @@ const TRACKED: (keyof Fundamentals)[] = [
   "operatingMargin",
   "grossMargin",
   "roic",
+  "debtToEquity",
   "dividendYield",
   "return12m",
   "analyst",
@@ -101,6 +102,7 @@ export function mergeFundamentals(
     operatingMargin: patch.operatingMargin ?? bundled.operatingMargin,
     grossMargin: patch.grossMargin ?? bundled.grossMargin,
     roic: patch.roic ?? bundled.roic,
+    debtToEquity: patch.debtToEquity ?? bundled.debtToEquity,
     dividendYield: patch.dividendYield ?? bundled.dividendYield,
     return12m: patch.return12m ?? bundled.return12m,
     analyst: {
@@ -164,6 +166,9 @@ export function fromPatch(patch: FundamentalsPatch): Fundamentals {
     forwardPE: patch.forwardPE ?? null,
     fcfYield: patch.fcfYield ?? 0.03,
     roic: patch.roic ?? 0.12,
+    // No neutral default for leverage — a fabricated D/E would grade balance
+    // sheets we know nothing about. Null scores neutral downstream.
+    debtToEquity: patch.debtToEquity ?? null,
     operatingMargin: patch.operatingMargin ?? 0.14,
     grossMargin: patch.grossMargin ?? 0.4,
     dividendYield: patch.dividendYield ?? 0,

@@ -163,8 +163,28 @@ export function cloneAssumptions(a: MarketAssumptions): MarketAssumptions {
 
 /** Which preset (if any) a set of assumptions exactly matches; null ⇒ Custom. */
 export function matchPreset(a: MarketAssumptions): PresetId | null {
+  // Field-wise compare — JSON.stringify equality is key-order dependent and
+  // silently reports "Custom" for a semantically identical object.
+  const fundEq = (
+    x: BenchmarkFundamentalAssumptions,
+    y: BenchmarkFundamentalAssumptions
+  ) =>
+    x.revenueGrowth === y.revenueGrowth &&
+    x.epsGrowth === y.epsGrowth &&
+    x.fcfGrowth === y.fcfGrowth &&
+    x.roic === y.roic &&
+    x.operatingMargin === y.operatingMargin &&
+    x.grossMargin === y.grossMargin;
   for (const p of ASSUMPTION_PRESETS) {
-    if (JSON.stringify(p.values) === JSON.stringify(a)) return p.id;
+    const v = p.values;
+    if (
+      v.equityRiskPremium === a.equityRiskPremium &&
+      v.dividendGrowth === a.dividendGrowth &&
+      fundEq(v.spx, a.spx) &&
+      fundEq(v.ndx, a.ndx)
+    ) {
+      return p.id;
+    }
   }
   return null;
 }
@@ -182,8 +202,6 @@ export interface BarSpec {
   /** Suggested reference markers shown as ticks under the bar. */
   ticks: { at: number; label: string }[];
 }
-
-const PCT = (n: number) => Math.round(n * 1000) / 10;
 
 /** Bars for the two top-level scalar assumptions. */
 export const SCALAR_BARS: Record<"equityRiskPremium" | "dividendGrowth", BarSpec> = {
@@ -240,8 +258,6 @@ export function fundamentalTicks(
     return { at: preset.values[index][field], label: labelFor[pid] };
   });
 }
-
-void PCT; // exported helper reserved for the UI readout
 
 // ─────────────────────── Resolving a benchmark profile ───────────────────────
 

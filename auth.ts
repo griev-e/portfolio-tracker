@@ -10,6 +10,10 @@ import {
   recordSuccess,
 } from "@/lib/server/rateLimit";
 
+/** A syntactically valid bcrypt hash of nothing anyone types — used only to
+ *  equalize timing when the username doesn't exist (see authorize below). */
+const DUMMY_HASH = bcrypt.hashSync("timing-equalizer-not-a-real-password", 10);
+
 /**
  * Full NextAuth config (Node runtime only — imports bcrypt + the DB). Never
  * import this from middleware or client code; the edge middleware uses the
@@ -46,6 +50,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await getUserByUsername(username);
         if (!user) {
+          // Burn a bcrypt comparison anyway so "no such user" takes the same
+          // time as "wrong password" — otherwise the response-time gap lets a
+          // caller enumerate valid usernames despite the identical null.
+          await bcrypt.compare(password, DUMMY_HASH);
           recordFailure(key);
           return null;
         }

@@ -120,3 +120,19 @@ describe("recurring helpers", () => {
     expect(advanceRecurring("2026-06-01", "weekly")).toBe("2026-06-08");
   });
 });
+
+describe("advanceRecurring month-end anchoring", () => {
+  it("clamps a month-end anchor instead of rolling into the next month", () => {
+    expect(advanceRecurring("2026-01-31", "monthly")).toBe("2026-02-28");
+    expect(advanceRecurring("2024-01-31", "monthly")).toBe("2024-02-29"); // leap year
+    expect(advanceRecurring("2026-08-31", "monthly")).toBe("2026-09-30");
+  });
+
+  it("clamps a Feb-29 yearly anchor to Feb-28 off-leap", () => {
+    expect(advanceRecurring("2024-02-29", "yearly")).toBe("2025-02-28");
+  });
+
+  it("keeps weekly advances exact", () => {
+    expect(advanceRecurring("2026-06-25", "weekly")).toBe("2026-07-02");
+  });
+});

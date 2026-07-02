@@ -9,7 +9,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { TickerLogo } from "@/components/ui/TickerLogo";
 import { fmtNum, fmtPct, fmtShares, fmtUSD, relativeTime } from "@/lib/format";
-import { optimizePortfolio } from "@/lib/optimizer/optimize";
+import { buildOptimizerInputs } from "@/lib/optimizer/optimize";
+import { useOptimizer } from "@/lib/optimizer/useOptimizer";
 import type {
   Confidence,
   ObjectiveId,
@@ -23,7 +24,6 @@ import type {
 import { useAssumptions } from "@/lib/assumptions/store";
 import { usePortfolio } from "@/lib/store";
 import type { Portfolio } from "@/lib/types";
-import { useAsyncCompute } from "@/lib/useAsyncCompute";
 import { useElementSize } from "@/lib/useElementWidth";
 
 /* ──────────────────────────────── presets ───────────────────────────────── */
@@ -125,11 +125,17 @@ export default function OptimizerPage() {
     [maxWeight, minWeight, allowExit]
   );
 
-  const { value: result, pending } = useAsyncCompute(
-    () => (portfolio ? optimizePortfolio(portfolio, objective, constraints) : null),
-    // version: recompute on assumption edits (ERP feeds CAPM via the singleton).
-    [portfolio, objective, constraints, version]
+  // Inputs (covariance, expected returns) are built here on the main thread —
+  // cheap, and it captures the primed live singletons — while the expensive
+  // multistart solve + frontier runs in a Web Worker so constraint sliders
+  // stay responsive on large books (same pattern as Monte Carlo).
+  const solverInputs = useMemo(
+    () => (portfolio ? buildOptimizerInputs(portfolio) : null),
+    // version: recompute on assumption edits (ERP feeds μ via the singleton).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [portfolio, version]
   );
+  const { result, pending } = useOptimizer(solverInputs, objective, constraints);
 
   if (!ready) return null;
   if (!portfolio) return <EmptyState page="The optimizer" />;

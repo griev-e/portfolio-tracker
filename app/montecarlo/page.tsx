@@ -287,6 +287,24 @@ function ResultsView({
                   toneClass="text-mint"
                 />
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Stat
+                  label="Tail average (CVaR 95)"
+                  value={result.cvar95}
+                  format={fmtUSDCompact}
+                  size="sm"
+                  toneClass="text-neg"
+                  tip="The average ending value across the worst 5% of simulated paths. Where the p5 line says '5% of outcomes end below here', this says how bad those outcomes are on average — the standard expected-shortfall view of tail risk."
+                />
+                <Stat
+                  label="Max drawdown (median)"
+                  value={result.maxDrawdown.median}
+                  format={(v) => `−${fmtPct(v, 0)}`}
+                  size="sm"
+                  toneClass="text-warn"
+                  tip={`The typical worst peak-to-trough fall a path experiences somewhere along the way — the median path drops ${fmtPct(result.maxDrawdown.median, 0)} from a running high at some point, and 1 in 10 paths drops ${fmtPct(result.maxDrawdown.p90, 0)} or more. Reaching the target usually means sitting through a fall like this without selling.`}
+                />
+              </div>
               <Stat
                 label="Total contributed"
                 value={result.totalContributed}

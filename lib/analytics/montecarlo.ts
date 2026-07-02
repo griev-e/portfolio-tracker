@@ -74,6 +74,20 @@ export interface MonteCarloResult {
   median: number;
   p5: number;
   p95: number;
+  /**
+   * Conditional VaR (expected shortfall) at 95%: the *mean* terminal value of
+   * the worst 5% of paths. Where p5 says "5% of outcomes end below here", CVaR
+   * says how bad those outcomes are on average — the standard tail-risk
+   * complement to a bare percentile.
+   */
+  cvar95: number;
+  /**
+   * Per-path maximum peak-to-trough drawdown over the horizon (fractions,
+   * e.g. 0.35 = −35% from a running peak), summarized at the median and p90
+   * of the path distribution. Contributions raise the running value, so this
+   * is the drawdown an account statement would actually show.
+   */
+  maxDrawdown: { median: number; p90: number };
   /** Median money-weighted (IRR) return on the contribution stream, annualized. */
   medianCagr: number;
   /** Terminal value histogram. */
@@ -166,6 +180,7 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
   const terminalCol = cols[colOf[months]];
 
   let everHit = 0;
+  const maxDD = new Float64Array(paths);
   const sampleIdx = new Set<number>();
   const sampleCount = Math.min(28, paths);
   for (let i = 0; i < sampleCount; i++) {
@@ -198,6 +213,9 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
     const sample0 = sampleMap.get(p);
     const sample1 = hasPair ? sampleMap.get(p + 1) : undefined;
 
+    let peak0 = initialValue;
+    let peak1 = initialValue;
+
     // Per-path parameters, drawn once and held across the horizon. The μ shock
     // is antithetic between the pair (mirror signs), the vol regime is shared —
     // both persist so the fan carries drift + tail uncertainty, not just
@@ -214,6 +232,11 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
       const z = normal();
       v0 = v0 * Math.exp(drift0 + diffusionP * z) + monthlyContribution;
       record(p, m, v0, sample0);
+      if (v0 > peak0) peak0 = v0;
+      else {
+        const dd = 1 - v0 / peak0;
+        if (dd > maxDD[p]) maxDD[p] = dd;
+      }
       if (!hit0 && targetValue > 0 && v0 >= targetValue) {
         hit0 = true;
         everHit++;
@@ -221,6 +244,11 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
       if (hasPair) {
         v1 = v1 * Math.exp(drift1 - diffusionP * z) + monthlyContribution;
         record(p + 1, m, v1, sample1);
+        if (v1 > peak1) peak1 = v1;
+        else {
+          const dd = 1 - v1 / peak1;
+          if (dd > maxDD[p + 1]) maxDD[p + 1] = dd;
+        }
         if (!hit1 && targetValue > 0 && v1 >= targetValue) {
           hit1 = true;
           everHit++;
@@ -280,6 +308,17 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
 
   const probAtHorizon = targetValue > 0 ? hitAtHorizon / paths : 0;
 
+  // CVaR₉₅: mean of the worst 5% of terminal values (expected shortfall).
+  const sortedTerminal = Float64Array.from(terminal).sort();
+  const tailN = Math.max(1, Math.floor(paths * 0.05));
+  let tailSum = 0;
+  for (let i = 0; i < tailN; i++) tailSum += sortedTerminal[i];
+  const cvar95 = tailSum / tailN;
+
+  const sortedDD = Float64Array.from(maxDD).sort();
+  const ddAt = (q: number) =>
+    sortedDD[Math.min(paths - 1, Math.max(0, Math.floor(q * (paths - 1))))];
+
   return {
     bands,
     probTargetAtHorizon: probAtHorizon,
@@ -289,6 +328,8 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
     median,
     p5: terminalAt(0.05),
     p95: terminalAt(0.95),
+    cvar95,
+    maxDrawdown: { median: ddAt(0.5), p90: ddAt(0.9) },
     medianCagr,
     histogram,
     totalContributed,

@@ -125,6 +125,12 @@ export interface OptimizerResult {
    * and signals the metrics should be read as approximate — surface it in the UI.
    */
   converged: boolean;
+  /**
+   * Where expected returns came from: "implied" = Black–Litterman equilibrium
+   * (reverse-optimized from the universe's cap weights against Σ); "capm" =
+   * the rf + β·ERP fallback when any covered name lacks a market cap.
+   */
+  muSource: "implied" | "capm";
 }
 
 /* ───────────────────────────── AI reasoning layer ───────────────────────── */

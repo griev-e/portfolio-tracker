@@ -158,12 +158,28 @@ export function deriveTheta(ledger: Ledger, now: Date = new Date()): ThetaView {
   };
 }
 
-/** Next charge date for a recurring item after marking it paid. */
+/**
+ * Next charge date for a recurring item after marking it paid. Month/year
+ * advances clamp to the last day of the target month — a charge anchored on
+ * Jan 31 recurs Feb 28 (not Mar 3, the raw setMonth rollover, which would
+ * permanently drift the anchor forward through the calendar).
+ */
 export function advanceRecurring(nextDate: string, cadence: string): string {
   const d = new Date(`${nextDate}T00:00:00`);
   if (Number.isNaN(d.getTime())) return nextDate;
-  if (cadence === "yearly") d.setFullYear(d.getFullYear() + 1);
-  else if (cadence === "weekly") d.setDate(d.getDate() + 7);
-  else d.setMonth(d.getMonth() + 1);
-  return d.toISOString().slice(0, 10);
+  if (cadence === "weekly") {
+    d.setDate(d.getDate() + 7);
+  } else {
+    const day = d.getDate();
+    const monthsAhead = cadence === "yearly" ? 12 : 1;
+    d.setDate(1);
+    d.setMonth(d.getMonth() + monthsAhead);
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(day, lastDay));
+  }
+  // Format from local parts — toISOString() renders UTC, which shifts a local
+  // midnight to the *previous* calendar day in any UTC+ timezone.
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
 }

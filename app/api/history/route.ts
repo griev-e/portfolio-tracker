@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requestAllowed } from "@/lib/server/aiEndpoint";
 import { fetchHistory, sanitizeSymbols } from "@/lib/server/yahoo";
 import type { HistoryRange } from "@/lib/research/types";
 
@@ -13,6 +14,13 @@ const RANGES: readonly HistoryRange[] = ["1m", "6m", "1y", "5y"];
  * the CDN caches for 10min. 404 when the provider has no series for the symbol.
  */
 export async function GET(req: NextRequest) {
+  // Per-symbol cache misses are attacker-forcible (churn random symbols), and
+  // each miss is a real provider hit — cap per-IP churn like search does. The
+  // legitimate burst (priming ~30 holdings' return history after an import)
+  // stays comfortably under the cap.
+  if (!requestAllowed(req, "history", 60)) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+  }
   const [symbol] = sanitizeSymbols(req.nextUrl.searchParams.get("symbol"), 1);
   if (!symbol) {
     return NextResponse.json({ error: "symbol required" }, { status: 400 });

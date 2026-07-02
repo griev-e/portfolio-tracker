@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { AllocatorPosition, AllocatorRequest } from "@/lib/allocator/types";
-import { aiRequestAllowed } from "@/lib/server/aiEndpoint";
+import { requestAllowed } from "@/lib/server/aiEndpoint";
 import {
   allocatorConfigured,
   allocatorErrorResponse,
@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Per-IP throttle + hourly cost backstop before a fresh generation.
-  if (!aiRequestAllowed(req, "allocate", 8) || allocatorRateLimited()) {
+  if (!requestAllowed(req, "allocate", 8) || allocatorRateLimited()) {
     return NextResponse.json(
       { error: "allocator rate limited" },
       { status: 429, headers: { "Cache-Control": "no-store" } }
